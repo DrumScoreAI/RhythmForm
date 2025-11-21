@@ -1,0 +1,17 @@
+# Core ML/AI dependencies
+torch>=2.0.0
+transformers>=4.30.0
+Pillow>=10.0.0
+
+# Music format handling
+music21>=9.1.0
+lxml>=4.9.0
+
+# PDF and Image handling
+PyPDF2>=3.0.0
+pdf2image>=1.16.0
+
+# CLI and utilities
+click>=8.1.0
+python-dotenv>=1.0.0
+colorama>=0.4.6

@@ -12,6 +12,7 @@ from fractions import Fraction
 TRAINING_DATA_DIR = Path(os.environ.get('SFHOME', Path(__file__).parent.parent)) / 'training_data'
 XML_DIR = TRAINING_DATA_DIR / 'musicxml'
 OUTPUT_IMAGE_DIR = TRAINING_DATA_DIR / 'images'
+PDF_OUTPUT_DIR = TRAINING_DATA_DIR / 'pdfs'
 MANIFEST_FILE = TRAINING_DATA_DIR / 'training_data.csv'
 FINAL_DATASET_FILE = TRAINING_DATA_DIR / 'dataset.json'
 MUSESCORE_PATH = os.environ.get("MUSESCORE_PATH", "mscore3") # Use environment variable or default
@@ -188,11 +189,10 @@ def create_repeat_modified_xml(original_xml_path, repeated_measures):
         if part is None:
             part = root.find('.//part') # Fallback
         if part is None:
-            return original_xml_path # Should not happen
+            print(f"  -> [ERROR] Could not find a <part> element in {original_xml_path.name}")
+            return original_xml_path
 
-        measures = part.findall('measure')
-        
-        # Group consecutive repeated measures
+        # Group consecutive repeated measures to handle start/stop tags correctly
         consecutive_repeats = []
         for m_num in sorted(repeated_measures):
             if not consecutive_repeats or m_num != consecutive_repeats[-1][-1] + 1:
@@ -202,8 +202,7 @@ def create_repeat_modified_xml(original_xml_path, repeated_measures):
 
         for group in consecutive_repeats:
             start_measure_num = group[0]
-            stop_measure_num = group[-1] + 1
-
+            
             # Add 'start' tag to the first measure of the group
             start_measure_element = part.find(f".//measure[@number='{start_measure_num}']")
             if start_measure_element is not None:
@@ -217,8 +216,14 @@ def create_repeat_modified_xml(original_xml_path, repeated_measures):
                 mr.set('type', 'start')
                 mr.text = '1'
 
-            # Add 'stop' tag to the measure *after* the group
+            # The 'stop' tag goes on the measure AFTER the repeat block ends.
+            stop_measure_num = group[-1] + 1
             stop_measure_element = part.find(f".//measure[@number='{stop_measure_num}']")
+
+            # --- THIS IS THE FIX ---
+            # Only add the stop tag if the measure actually exists.
+            # If the repeat goes to the end of the score, this element will be None,
+            # and the stop tag is correctly omitted.
             if stop_measure_element is not None:
                 attributes = stop_measure_element.find('attributes')
                 if attributes is None:
@@ -234,6 +239,8 @@ def create_repeat_modified_xml(original_xml_path, repeated_measures):
         return temp_xml_path
     except Exception as e:
         print(f"  -> XML modification failed for {original_xml_path}: {e}")
+        import traceback
+        traceback.print_exc()
         return original_xml_path
 
 
@@ -303,11 +310,11 @@ def process_file(xml_path):
     except subprocess.CalledProcessError as e:
         print(f"  -> Error during rendering of {xml_to_render.name}:")
         print(e.stderr)
-        return None
     finally:
         # --- 3. Cleanup ---
         if pdf_path.exists():
-            pdf_path.unlink()
+            destination_pdf_path = PDF_OUTPUT_DIR / pdf_path.name
+            pdf_path.rename(destination_pdf_path)
         if temp_xml_path and temp_xml_path.exists():
             temp_xml_path.unlink()
 
@@ -316,10 +323,10 @@ def main():
     """
     Main function to generate the dataset using a manifest file.
     It reads training_data.csv, processes each entry in parallel to generate
-    images and SMT, and creates a final dataset.json manifest.
     """
-    # Ensure output directory exists
+    # Ensure output directories exist
     OUTPUT_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+    PDF_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     if not MANIFEST_FILE.exists():
         print(f"Error: Manifest file not found at {MANIFEST_FILE}")

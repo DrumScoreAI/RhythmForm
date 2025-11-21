@@ -1,10 +1,11 @@
 import os
 from pathlib import Path
 import csv
-import json
 import music21
-from pdf2image import convert_from_path
-from fractions import Fraction
+import subprocess
+import json
+import xml.etree.ElementTree as ET
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 # --- Configuration ---
 TRAINING_DATA_DIR = Path(os.environ.get('SFHOME', Path(__file__).parent.parent)) / 'training_data'
@@ -114,94 +115,216 @@ def convert_note_to_smt(element):
     return None
 
 
-def musicxml_to_smt(xml_path):
-    """
-    Parses a MusicXML file, finds the main drum part by its clef and name, 
-    and returns a list of SMT strings for that part.
-    """
-    try:
-        score = music21.converter.parse(xml_path)
-    except Exception as e:
-        print(f"Could not parse {xml_path}: {e}")
-        return []
+# --- Symbolic Music Text (SMT) Generation ---
 
-    # --- NEW LOGIC: Find the BEST drum part ---
-    percussion_parts = []
-    for part in score.parts:
-        first_clef = part.flatten().getElementsByClass(music21.clef.Clef).first()
-        if isinstance(first_clef, music21.clef.PercussionClef):
-            percussion_parts.append(part)
+def get_instrument_name(unpitched_note):
+    """Maps a music21 Unpitched note object back to our instrument name."""
+    # --- UPDATED LOGIC ---
+    # Use the reverse mapping SMT_TO_DRUM_MIDI to find the MIDI number,
+    # then lookup the original SMT name from DRUM_MIDI_TO_SMT.
+    midi_number = SMT_TO_DRUM_MIDI.get(unpitched_note.name, None)
+    if midi_number is not None:
+        return DRUM_MIDI_TO_SMT.get(midi_number, 'Unknown')
     
-    drum_part = None
-    if not percussion_parts:
-        return [] # No percussion parts found
-    elif len(percussion_parts) == 1:
-        drum_part = percussion_parts[0]
-        print(f"  Found single drum part '{drum_part.partName}' in {xml_path.name}")
-    else:
-        # Multiple percussion parts found, try to find the main "drum set".
-        print(f"  Found multiple percussion parts: {[p.partName for p in percussion_parts]}. Applying heuristic...")
-        keywords = ['drum', 'kit', 'set', 'schlagzeug', 'batería', 'd. kit']
-        for part in percussion_parts:
-            if any(keyword in part.partName.lower() for keyword in keywords):
-                drum_part = part
-                print(f"  Selected '{drum_part.partName}' as the main drum part.")
-                break
-        
+    return 'Unknown'
+
+def measure_to_smt(measure, is_repeated=False):
+    """
+    Converts a single music21 measure to its SMT representation.
+    If is_repeated is True, it returns a special repeat token.
+    """
+    if is_repeated:
+        return "repeat[bar,1]"
+
+    smt_tokens = []
+    # Use .notesAndRests instead of iterating over all elements
+    for element in measure.notesAndRests:
+        if isinstance(element, music21.note.Rest):
+            smt_tokens.append(f"rest[{element.duration.quarterLength}]")
+        elif isinstance(element, music21.note.Note):
+            pitch_name = DRUM_MIDI_TO_SMT.get(element.pitch.midi, 'unknown')
+            smt_tokens.append(f"note[{pitch_name},{element.duration.quarterLength}]")
+        elif isinstance(element, music21.chord.ChordBase):
+            # For chords, we join the SMT names of all constituent notes
+            note_smt_names = [DRUM_MIDI_TO_SMT.get(n.pitch.midi, 'unknown') for n in element.notes]
+            chord_content = "&".join(sorted(set(note_smt_names))) # Unique and sorted
+            smt_tokens.append(f"note[{chord_content},{element.duration.quarterLength}]")
+        # --- NEW: Handle measure repeats ---
+        elif element.tag.endswith('measure-repeat'):
+            if element.get('type') == 'start':
+                smt_tokens.append("repeat[bar,1]")
+            elif element.get('type') == 'stop':
+                smt_tokens.append("repeat[bar,0]")
+
+    return " ".join(smt_tokens)
+
+def musicxml_to_smt(score_path, repeated_measures=None):
+    """
+    Converts a full MusicXML file to a single-line SMT string.
+    Uses the list of repeated_measures to insert the correct token.
+    """
+    if repeated_measures is None:
+        repeated_measures = []
+
+    try:
+        score = music21.converter.parse(score_path)
+        drum_part = score.getElementById('drumset')
         if not drum_part:
-            # Fallback: if no keyword match, just take the first one.
-            drum_part = percussion_parts[0]
-            print(f"  No keyword match. Defaulting to first part: '{drum_part.partName}'.")
-    # --- END NEW LOGIC ---
+            drum_part = score.parts[0]
 
-    # --- DEFINITIVE PAGE ITERATION LOGIC ---
-    page_smts = []
-    current_page_events = []
-    # We must iterate through the entire flattened part to find all elements in order.
-    for element in drum_part.flatten():
-        # A new page is explicitly marked by a PageLayout object.
-        if isinstance(element, music21.layout.PageLayout) and element.isNew:
-            # Finalize the previous page's SMT string.
-            # This correctly handles tacet pages by appending an empty string.
-            page_smts.append(" ".join(current_page_events))
-            # Reset the list for the new page.
-            current_page_events = []
-
-        # Collect notes and rests.
-        elif isinstance(element, (music21.note.GeneralNote, music21.note.Rest)):
-            smt_token = convert_note_to_smt(element)
-            if smt_token:
-                current_page_events.append(smt_token)
-
-    # After the loop, we must always append the content of the very last page.
-    page_smts.append(" ".join(current_page_events))
-
-    # A special case: if a score has no explicit page breaks at all, the loop
-    # will finish and the list will have one giant SMT string. If we know there's
-    # only one page of images, this is correct. But if there are multiple pages
-    # of images, it means the MusicXML is poorly formatted and lacks page break info.
-    # The mismatch check in main() will correctly catch this and skip the file.
-
-    return page_smts
-
-
-def pdf_to_images(pdf_path, output_dir):
-    """Converts a PDF to a series of PNG images."""
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+        full_smt = []
+        for measure in drum_part.getElementsByClass('Measure'):
+            is_repeat = measure.number in repeated_measures
+            smt = measure_to_smt(measure, is_repeated=is_repeat)
+            full_smt.append(smt)
         
-    images = convert_from_path(pdf_path, dpi=300)
-    image_paths = []
-    for i, image in enumerate(images):
-        path = os.path.join(output_dir, f"page_{i}.png")
-        image.save(path, 'PNG')
-        image_paths.append(path)
-    return image_paths
+        return " measure_break ".join(full_smt)
+    except Exception as e:
+        print(f"Error parsing {score_path} with music21: {e}")
+        return None
+
+def create_repeat_modified_xml(original_xml_path, repeated_measures):
+    """
+    Injects <measure-style> tags for repeats into an XML file and returns the path to a temporary file.
+    """
+    if not repeated_measures:
+        return original_xml_path
+
+    try:
+        # Register namespace to avoid ET adding 'ns0:' prefixes
+        ET.register_namespace('', "http://www.musicxml.org/xsd/musicxml.xsd")
+        tree = ET.parse(original_xml_path)
+        root = tree.getroot()
+        
+        part = root.find('.//part[@id="drumset"]')
+        if part is None:
+            part = root.find('.//part') # Fallback
+        if part is None:
+            return original_xml_path # Should not happen
+
+        measures = part.findall('measure')
+        
+        # Group consecutive repeated measures
+        consecutive_repeats = []
+        for m_num in sorted(repeated_measures):
+            if not consecutive_repeats or m_num != consecutive_repeats[-1][-1] + 1:
+                consecutive_repeats.append([m_num])
+            else:
+                consecutive_repeats[-1].append(m_num)
+
+        for group in consecutive_repeats:
+            start_measure_num = group[0]
+            stop_measure_num = group[-1] + 1
+
+            # Add 'start' tag to the first measure of the group
+            start_measure_element = part.find(f".//measure[@number='{start_measure_num}']")
+            if start_measure_element is not None:
+                attributes = start_measure_element.find('attributes')
+                if attributes is None:
+                    attributes = ET.Element('attributes')
+                    start_measure_element.insert(0, attributes)
+                
+                ms = ET.SubElement(attributes, 'measure-style')
+                mr = ET.SubElement(ms, 'measure-repeat')
+                mr.set('type', 'start')
+                mr.text = '1'
+
+            # Add 'stop' tag to the measure *after* the group
+            stop_measure_element = part.find(f".//measure[@number='{stop_measure_num}']")
+            if stop_measure_element is not None:
+                attributes = stop_measure_element.find('attributes')
+                if attributes is None:
+                    attributes = ET.Element('attributes')
+                    stop_measure_element.insert(0, attributes)
+
+                ms = ET.SubElement(attributes, 'measure-style')
+                mr = ET.SubElement(ms, 'measure-repeat')
+                mr.set('type', 'stop')
+
+        temp_xml_path = original_xml_path.with_suffix('.temp.xml')
+        tree.write(temp_xml_path, encoding='UTF-8', xml_declaration=True)
+        return temp_xml_path
+    except Exception as e:
+        print(f"  -> XML modification failed for {original_xml_path}: {e}")
+        return original_xml_path
+
+
+def process_file(xml_path):
+    """
+    Processes a single MusicXML file:
+    1. Checks for a companion .json for repeat info.
+    2. Generates SMT, using 'repeat[bar,1]' token if needed.
+    3. Creates a temporary, modified XML if repeats exist.
+    4. Renders the appropriate XML to PDF and then to PNG.
+    5. Cleans up temporary files.
+    Returns a dictionary for the dataset.json or None on failure.
+    """
+    print(f"Processing: {xml_path.name}")
+    pdf_path = PDF_OUTPUT_DIR / xml_path.with_suffix('.pdf').name
+    png_path = PNG_OUTPUT_DIR / xml_path.with_suffix('.png').name
+
+    # --- 1. Handle repeats and SMT generation ---
+    json_path = xml_path.with_suffix('.json')
+    repeated_measures = []
+    if json_path.exists():
+        try:
+            with open(json_path, 'r') as f:
+                data = json.load(f)
+                repeated_measures = data.get("repeated_measures", [])
+                print(f"  -> Found repeat info: measures {repeated_measures}")
+        except Exception as e:
+            print(f"  -> Warning: Could not read JSON {json_path.name}: {e}")
+
+    smt = musicxml_to_smt(xml_path, repeated_measures)
+    if not smt:
+        return None
+
+    # --- 2. Render Image (with repeats if necessary) ---
+    xml_to_render = xml_path
+    temp_xml_path = None
+    if repeated_measures:
+        temp_xml_path = create_repeat_modified_xml(xml_path, repeated_measures)
+        xml_to_render = temp_xml_path
+
+    try:
+        # Render the (potentially temporary) XML to PDF
+        subprocess.run([
+            'mscore3',
+            '-o', str(pdf_path),
+            str(xml_to_render)
+        ], check=True, capture_output=True, text=True)
+
+        # Convert PDF to PNG
+        subprocess.run([
+            'pdftoppm',
+            '-png',
+            '-singlefile',
+            '-r', '150', # DPI
+            str(pdf_path),
+            str(png_path.with_suffix('')) # pdftoppm adds the suffix
+        ], check=True, capture_output=True, text=True)
+
+        if not png_path.exists():
+             print(f"  -> Error: PNG not created for {xml_path.name}")
+             return None
+
+        print(f"  -> Successfully rendered to {png_path.name}")
+        return {"image_path": str(png_path.relative_to(TRAINING_DATA_DIR)), "smt": smt}
+
+    except subprocess.CalledProcessError as e:
+        print(f"  -> Error during rendering of {xml_to_render.name}:")
+        print(e.stderr)
+        return None
+    finally:
+        # --- 3. Cleanup ---
+        if pdf_path.exists():
+            pdf_path.unlink()
+        if temp_xml_path and temp_xml_path.exists():
+            temp_xml_path.unlink()
+
 
 def main():
-    """
-    Main function to build the dataset.
-    """
+    """Main function to generate the dataset."""
     dataset = []
     with open(MANIFEST_FILE, 'r') as f:
         reader = csv.DictReader(f)

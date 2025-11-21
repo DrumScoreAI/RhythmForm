@@ -1,6 +1,7 @@
 import random
 import music21
 import os
+import json
 from pathlib import Path
 
 # --- Configuration ---
@@ -30,9 +31,10 @@ DURATIONS = [0.25, 0.5, 1.0, 1.5, 2.0] # 16th, 8th, quarter, dotted 8th, half
 # --- Possible part names for stave labels ---
 PART_NAMES = ['Drumset', 'Drum Kit', 'Drums', 'Batterie', 'Schlagzeug']
 
-def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", complexity=0):
+def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", complexity=0, use_repeats=False):
     """
     Generates a pseudo-random drum score and saves it as a MusicXML file.
+    If use_repeats is True, it may mark measures as repeats in a companion JSON file.
     Complexity: 0=simple, 1=medium, 2=complex
     """
     # --- Define complexity levels ---
@@ -40,14 +42,17 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
         active_instruments = {k: v for k, v in DRUM_INSTRUMENTS.items() if 'Hi-Hat' in k or 'Snare' in k or 'Bass Drum' in k}
         active_durations = [0.5, 1.0]
         chord_probability = 0.1
+        repeat_probability = 0.4
     elif complexity == 1: # Medium
         active_instruments = {k: v for k, v in DRUM_INSTRUMENTS.items() if 'Ride' not in k}
         active_durations = [0.25, 0.5, 1.0]
         chord_probability = 0.3
+        repeat_probability = 0.6
     else: # Complex
         active_instruments = DRUM_INSTRUMENTS
         active_durations = DURATIONS
         chord_probability = 0.5
+        repeat_probability = 0.75
 
     # --- 1. Setup Score and Drum Part ---
     score = music21.stream.Score()
@@ -63,56 +68,93 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
     drum_part.insert(0, music21.meter.TimeSignature('4/4'))
 
     # --- 2. Generate Measures ---
+    previous_measure_elements = None
+    repeated_measure_numbers = []
+
     for i in range(num_measures):
         measure = music21.stream.Measure(number=i + 1)
         
-        current_offset = 0.0
-        while current_offset < 4.0:
-            remaining_duration = 4.0 - current_offset
-            possible_durations = [d for d in active_durations if d <= remaining_duration]
-            if not possible_durations:
-                rest = music21.note.Rest(quarterLength=remaining_duration)
-                measure.insert(current_offset, rest)
-                break
-            
-            duration = random.choice(possible_durations)
+        # Decide whether to repeat the previous measure
+        should_repeat = (
+            use_repeats and
+            previous_measure_elements is not None and
+            i > 0 and # Cannot repeat the very first measure
+            random.random() < repeat_probability
+        )
 
-            if random.random() < 0.85:
-                is_chord = random.random() < chord_probability
-                note_event = music21.percussion.PercussionChord() if is_chord else music21.note.Unpitched()
-                num_notes_in_event = 2 if is_chord else 1
+        if should_repeat:
+            # Copy the elements from the previous measure
+            for el in previous_measure_elements:
+                measure.insert(el.offset, el)
+            # Mark this measure number for later modification
+            repeated_measure_numbers.append(i + 1)
+            # The elements themselves are copied, so they can be repeated again
+        else:
+            # Generate a new, unique measure
+            current_offset = 0.0
+            current_measure_elements = []
+            while current_offset < 4.0:
+                remaining_duration = 4.0 - current_offset
+                possible_durations = [d for d in active_durations if d <= remaining_duration]
+                if not possible_durations:
+                    rest = music21.note.Rest(quarterLength=remaining_duration)
+                    measure.insert(current_offset, rest)
+                    current_measure_elements.append(rest)
+                    break
                 
-                for _ in range(num_notes_in_event):
-                    instrument_name = random.choice(list(active_instruments.keys()))
-                    midi_num, staff_pos, notehead_style = active_instruments[instrument_name]
+                duration = random.choice(possible_durations)
+
+                # Generate note or rest
+                if random.random() < 0.85: # 85% chance of a note/chord
+                    is_chord = random.random() < chord_probability
+                    note_event = music21.percussion.PercussionChord() if is_chord else music21.note.Unpitched()
+                    num_notes_in_event = random.randint(2, 3) if is_chord else 1
                     
-                    unpitched_note = music21.note.Unpitched()
-                    p = music21.pitch.Pitch(midi=midi_num)
-                    unpitched_note.displayStep = p.step
-                    unpitched_note.displayOctave = p.octave + 2
-                    
-                    unpitched_note.notehead = notehead_style
-                    
-                    if is_chord:
-                        note_event.add(unpitched_note)
-                    else:
-                        note_event = unpitched_note
+                    # Ensure unique instruments in a chord
+                    instruments_in_chord = random.sample(list(active_instruments.keys()), num_notes_in_event)
+
+                    for instrument_name in instruments_in_chord:
+                        midi_num, staff_pos, notehead_style = active_instruments[instrument_name]
                         
-                note_event.duration.quarterLength = duration
-                measure.insert(current_offset, note_event)
-            else:
-                rest = music21.note.Rest(quarterLength=duration)
-                measure.insert(current_offset, rest)
+                        unpitched_note = music21.note.Unpitched()
+                        p = music21.pitch.Pitch(midi=midi_num)
+                        unpitched_note.displayStep = p.step
+                        unpitched_note.displayOctave = p.octave + 2
+                        unpitched_note.notehead = notehead_style
+                        
+                        if is_chord:
+                            note_event.add(unpitched_note)
+                        else:
+                            note_event = unpitched_note
+                            
+                    note_event.duration.quarterLength = duration
+                    measure.insert(current_offset, note_event)
+                    current_measure_elements.append(note_event)
+                else: # 15% chance of a rest
+                    rest = music21.note.Rest(quarterLength=duration)
+                    measure.insert(current_offset, rest)
+                    current_measure_elements.append(rest)
+                
+                current_offset += duration
             
-            current_offset += duration
-            
+            # Store the elements of this new measure in case the next one is a repeat
+            previous_measure_elements = current_measure_elements
+
         drum_part.append(measure)
 
     score.insert(0, drum_part)
     
-    # --- 3. Save File ---
+    # --- 3. Save Files ---
+    # Save the MusicXML file with all notes explicitly written
     score.write('musicxml', fp=output_path)
     print(f"Successfully generated synthetic score at: {output_path}")
+
+    # Save the companion JSON file with the list of repeated measure numbers
+    if repeated_measure_numbers:
+        json_path = Path(output_path).with_suffix('.json')
+        with open(json_path, 'w') as f:
+            json.dump({"repeated_measures": repeated_measure_numbers}, f)
+        print(f"  -> Found repeats, saved info to: {json_path}")
 
 
 if __name__ == '__main__':
@@ -128,9 +170,13 @@ if __name__ == '__main__':
         else:
             level = 2
 
+        # 50% chance to enable the measure repeat feature for a given score
+        use_repeats_for_this_score = random.random() < 0.5
+
         file_path = XML_OUTPUT_DIR / f"synthetic_score_{i+1}_level_{level}.xml"
         generate_drum_score(
             num_measures=random.randint(12, 24), 
             output_path=file_path,
-            complexity=level
+            complexity=level,
+            use_repeats=use_repeats_for_this_score
         )

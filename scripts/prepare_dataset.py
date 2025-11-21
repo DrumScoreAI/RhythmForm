@@ -14,7 +14,7 @@ XML_DIR = TRAINING_DATA_DIR / 'musicxml'
 OUTPUT_IMAGE_DIR = TRAINING_DATA_DIR / 'images'
 MANIFEST_FILE = TRAINING_DATA_DIR / 'training_data.csv'
 FINAL_DATASET_FILE = TRAINING_DATA_DIR / 'dataset.json'
-MUSESCORE_PATH = os.environ.get("MUSESCORE_PATH", "mscore") # Use environment variable or default
+MUSESCORE_PATH = os.environ.get("MUSESCORE_PATH", "mscore3") # Use environment variable or default
 
 # --- Drum MIDI to SMT Mapping ---
 # This dictionary maps MIDI numbers to the SMT representation.

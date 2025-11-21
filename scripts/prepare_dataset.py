@@ -6,14 +6,15 @@ import subprocess
 import json
 import xml.etree.ElementTree as ET
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from fractions import Fraction
 
 # --- Configuration ---
 TRAINING_DATA_DIR = Path(os.environ.get('SFHOME', Path(__file__).parent.parent)) / 'training_data'
-PDF_DIR = TRAINING_DATA_DIR / 'pdfs'
 XML_DIR = TRAINING_DATA_DIR / 'musicxml'
 OUTPUT_IMAGE_DIR = TRAINING_DATA_DIR / 'images'
 MANIFEST_FILE = TRAINING_DATA_DIR / 'training_data.csv'
 FINAL_DATASET_FILE = TRAINING_DATA_DIR / 'dataset.json'
+MUSESCORE_PATH = os.environ.get("MUSESCORE_PATH", "mscore") # Use environment variable or default
 
 # --- Drum MIDI to SMT Mapping ---
 # This dictionary maps MIDI numbers to the SMT representation.
@@ -137,25 +138,12 @@ def measure_to_smt(measure, is_repeated=False):
         return "repeat[bar,1]"
 
     smt_tokens = []
-    # Use .notesAndRests instead of iterating over all elements
+    # Use .notesAndRests to iterate over all note, chord, and rest objects
     for element in measure.notesAndRests:
-        if isinstance(element, music21.note.Rest):
-            smt_tokens.append(f"rest[{element.duration.quarterLength}]")
-        elif isinstance(element, music21.note.Note):
-            pitch_name = DRUM_MIDI_TO_SMT.get(element.pitch.midi, 'unknown')
-            smt_tokens.append(f"note[{pitch_name},{element.duration.quarterLength}]")
-        elif isinstance(element, music21.chord.ChordBase):
-            # For chords, we join the SMT names of all constituent notes
-            note_smt_names = [DRUM_MIDI_TO_SMT.get(n.pitch.midi, 'unknown') for n in element.notes]
-            chord_content = "&".join(sorted(set(note_smt_names))) # Unique and sorted
-            smt_tokens.append(f"note[{chord_content},{element.duration.quarterLength}]")
-        # --- NEW: Handle measure repeats ---
-        elif element.tag.endswith('measure-repeat'):
-            if element.get('type') == 'start':
-                smt_tokens.append("repeat[bar,1]")
-            elif element.get('type') == 'stop':
-                smt_tokens.append("repeat[bar,0]")
-
+        token = convert_note_to_smt(element)
+        if token:
+            smt_tokens.append(token)
+            
     return " ".join(smt_tokens)
 
 def musicxml_to_smt(score_path, repeated_measures=None):
@@ -260,8 +248,9 @@ def process_file(xml_path):
     Returns a dictionary for the dataset.json or None on failure.
     """
     print(f"Processing: {xml_path.name}")
-    pdf_path = PDF_OUTPUT_DIR / xml_path.with_suffix('.pdf').name
-    png_path = PNG_OUTPUT_DIR / xml_path.with_suffix('.png').name
+    # Note: Temporary PDFs are created during rendering, but the final image is a PNG.
+    pdf_path = OUTPUT_IMAGE_DIR / xml_path.with_suffix('.pdf').name
+    png_path = OUTPUT_IMAGE_DIR / xml_path.with_suffix('.png').name
 
     # --- 1. Handle repeats and SMT generation ---
     json_path = xml_path.with_suffix('.json')
@@ -289,7 +278,7 @@ def process_file(xml_path):
     try:
         # Render the (potentially temporary) XML to PDF
         subprocess.run([
-            'mscore3',
+            MUSESCORE_PATH,
             '-o', str(pdf_path),
             str(xml_to_render)
         ], check=True, capture_output=True, text=True)
@@ -324,42 +313,53 @@ def process_file(xml_path):
 
 
 def main():
-    """Main function to generate the dataset."""
-    dataset = []
+    """
+    Main function to generate the dataset using a manifest file.
+    It reads training_data.csv, processes each entry in parallel to generate
+    images and SMT, and creates a final dataset.json manifest.
+    """
+    # Ensure output directory exists
+    OUTPUT_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+
+    if not MANIFEST_FILE.exists():
+        print(f"Error: Manifest file not found at {MANIFEST_FILE}")
+        return
+
+    # Read the manifest to get the list of files to process
+    xml_paths_to_process = []
     with open(MANIFEST_FILE, 'r') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            if row['do_or_mi'] == 'do':
-                print(f"Processing drum-only file: {row['pdf']}")
-                
-                # --- THIS IS THE FIX ---
-                # Use the pathlib '/' operator to ensure paths are Path objects
-                pdf_path = PDF_DIR / row['pdf']
+            # We are currently only processing "drums-only" files
+            if row.get('do_or_mi') == 'do' and row.get('musicxml'):
                 xml_path = XML_DIR / row['musicxml']
-                
-                # 1. Convert PDF to images
-                pdf_name_base = pdf_path.stem
-                image_output_dir = OUTPUT_IMAGE_DIR / pdf_name_base
-                image_paths = pdf_to_images(pdf_path, image_output_dir)
-                
-                # 2. Convert MusicXML to SMT strings (one per page)
-                smt_strings_by_page = musicxml_to_smt(xml_path)
-                
-                # 3. Align images and SMT strings
-                if len(image_paths) != len(smt_strings_by_page):
-                    print(f"  [WARNING] Mismatch pages: {len(image_paths)} images vs {len(smt_strings_by_page)} SMT pages. Skipping.")
-                    continue
-                    
-                for i, img_path in enumerate(image_paths):
-                    dataset.append({
-                        'image_path': img_path,
-                        'smt_string': smt_strings_by_page[i]
-                    })
+                if xml_path.exists():
+                    xml_paths_to_process.append(xml_path)
+                else:
+                    print(f"  [WARNING] File '{row['musicxml']}' listed in manifest but not found in {XML_DIR}. Skipping.")
+            elif row.get('do_or_mi') == 'do':
+                print(f"  [WARNING] 'musicxml' field missing for drums-only entry in manifest. Skipping.")
+            elif row.get('do_or_mi') == 'mi':
+                print(f"  [INFO] Skipping 'mi' entry. Multi-instrument files are not yet supported.")
 
-    # 4. Save the final dataset manifest
+    print(f"Found {len(xml_paths_to_process)} 'drums-only' files to process from manifest.")
+
+    dataset = []
+    # Use ProcessPoolExecutor for parallel processing
+    with ProcessPoolExecutor() as executor:
+        future_to_xml = {executor.submit(process_file, xml_file): xml_file for xml_file in xml_paths_to_process}
+        for future in as_completed(future_to_xml):
+            result = future.result()
+            if result:
+                dataset.append(result)
+
+    # Sort dataset by image path for consistency
+    dataset.sort(key=lambda x: x['image_path'])
+
+    # Save the final dataset manifest
     with open(FINAL_DATASET_FILE, 'w') as f:
         json.dump(dataset, f, indent=2)
-        
+
     print(f"\nDataset creation complete. {len(dataset)} pairs created.")
     print(f"Manifest saved to {FINAL_DATASET_FILE}")
 

@@ -54,15 +54,20 @@ class SmtTokenizer:
         return len(self.vocab)
 
     def encode(self, smt_string):
-        """
-        Encodes an SMT string into a list of integer IDs, adding SOS and EOS tokens.
-        """
-        tokens = smt_string.split()
-        encoded = [self.token_to_id['<sos>']]
-        for token in tokens:
-            encoded.append(self.token_to_id.get(token, self.token_to_id['<unk>']))
-        encoded.append(self.token_to_id['<eos>'])
-        return encoded
+        """Converts an SMT string to a list of integer IDs."""
+        tokens = smt_string.strip().split(' ')
+        
+        # --- THIS IS THE FIX ---
+        # Ensure that any token not found in the vocabulary is mapped
+        # to the ID of the '<unk>' token.
+        unk_id = self.token_to_id['<unk>']
+        ids = [self.token_to_id.get(token, unk_id) for token in tokens]
+
+        # Add Start Of Sequence and End Of Sequence tokens
+        # We prepend <sos> and append <eos>
+        final_ids = [self.token_to_id['<sos>']] + ids + [self.token_to_id['<eos>']]
+        
+        return final_ids
 
     def decode(self, ids):
         """
@@ -97,7 +102,7 @@ class SmtTokenizer:
 # This block allows you to test the tokenizer by running `python omr_model/tokenizer.py`
 if __name__ == '__main__':
     # Define where to save the tokenizer vocab
-    PROJECT_ROOT = Path(os.environ.get('SFHOME', Path(__file__).parent.parent))
+    PROJECT_ROOT = Path(os.environ.get('RHYTHMFORMHOME', Path(__file__).parent.parent))
     TOKENIZER_SAVE_PATH = PROJECT_ROOT / 'training_data' / 'tokenizer_vocab.json'
 
     # 1. Build vocabulary from scratch

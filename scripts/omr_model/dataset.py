@@ -1,71 +1,67 @@
 import os
 import json
-import torch
-from torch.utils.data import Dataset
-from PIL import Image
-import torchvision.transforms as transforms
 from pathlib import Path
+from PIL import Image
+import torch
+from torch.utils.data import Dataset, DataLoader
 
-# We'll move these to a config.py file later, but for now, it's useful to have them here.
-# Assumes SFHOME is set, otherwise defaults to the current project structure.
-PROJECT_ROOT = Path(os.environ.get('SFHOME', Path(__file__).parent.parent))
+# --- Path Configuration ---
+# Use the RHYTHMFORMHOME env var for the project root, with a fallback.
+# This ensures the path is correct regardless of where the script is run from.
+PROJECT_ROOT = Path(os.environ.get('RHYTHMFORMHOME', Path(__file__).parent.parent.parent))
 DATASET_JSON_PATH = PROJECT_ROOT / 'training_data' / 'dataset.json'
+
 
 class ScoreDataset(Dataset):
     """
-    PyTorch Dataset for loading score images and their SMT string labels.
+    A PyTorch Dataset for loading score images and their corresponding SMT strings.
     """
-    def __init__(self, manifest_path, image_transform=None):
+    def __init__(self, manifest_path=DATASET_JSON_PATH, tokenizer=None, transform=None):
         """
         Args:
             manifest_path (str or Path): Path to the dataset.json manifest file.
-            image_transform (callable, optional): A torchvision transform to be applied on an image.
+            tokenizer (SmtTokenizer, optional): The tokenizer to use for encoding strings.
+            transform (callable, optional): Optional transform to be applied on a sample.
         """
-        self.manifest_path = manifest_path
-        
-        # If no transform is provided, use a default one.
-        if image_transform is None:
-            self.image_transform = transforms.Compose([
-                transforms.Resize((1024, 512)), # Example size, we will configure this
-                transforms.ToTensor(),
-            ])
-        else:
-            self.image_transform = image_transform
+        self.manifest_path = Path(manifest_path)
+        self.root_dir = self.manifest_path.parent
+        self.tokenizer = tokenizer
+        self.transform = transform
+
+        print(f"Loading dataset manifest from: {self.manifest_path}")
+        if not self.manifest_path.exists():
+            raise FileNotFoundError(f"Manifest file not found at {self.manifest_path}")
 
         with open(self.manifest_path, 'r') as f:
-            self.data = json.load(f)
+            self.manifest = json.load(f)
 
     def __len__(self):
-        return len(self.data)
+        return len(self.manifest)
 
     def __getitem__(self, idx):
-        """
-        Returns a dictionary containing the image tensor and the SMT string.
-        """
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        item = self.data[idx]
-        
-        # The paths in dataset.json are relative to the project root.
-        image_path = PROJECT_ROOT / item['image_path']
-        smt_string = item['smt_string']
+        item = self.manifest[idx]
+        smt_string = item['smt']
+        image_path = self.root_dir / item['image_path']
         
         try:
-            image = Image.open(image_path).convert('RGB')
+            image = Image.open(image_path).convert('L') # Convert to grayscale
         except FileNotFoundError:
-            print(f"Error: Image not found at {image_path}")
-            # Return dummy data or raise an error
-            return None, None
+            print(f"Error: Image file not found at {image_path}")
+            raise 
 
-        if self.image_transform:
-            image = self.image_transform(image)
-            
+        # --- THIS IS THE FIX ---
+        # The transform must be applied to the image object itself,
+        # not to the dictionary that contains it.
+        if self.transform:
+            image = self.transform(image)
+
         sample = {'image': image, 'smt_string': smt_string}
 
-        # If the pre-encoded string exists (added by train.py), include it.
-        if 'encoded_smt' in item:
-            sample['encoded_smt'] = item['encoded_smt']
+        if self.tokenizer:
+            sample['encoded_smt'] = self.tokenizer.encode(smt_string)
 
         return sample
 

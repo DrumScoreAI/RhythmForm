@@ -2,6 +2,7 @@ import random
 import music21
 import os
 import json
+import copy
 from pathlib import Path
 
 # --- Configuration ---
@@ -74,21 +75,28 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
     for i in range(num_measures):
         measure = music21.stream.Measure(number=i + 1)
         
-        # Decide whether to repeat the previous measure
         should_repeat = (
             use_repeats and
             previous_measure_elements is not None and
-            i > 0 and # Cannot repeat the very first measure
+            i > 0 and
             random.random() < repeat_probability
         )
 
         if should_repeat:
-            # Copy the elements from the previous measure
-            for el in previous_measure_elements:
-                measure.insert(el.offset, el)
-            # Mark this measure number for later modification
+            # --- THIS IS THE FIX ---
+            # We must create deep copies of the elements from the previous measure.
+            # The correct way to do this for music21 objects is with copy.deepcopy().
+            current_measure_elements = []
+            if previous_measure_elements is not None:
+                for el in previous_measure_elements:
+                    el_copy = copy.deepcopy(el) # Deep copy using the copy module
+                    measure.insert(el.offset, el_copy)
+                    current_measure_elements.append(el_copy)
+            
+            # Mark this measure number for later modification in prepare_dataset.py
             repeated_measure_numbers.append(i + 1)
-            # The elements themselves are copied, so they can be repeated again
+            # The new measure's elements become the basis for the next potential repeat
+            previous_measure_elements = current_measure_elements
         else:
             # Generate a new, unique measure
             current_offset = 0.0

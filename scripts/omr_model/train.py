@@ -1,8 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, random_split, SubsetRandomSampler
+from torchvision import transforms # Import transforms
 from tqdm import tqdm
+import numpy as np
 
 # Import all our custom modules
 from . import config
@@ -41,34 +43,46 @@ def main():
     tokenizer.load(config.TOKENIZER_VOCAB_PATH)
     pad_token_id = tokenizer.token_to_id['<pad>']
     
-    # Load dataset
-    full_dataset = ScoreDataset(manifest_path=config.DATASET_JSON_PATH)
-    
-    # Pre-tokenize all strings in the dataset (more efficient)
-    for i in range(len(full_dataset.data)):
-        smt_string = full_dataset.data[i]['smt_string']
-        full_dataset.data[i]['encoded_smt'] = tokenizer.encode(smt_string)
+    # --- THIS IS THE FIX ---
+    # Define a transform to convert PIL images to PyTorch Tensors.
+    # ToTensor() converts a PIL Image (H x W x C) in the range [0, 255]
+    # to a torch.FloatTensor of shape (C x H x W) in the range [0.0, 1.0].
+    transform = transforms.Compose([
+        transforms.ToTensor()
+    ])
 
-    # Split dataset into training and validation
-    train_size = int(0.85 * len(full_dataset))
-    val_size = len(full_dataset) - train_size
-    train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
+    # Pass the tokenizer and the new transform to the dataset.
+    # The dataset will apply ToTensor() to each image as it's loaded.
+    full_dataset = ScoreDataset(
+        manifest_path=config.DATASET_JSON_PATH,
+        tokenizer=tokenizer,
+        transform=transform
+    )
     
-    print(f"Training set size: {len(train_dataset)}")
-    print(f"Validation set size: {len(val_dataset)}")
+    # --- Data Splitting ---
+    dataset_size = len(full_dataset)
+    indices = list(range(dataset_size))
+    split = int(np.floor(config.VALIDATION_SPLIT * dataset_size))
+    
+    np.random.shuffle(indices)
+    train_indices, val_indices = indices[split:], indices[:split]
 
-    # Create DataLoaders
+    train_sampler = SubsetRandomSampler(train_indices)
+    validation_sampler = SubsetRandomSampler(val_indices)
+
+    # 3. Update the DataLoader to use a lambda function for the collate_fn
     train_loader = DataLoader(
-        train_dataset, 
-        batch_size=config.BATCH_SIZE, 
-        shuffle=True,
-        collate_fn=lambda b: collate_fn(b, pad_token_id),
-        num_workers=4  # Use 4 CPU cores to pre-load data
+        full_dataset,
+        batch_size=config.BATCH_SIZE,
+        sampler=train_sampler,
+        num_workers=config.NUM_WORKERS,
+        collate_fn=lambda b: collate_fn(b, pad_token_id)
     )
     val_loader = DataLoader(
-        val_dataset, 
+        full_dataset,
         batch_size=config.BATCH_SIZE, 
-        shuffle=False,
+        sampler=validation_sampler,
+        num_workers=config.NUM_WORKERS,
         collate_fn=lambda b: collate_fn(b, pad_token_id)
     )
 
@@ -76,19 +90,13 @@ def main():
     model = ImageToSmtModel(
         vocab_size=config.VOCAB_SIZE,
         d_model=config.D_MODEL,
-        nhead=config.NHEAD,
+        nhead=config.N_HEADS,
         num_encoder_layers=config.NUM_ENCODER_LAYERS,
         num_decoder_layers=config.NUM_DECODER_LAYERS,
         dim_feedforward=config.DIM_FEEDFORWARD,
-        dropout=config.DROPOUT,
-        image_height=config.IMG_HEIGHT,
-        image_width=config.IMG_WIDTH,
-        patch_size=config.PATCH_SIZE
+        dropout=config.DROPOUT
     ).to(config.DEVICE)
-    
-    print(f"Model parameters: {sum(p.numel() for p in model.parameters()) / 1e6:.2f}M")
 
-    # Loss function ignores the padding token
     criterion = nn.CrossEntropyLoss(ignore_index=pad_token_id)
     optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
 

@@ -7,7 +7,9 @@ class PositionalEncoding(nn.Module):
     Injects positional information into the input embeddings.
     From the PyTorch tutorial: https://pytorch.org/tutorials/beginner/transformer_tutorial.html
     """
-    def __init__(self, d_model, dropout=0.1, max_len=5000):
+    # --- THIS IS THE FIX ---
+    # Increase the default max_len to a larger value to handle bigger images.
+    def __init__(self, d_model, dropout=0.1, max_len=10000):
         super(PositionalEncoding, self).__init__()
         self.dropout = nn.Dropout(p=dropout)
 
@@ -29,21 +31,24 @@ class ImageToSmtModel(nn.Module):
     """
     def __init__(self, vocab_size, d_model=512, nhead=8, num_encoder_layers=6,
                  num_decoder_layers=6, dim_feedforward=2048, dropout=0.1,
-                 image_height=1024, image_width=512, patch_size=16):
+                 patch_size=16):
         super(ImageToSmtModel, self).__init__()
 
         self.d_model = d_model
         
         # --- Image Encoder Components ---
         self.patch_size = patch_size
-        num_patches = (image_height // patch_size) * (image_width // patch_size)
         
         # Layer to convert image into patches and embed them
-        self.patch_embedding = nn.Conv2d(3, d_model, kernel_size=patch_size, stride=patch_size)
-        self.encoder_pos_encoder = PositionalEncoding(d_model, dropout, max_len=num_patches + 1)
+        self.patch_embedding = nn.Conv2d(1, d_model, kernel_size=patch_size, stride=patch_size)
+        
+        # --- THIS IS THE FIX ---
+        # The PositionalEncoding will now use the new default max_len of 10000.
+        self.encoder_pos_encoder = PositionalEncoding(d_model, dropout)
 
         # --- Text Decoder Components ---
         self.decoder_embedding = nn.Embedding(vocab_size, d_model)
+        # The decoder also needs a large max_len for long sequences.
         self.decoder_pos_encoder = PositionalEncoding(d_model, dropout)
 
         # --- Transformer ---
@@ -119,8 +124,6 @@ class ImageToSmtModel(nn.Module):
 # This block allows you to test the model by running `python -m omr_model.model`
 if __name__ == '__main__':
     # --- Configuration (we'll move this to config.py later) ---
-    IMG_HEIGHT = 1024
-    IMG_WIDTH = 512
     PATCH_SIZE = 32
     VOCAB_SIZE = 150 # Example vocab size
     D_MODEL = 256
@@ -137,8 +140,6 @@ if __name__ == '__main__':
         num_encoder_layers=NUM_ENCODER_LAYERS,
         num_decoder_layers=NUM_DECODER_LAYERS,
         dim_feedforward=DIM_FEEDFORWARD,
-        image_height=IMG_HEIGHT,
-        image_width=IMG_WIDTH,
         patch_size=PATCH_SIZE
     )
     
@@ -147,7 +148,10 @@ if __name__ == '__main__':
     # --- Create Dummy Data ---
     batch_size = 4
     seq_length = 50
-    dummy_image = torch.randn(batch_size, 3, IMG_HEIGHT, IMG_WIDTH)
+    # Use different dummy dimensions to test flexibility
+    IMG_HEIGHT = 512 
+    IMG_WIDTH = 256
+    dummy_image = torch.randn(batch_size, 1, IMG_HEIGHT, IMG_WIDTH)
     dummy_target = torch.randint(0, VOCAB_SIZE, (batch_size, seq_length))
     
     print(f"\n--- Testing forward pass ---")

@@ -15,7 +15,7 @@ OUTPUT_IMAGE_DIR = TRAINING_DATA_DIR / 'images'
 PDF_OUTPUT_DIR = TRAINING_DATA_DIR / 'pdfs'
 MANIFEST_FILE = TRAINING_DATA_DIR / 'training_data.csv'
 FINAL_DATASET_FILE = TRAINING_DATA_DIR / 'dataset.json'
-MUSESCORE_PATH = os.environ.get("MUSESCORE_PATH", "mscore3") # Use environment variable or default
+MUSESCORE_PATH = os.environ.get("MUSESCORE_PATH", "mscore4portable") # Use environment variable or default
 
 # --- Drum MIDI to SMT Mapping ---
 # This dictionary maps MIDI numbers to the SMT representation.
@@ -167,7 +167,12 @@ def musicxml_to_smt(score_path, repeated_measures=None):
             smt = measure_to_smt(measure, is_repeated=is_repeat)
             full_smt.append(smt)
         
-        return " measure_break ".join(full_smt)
+        # --- THIS IS THE FIX ---
+        # Strip leading/trailing whitespace and handle multiple spaces
+        # to create a clean, canonical SMT string.
+        final_smt = " measure_break ".join(full_smt)
+        return " ".join(final_smt.strip().split())
+
     except Exception as e:
         print(f"Error parsing {score_path} with music21: {e}")
         return None
@@ -210,6 +215,10 @@ def create_repeat_modified_xml(original_xml_path, repeated_measures):
                 if attributes is None:
                     attributes = ET.Element('attributes')
                     start_measure_element.insert(0, attributes)
+                    # --- THIS IS THE FIX ---
+                    # Add a newline and indentation in the 'tail' of the new attributes tag.
+                    # This separates </attributes> from the following <note> tag.
+                    attributes.tail = "\n        "
                 
                 ms = ET.SubElement(attributes, 'measure-style')
                 mr = ET.SubElement(ms, 'measure-repeat')
@@ -220,23 +229,25 @@ def create_repeat_modified_xml(original_xml_path, repeated_measures):
             stop_measure_num = group[-1] + 1
             stop_measure_element = part.find(f".//measure[@number='{stop_measure_num}']")
 
-            # --- THIS IS THE FIX ---
             # Only add the stop tag if the measure actually exists.
-            # If the repeat goes to the end of the score, this element will be None,
-            # and the stop tag is correctly omitted.
             if stop_measure_element is not None:
                 attributes = stop_measure_element.find('attributes')
                 if attributes is None:
                     attributes = ET.Element('attributes')
                     stop_measure_element.insert(0, attributes)
+                    # --- THIS IS THE FIX (applied here as well) ---
+                    attributes.tail = "\n        "
 
                 ms = ET.SubElement(attributes, 'measure-style')
                 mr = ET.SubElement(ms, 'measure-repeat')
                 mr.set('type', 'stop')
 
-        temp_xml_path = original_xml_path.with_suffix('.temp.xml')
+        # Save to a persistent debug file
+        temp_xml_path = original_xml_path.with_name(original_xml_path.stem + '_altered.xml')
         tree.write(temp_xml_path, encoding='UTF-8', xml_declaration=True)
+        print(f"  -> Saved altered XML for debugging: {temp_xml_path.name}")
         return temp_xml_path
+
     except Exception as e:
         print(f"  -> XML modification failed for {original_xml_path}: {e}")
         import traceback
@@ -277,10 +288,10 @@ def process_file(xml_path):
 
     # --- 2. Render Image (with repeats if necessary) ---
     xml_to_render = xml_path
-    temp_xml_path = None
+    altered_xml_path = None
     if repeated_measures:
-        temp_xml_path = create_repeat_modified_xml(xml_path, repeated_measures)
-        xml_to_render = temp_xml_path
+        altered_xml_path = create_repeat_modified_xml(xml_path, repeated_measures)
+        xml_to_render = altered_xml_path
 
     try:
         # Render the (potentially temporary) XML to PDF
@@ -310,13 +321,13 @@ def process_file(xml_path):
     except subprocess.CalledProcessError as e:
         print(f"  -> Error during rendering of {xml_to_render.name}:")
         print(e.stderr)
+        return None
     finally:
         # --- 3. Cleanup ---
+        # --- CHANGE: Keep the altered XML for debugging, only delete the temp PDF ---
         if pdf_path.exists():
-            destination_pdf_path = PDF_OUTPUT_DIR / pdf_path.name
-            pdf_path.rename(destination_pdf_path)
-        if temp_xml_path and temp_xml_path.exists():
-            temp_xml_path.unlink()
+            pdf_path.unlink()
+        # The altered_xml_path is intentionally NOT deleted.
 
 
 def main():

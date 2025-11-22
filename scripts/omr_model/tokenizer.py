@@ -26,25 +26,26 @@ class SmtTokenizer:
     def build_vocab(self, dataset):
         """
         Builds the vocabulary from a ScoreDataset object.
-        
-        Args:
-            dataset (ScoreDataset): The dataset containing the smt_strings.
         """
         # Start with special tokens
         self.token_to_id = self.special_tokens.copy()
-        self.vocab = list(self.special_tokens.keys())
         
         # Count all tokens in the dataset
         token_counts = Counter()
         for sample in dataset:
-            tokens = sample['smt_string'].split()
+            tokens = sample['smt_string'].strip().split(' ')
             token_counts.update(tokens)
             
-        # Add tokens to the vocabulary, sorted by frequency for good measure
+        # --- THIS IS THE FIX (Part 1) ---
+        # Build the vocabulary list first, ensuring special tokens are at the start.
+        self.vocab = list(self.special_tokens.keys())
+        # Add new tokens found in the dataset
         for token, _ in token_counts.most_common():
-            if token not in self.token_to_id:
+            if token not in self.vocab:
                 self.vocab.append(token)
-                self.token_to_id[token] = len(self.vocab) - 1
+        
+        # Now, create the token-to-ID mapping from the final, ordered vocab list.
+        self.token_to_id = {token: i for i, token in enumerate(self.vocab)}
         
         # Create the reverse mapping
         self.id_to_token = {idx: token for token, idx in self.token_to_id.items()}
@@ -84,17 +85,23 @@ class SmtTokenizer:
         return " ".join(tokens)
 
     def save(self, filepath):
-        """Saves the tokenizer's vocabulary to a JSON file."""
+        """Saves the tokenizer's ordered vocabulary list to a JSON file."""
+        # --- THIS IS THE FIX (Part 2) ---
+        # Save the ordered vocabulary list, not the dictionary.
+        # This is the single source of truth for vocab size and token order.
         with open(filepath, 'w') as f:
-            json.dump({'token_to_id': self.token_to_id}, f, indent=2)
+            json.dump(self.vocab, f, indent=2)
         print(f"Tokenizer vocabulary saved to {filepath}")
 
     def load(self, filepath):
         """Loads the tokenizer's vocabulary from a JSON file."""
+        # --- THIS IS THE FIX (Part 3) ---
+        # Load the ordered vocabulary list.
         with open(filepath, 'r') as f:
-            data = json.load(f)
-        self.token_to_id = data['token_to_id']
-        self.vocab = list(self.token_to_id.keys())
+            self.vocab = json.load(f)
+        
+        # Rebuild the mappings from the loaded vocabulary list.
+        self.token_to_id = {token: i for i, token in enumerate(self.vocab)}
         self.id_to_token = {idx: token for token, idx in self.token_to_id.items()}
         print(f"Tokenizer vocabulary loaded from {filepath}")
 

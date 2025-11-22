@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from collections import Counter
 
-# Import the dataset class we just created
+# Import the dataset class
 from .dataset import ScoreDataset, DATASET_JSON_PATH
 
 class SmtTokenizer:
@@ -11,24 +11,21 @@ class SmtTokenizer:
     A tokenizer for converting SMT strings to and from sequences of integer IDs.
     """
     def __init__(self):
+        # --- THIS IS THE FIX (Part 1) ---
+        # Define the special tokens that the model requires.
+        # The order here is important.
+        self.special_tokens = ['<pad>', '<sos>', '<eos>', '<unk>']
+        self.vocab = []
         self.token_to_id = {}
         self.id_to_token = {}
-        self.vocab = []
-        
-        # Define special tokens
-        self.special_tokens = {
-            '<pad>': 0,  # Padding token
-            '<sos>': 1,  # Start of sequence
-            '<eos>': 2,  # End of sequence
-            '<unk>': 3,  # Unknown token
-        }
 
     def build_vocab(self, dataset):
         """
         Builds the vocabulary from a ScoreDataset object.
         """
-        # Start with special tokens
-        self.token_to_id = self.special_tokens.copy()
+        # --- THIS IS THE FIX (Part 2) ---
+        # Start the vocabulary with the essential special tokens.
+        self.vocab = self.special_tokens[:]
         
         # Count all tokens in the dataset
         token_counts = Counter()
@@ -36,10 +33,7 @@ class SmtTokenizer:
             tokens = sample['smt_string'].strip().split(' ')
             token_counts.update(tokens)
             
-        # --- THIS IS THE FIX (Part 1) ---
-        # Build the vocabulary list first, ensuring special tokens are at the start.
-        self.vocab = list(self.special_tokens.keys())
-        # Add new tokens found in the dataset
+        # Add new tokens found in the dataset, ordered by frequency
         for token, _ in token_counts.most_common():
             if token not in self.vocab:
                 self.vocab.append(token)

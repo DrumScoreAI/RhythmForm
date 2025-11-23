@@ -7,9 +7,15 @@ import json
 import xml.etree.ElementTree as ET
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from fractions import Fraction
+from tqdm import tqdm
 
 # --- Configuration ---
-TRAINING_DATA_DIR = Path(os.environ.get('SFHOME', Path(__file__).parent.parent)) / 'training_data'
+# --- THIS IS THE FIX (Part 1) ---
+# Add a configuration for image resolution (DPI). 150 is a good starting point
+# for lower resolution, compared to a typical default of 300.
+IMAGE_DPI = 100
+PROJECT_ROOT = Path(os.environ.get('RHYTHMFORMHOME', Path(__file__).parent.parent.parent))
+TRAINING_DATA_DIR = PROJECT_ROOT / 'training_data'
 XML_DIR = TRAINING_DATA_DIR / 'musicxml'
 OUTPUT_IMAGE_DIR = TRAINING_DATA_DIR / 'images'
 PDF_OUTPUT_DIR = TRAINING_DATA_DIR / 'pdfs'
@@ -306,7 +312,7 @@ def process_file(xml_path):
             'pdftoppm',
             '-png',
             '-singlefile',
-            '-r', '150', # DPI
+            '-r', str(IMAGE_DPI), # DPI
             str(pdf_path),
             str(png_path.with_suffix('')) # pdftoppm adds the suffix
         ], check=True, capture_output=True, text=True)

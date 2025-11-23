@@ -14,10 +14,15 @@ CHECKPOINT_DIR = PROJECT_ROOT / 'checkpoints'
 
 # --- Training Configuration ---
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 4 # Adjust based on your GPU memory
+BATCH_SIZE = 1 # Adjust based on your GPU memory ( use 1 if running a CPU-based test )
 NUM_EPOCHS = 50
 LEARNING_RATE = 1e-4
 VALIDATION_SPLIT = 0.1
+
+# --- THIS IS THE FIX ---
+# On WSL, multiprocessing for the DataLoader can cause memory issues and crash the system.
+# Setting NUM_WORKERS to 0 disables multiprocessing and makes the training stable,
+# though it may be slightly slower.
 NUM_WORKERS = cpu_count() // 2
 
 # --- Model Hyperparameters ---

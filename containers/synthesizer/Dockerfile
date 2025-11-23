@@ -8,7 +8,6 @@ WORKDIR /app
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 
-# --- THIS IS THE FIX (Part 1) ---
 # Install system dependencies, including wget to download MuseScore and fuse which is required by AppImages.
 RUN apt-get update && apt-get install -y \
     python3.10 \
@@ -20,7 +19,6 @@ RUN apt-get update && apt-get install -y \
     sudo \
     && rm -rf /var/lib/apt/lists/*
 
-# --- THIS IS THE FIX (Part 2) ---
 # Download and make the MuseScore 4 AppImage executable.
 # Using an ARG allows you to easily update the version later.
 ARG MUSESCORE_VERSION=4.6.3
@@ -45,7 +43,7 @@ USER appuser
 # Set environment variables for RHYTHMFORM
 ENV RHYTHMFORMHOME=/app
 ENV PYTHONPATH=/app:$PYTHONPATH
-# --- THIS IS THE FIX (Part 3) ---
+
 # Point MUSESCORE_PATH to the downloaded AppImage
 ENV MUSESCORE_PATH=/app/musescore.AppImage
 
@@ -53,7 +51,7 @@ WORKDIR /app/scripts
 
 # Add a healthcheck to monitor the training process
 HEALTHCHECK --interval=60s --timeout=30s --start-period=5m \
-  CMD pgrep -f "python3 -m omr_model.train" || exit 1
+  CMD pgrep -f "scripts/synthesizer.sh" || exit 1
 
 # Specify the command to run on container startup.
-CMD ["python3", "-m", "omr_model.train"]
+ENTRYPOINT ["scripts/synthesizer.sh"]

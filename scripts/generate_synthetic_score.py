@@ -3,6 +3,7 @@ import music21
 import os
 import json
 import copy
+import argparse
 from pathlib import Path
 
 # --- Configuration ---
@@ -167,7 +168,19 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
 
 if __name__ == '__main__':
     XML_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    num_scores_to_generate = 30
+
+    # --- Parse Command Line Arguments ---
+    parser = argparse.ArgumentParser(description="Generate synthetic drum scores.")
+    parser.add_argument(
+        "num_scores", 
+        type=int, 
+        nargs='?', 
+        default=30, 
+        help="Number of scores to generate (default: 30)"
+    )
+    args = parser.parse_args()
+    
+    num_scores_to_generate = args.num_scores
     print(f"Generating {num_scores_to_generate} scores into {XML_OUTPUT_DIR}")
     
     for i in range(num_scores_to_generate):

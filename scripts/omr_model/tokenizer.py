@@ -6,7 +6,7 @@ from collections import Counter
 # Import the dataset class
 from .dataset import ScoreDataset, DATASET_JSON_PATH
 
-class SmtTokenizer:
+class StTokenizer:
     """
     A tokenizer for converting ST strings to and from sequences of integer IDs.
     """
@@ -109,7 +109,7 @@ if __name__ == '__main__':
     # 1. Build vocabulary from scratch
     print("--- Building tokenizer from dataset ---")
     score_dataset = ScoreDataset(manifest_path=DATASET_JSON_PATH)
-    tokenizer = SmtTokenizer()
+    tokenizer = StTokenizer()
     tokenizer.build_vocab(score_dataset)
     
     print(f"Vocabulary size: {tokenizer.vocab_size}")
@@ -136,7 +136,7 @@ if __name__ == '__main__':
 
     # 4. Load the tokenizer and verify it works
     print("\n--- Loading tokenizer ---")
-    new_tokenizer = SmtTokenizer()
+    new_tokenizer = StTokenizer()
     new_tokenizer.load(TOKENIZER_SAVE_PATH)
     print(f"Loaded vocabulary size: {new_tokenizer.vocab_size}")
     assert tokenizer.vocab_size == new_tokenizer.vocab_size

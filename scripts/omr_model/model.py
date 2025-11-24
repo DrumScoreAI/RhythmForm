@@ -25,14 +25,14 @@ class PositionalEncoding(nn.Module):
         x = x + self.pe[:x.size(0), :]
         return self.dropout(x)
 
-class ImageToSmtModel(nn.Module):
+class ImageToStModel(nn.Module):
     """
     An Image-to-Text Transformer model for OMR.
     """
     def __init__(self, vocab_size, d_model=512, nhead=8, num_encoder_layers=6,
                  num_decoder_layers=6, dim_feedforward=2048, dropout=0.1,
                  patch_size=16):
-        super(ImageToSmtModel, self).__init__()
+        super(ImageToStModel, self).__init__()
 
         self.d_model = d_model
         
@@ -133,7 +133,7 @@ if __name__ == '__main__':
     DIM_FEEDFORWARD = 1024
     
     # --- Create Model ---
-    model = ImageToSmtModel(
+    model = ImageToStModel(
         vocab_size=VOCAB_SIZE,
         d_model=D_MODEL,
         nhead=NHEAD,

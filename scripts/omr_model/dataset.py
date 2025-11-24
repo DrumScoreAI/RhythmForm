@@ -20,7 +20,7 @@ class ScoreDataset(Dataset):
         """
         Args:
             manifest_path (str or Path): Path to the dataset.json manifest file.
-            tokenizer (SmtTokenizer, optional): The tokenizer to use for encoding strings.
+            tokenizer (StTokenizer, optional): The tokenizer to use for encoding strings.
             transform (callable, optional): Optional transform to be applied on a sample.
         """
         self.manifest_path = Path(manifest_path)

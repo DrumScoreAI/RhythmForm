@@ -4,8 +4,8 @@ import argparse
 
 from . import config
 from .dataset import ScoreDataset
-from .tokenizer import SmtTokenizer
-from .model import ImageToSmtModel
+from .tokenizer import StTokenizer
+from .model import ImageToStModel
 
 def beam_search_predict(model, image_tensor, tokenizer, beam_width=5, max_len=200):
     """
@@ -81,8 +81,8 @@ def beam_search_predict(model, image_tensor, tokenizer, beam_width=5, max_len=20
             
     # The best sequence is the one with the highest log probability
     best_seq = beams[0][1]
-    predicted_smt = tokenizer.decode(best_seq)
-    return predicted_smt
+    predicted_st = tokenizer.decode(best_seq)
+    return predicted_st
 
 
 def main():
@@ -94,15 +94,15 @@ def main():
 
     # --- 1. Setup ---
     print(f"Using device: {config.DEVICE}")
-    tokenizer = SmtTokenizer()
+    tokenizer = StTokenizer()
     tokenizer.load(config.TOKENIZER_VOCAB_PATH)
     full_dataset = ScoreDataset(manifest_path=config.DATASET_JSON_PATH)
     
     # --- 2. Load Model ---
-    model = ImageToSmtModel(
+    model = ImageToStModel(
         vocab_size=config.VOCAB_SIZE,
         d_model=config.D_MODEL,
-        nhead=config.NHEAD,
+        nhead=config.N_HEADS,
         num_encoder_layers=config.NUM_ENCODER_LAYERS,
         num_decoder_layers=config.NUM_DECODER_LAYERS,
         dim_feedforward=config.DIM_FEEDFORWARD,
@@ -119,16 +119,16 @@ def main():
     # --- 3. Predict ---
     sample = full_dataset[args.sample_idx]
     image_tensor = sample['image']
-    ground_truth_smt = sample['smt_string']
+    ground_truth_st = sample['st_string']
     
     print(f"\n--- Generating Prediction (Beam Width: {args.beam_width}) ---")
-    predicted_smt = beam_search_predict(model, image_tensor, tokenizer, beam_width=args.beam_width)
+    predicted_st = beam_search_predict(model, image_tensor, tokenizer, beam_width=args.beam_width)
     
     print("\n--- Ground Truth SMT ---")
-    print(ground_truth_smt)
+    print(ground_truth_st)
     
     print("\n--- Predicted SMT ---")
-    print(predicted_smt)
+    print(predicted_st)
 
 
 if __name__ == '__main__':

@@ -10,8 +10,8 @@ import argparse
 # Import all our custom modules
 from . import config
 from .dataset import ScoreDataset
-from .tokenizer import SmtTokenizer
-from .model import ImageToSmtModel
+from .tokenizer import StTokenizer
+from .model import ImageToStModel
 
 def collate_fn(batch, pad_token_id):
     """
@@ -51,7 +51,7 @@ def main():
     print(f"Using device: {config.DEVICE}")
 
     # Load tokenizer
-    tokenizer = SmtTokenizer()
+    tokenizer = StTokenizer()
     tokenizer.load(config.TOKENIZER_VOCAB_PATH)
     pad_token_id = tokenizer.token_to_id['<pad>']
     
@@ -99,7 +99,7 @@ def main():
     )
 
     # --- 2. Model, Loss, and Optimizer ---
-    model = ImageToSmtModel(
+    model = ImageToStModel(
         vocab_size=config.VOCAB_SIZE,
         d_model=config.D_MODEL,
         nhead=config.N_HEADS,

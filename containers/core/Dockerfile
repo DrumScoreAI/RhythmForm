@@ -27,18 +27,27 @@ RUN wget https://github.com/musescore/MuseScore/releases/download/v${MUSESCORE_V
     && chmod +x /app/musescore.AppImage
 
 # Copy the requirements file first to leverage Docker layer caching
-COPY ../../requirements.txt .
+# WAS: COPY ../../requirements.txt .s.txt .
+# FIX: Path relative to repo root# FIX: Path relative to repo root
+COPY requirements.txt .
 
-# Install Python dependencies
+# Install Python dependencies# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of your application's code into the container
-COPY ../../scripts ./scripts
-COPY ../core_entrypoint.sh .
+# Copy the rest of your application's code into the containerication's code into the container
+# WAS: COPY ../../scripts ./scripts# WAS: COPY ../../scripts ./scripts
+# FIX: Path relative to repo root
+COPY scripts ./scripts
+
+# WAS: COPY ../core_entrypoint.sh .../core_entrypoint.sh .
+# FIX: Assuming core_entrypoint.sh is located in 'containers/core_entrypoint.sh'# FIX: Assuming core_entrypoint.sh is located in 'containers/core_entrypoint.sh'
+# If it is inside 'containers/core/', use 'containers/core/core_entrypoint.sh''containers/core/core_entrypoint.sh'
+COPY containers/core_entrypoint.sh .trypoint.sh .
+RUN chmod +x core_entrypoint.sh
 
 # Create a non-root user for security
 RUN useradd -ms /bin/bash -u 1001 appuser
-RUN chown -R appuser:appuser /app
+RUN chown -R appuser:appuser /appRUN chown -R appuser:appuser /app
 USER appuser
 
 # Set environment variables for RHYTHMFORM
@@ -46,8 +55,17 @@ ENV RHYTHMFORMHOME=/app
 ENV PYTHONPATH=/app:$PYTHONPATH
 
 # Point MUSESCORE_PATH to the downloaded AppImage
-ENV MUSESCORE_PATH=/app/musescore.AppImage
+ENV MUSESCORE_PATH=/app/musescore.AppImage.AppImage
 
+
+
+
+
+
+
+
+
+ENTRYPOINT ["core_entrypoint.sh"]# Specify the command to run on container startup.  CMD pgrep -f "core_entrypoint.sh" || exit 1HEALTHCHECK --interval=60s --timeout=30s --start-period=5m \# Add a healthcheck to monitor the training processWORKDIR /app/scripts
 WORKDIR /app/scripts
 
 # Add a healthcheck to monitor the training process

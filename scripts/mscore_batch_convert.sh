@@ -16,6 +16,6 @@ mkdir -p $RHYTHMFORMHOME/training_data/pdfs
 echo "Converting XML files to PDF..."
 for file in $RHYTHMFORMHOME/training_data/musicxml/*.xml; do
   filename="${file##*/}"
-  mscore3 -o "$RHYTHMFORMHOME/training_data/pdfs/${filename%.xml}.pdf" -r 300 "$file"
+  $MUSESCORE_PATH -o "$RHYTHMFORMHOME/training_data/pdfs/${filename%.xml}.pdf" -r 300 "$file"
 done
 echo "Conversion complete."

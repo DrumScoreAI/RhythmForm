@@ -216,6 +216,7 @@ temp/
 *.pdf
 *.xml
 *.raw
+.vscode/
 
 # Model training specific
 training_data/

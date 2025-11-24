@@ -26,18 +26,6 @@ ARG GIT_HASH=252940956
 RUN wget https://github.com/musescore/MuseScore/releases/download/v${MUSESCORE_VERSION}/MuseScore-Studio-${MUSESCORE_VERSION}.${GIT_HASH}-x86_64.AppImage -O /app/musescore.AppImage \
     && chmod +x /app/musescore.AppImage
 
-# Copy the requirements file first to leverage Docker layer caching
-COPY requirements.txt .
-
-# Install Python dependencies# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy the rest of your application's code into the containerication's code into the container
-COPY scripts ./scripts
-
-COPY containers/core/core_entrypoint.sh .
-RUN chmod +x core_entrypoint.sh
-
 # Create a non-root user for security
 RUN useradd -ms /bin/bash -u 1001 appuser
 RUN chown -R appuser:appuser /app
@@ -51,12 +39,19 @@ ENV PYTHONPATH=/app:$PYTHONPATH
 ENV MUSESCORE_PATH=/app/musescore.AppImage
 ENV PATH="/app:${PATH}"
 
-RUN echo "python3:$(which python3)"
-RUN echo "python:$(which python)"
-
 RUN ln -s /usr/bin/pydoc3 /app/pydoc \
     && ln -s /usr/bin/python3 /app/python \
     && ln -s /usr/bin/python3-config /app/python-config
+
+# Copy the requirements file first to leverage Docker layer caching
+COPY requirements.txt .
+
+# Install Python dependencies# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy code
+COPY scripts ./scripts
+COPY containers/core/core_entrypoint.sh .
 
 # Add a healthcheck to monitor the training process
 HEALTHCHECK --interval=60s --timeout=30s --start-period=5m \

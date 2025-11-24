@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader, random_split, SubsetRandomSampler
 from torchvision import transforms # Import transforms
 from tqdm import tqdm
 import numpy as np
+import argparse
 
 # Import all our custom modules
 from . import config
@@ -31,7 +32,18 @@ def collate_fn(batch, pad_token_id):
     
     return {'image': images, 'target': targets}
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Train the OMR model.")
+    parser.add_argument('--batch-size', type=int, default=config.BATCH_SIZE, help='Batch size')
+    parser.add_argument('--learning-rate', type=float, default=config.LEARNING_RATE, help='Learning rate')
+    parser.add_argument('--num-epochs', type=int, default=config.NUM_EPOCHS, help='Number of epochs')
+    parser.add_argument('--num-workers', type=int, default=config.NUM_WORKERS, help='Number of data loader workers')
+    parser.add_argument('--validation-split', type=float, default=config.VALIDATION_SPLIT, help='Validation data split ratio')
+    return parser.parse_args()
+
 def main():
+    args = parse_args()
+
     """
     Main training function.
     """
@@ -73,14 +85,14 @@ def main():
     # 3. Update the DataLoader to use a lambda function for the collate_fn
     train_loader = DataLoader(
         full_dataset,
-        batch_size=config.BATCH_SIZE,
+        batch_size=args.batch_size,
         sampler=train_sampler,
         num_workers=config.NUM_WORKERS,
         collate_fn=lambda b: collate_fn(b, pad_token_id)
     )
     val_loader = DataLoader(
         full_dataset,
-        batch_size=config.BATCH_SIZE, 
+        batch_size=args.batch_size, 
         sampler=validation_sampler,
         num_workers=config.NUM_WORKERS,
         collate_fn=lambda b: collate_fn(b, pad_token_id)
@@ -98,15 +110,15 @@ def main():
     ).to(config.DEVICE)
 
     criterion = nn.CrossEntropyLoss(ignore_index=pad_token_id)
-    optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
+    optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
 
     # --- 3. Training Loop ---
     print("\n--- Starting Training ---")
-    for epoch in range(config.NUM_EPOCHS):
+    for epoch in range(args.num_epochs):
         # --- Training Phase ---
         model.train()
         train_loss = 0.0
-        train_pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{config.NUM_EPOCHS} [Train]")
+        train_pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{args.num_epochs} [Train]")
         
         for batch in train_pbar:
             images = batch['image'].to(config.DEVICE)
@@ -152,7 +164,7 @@ def main():
 
         avg_val_loss = val_loss / len(val_loader)
         
-        print(f"Epoch {epoch+1}/{config.NUM_EPOCHS} -> Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
+        print(f"Epoch {epoch+1}/{args.num_epochs} -> Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
 
         # --- Save Checkpoint ---
         checkpoint_path = config.CHECKPOINT_DIR / f"model_epoch_{epoch+1}.pth"

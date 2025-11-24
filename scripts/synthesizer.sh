@@ -45,7 +45,7 @@ clean_training_data
 
 # Generate synthetic scores
 echo "Generating synthetic scores..."
-python3 generate_synthetic_scores.py --num_scores "$num_scores"
+python generate_synthetic_scores.py --num_scores "$num_scores"
 echo "Synthetic score generation complete."
 
 # Create manifest file
@@ -60,5 +60,13 @@ done
 
 # Prepare data for training
 echo "Preparing data for training..."
-python3 prepare_dataset.py
+python prepare_dataset.py
 echo "Data preparation complete."
+
+# Run tokenizer
+echo "Running tokenizer..."
+python -m omr_model.tokenizer
+echo "Tokenizer run complete."
+
+echo "All data synthesis tasks completed successfully."
+echo "You are ready to train the OMR model."

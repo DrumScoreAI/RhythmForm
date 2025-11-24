@@ -1,4 +1,4 @@
-name: Build and Push Synthsizer Image
+name: Build and Push Core Image
 
 on:
   push:
@@ -18,7 +18,6 @@ jobs:
       packages: write
     
     steps:
-      # --- ADD THIS STEP ---
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:

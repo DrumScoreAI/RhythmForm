@@ -6,7 +6,7 @@ WORKDIR /app/scripts
 
 # Add a healthcheck to monitor the training process
 HEALTHCHECK --interval=60s --timeout=30s --start-period=5m \
-  CMD pgrep -f "scripts/synthesizer.sh" || exit 1
+  CMD pgrep -f "synthesizer.sh" || exit 1
 
 # Specify the command to run on container startup.
-ENTRYPOINT ["scripts/synthesizer.sh"]
+ENTRYPOINT ["synthesizer.sh"]

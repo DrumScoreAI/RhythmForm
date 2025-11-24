@@ -35,7 +35,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of your application's code into the containerication's code into the container
 COPY scripts ./scripts
 
-
 COPY containers/core/core_entrypoint.sh .
 RUN chmod +x core_entrypoint.sh
 
@@ -49,22 +48,11 @@ ENV RHYTHMFORMHOME=/app
 ENV PYTHONPATH=/app:$PYTHONPATH
 
 # Point MUSESCORE_PATH to the downloaded AppImage
-ENV MUSESCORE_PATH=/app/musescore.AppImage.AppImage
-
-
-
-
-
-
-
-
-
-ENTRYPOINT ["core_entrypoint.sh"]# Specify the command to run on container startup.  CMD pgrep -f "core_entrypoint.sh" || exit 1HEALTHCHECK --interval=60s --timeout=30s --start-period=5m \# Add a healthcheck to monitor the training processWORKDIR /app/scripts
-WORKDIR /app/scripts
+ENV MUSESCORE_PATH=/app/musescore.AppImage
 
 # Add a healthcheck to monitor the training process
 HEALTHCHECK --interval=60s --timeout=30s --start-period=5m \
   CMD pgrep -f "core_entrypoint.sh" || exit 1
 
 # Specify the command to run on container startup.
-ENTRYPOINT ["core_entrypoint.sh"]
+ENTRYPOINT ["core_entrypoint.sh"] 

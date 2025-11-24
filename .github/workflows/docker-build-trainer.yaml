@@ -1,10 +1,10 @@
 name: Build and Push Trainer Image
 
 on:
-  push:
-    branches: [ "main" ]
-    # You can also add 'pull_request' here if you want to build on PRs
-  workflow_dispatch: # Allows you to run this workflow manually from the Actions tab
+  workflow_run:
+    workflows: ["Build and Push Core Image"]
+    types:
+      - completed
 
 env:
   REGISTRY: ghcr.io

@@ -41,7 +41,7 @@ RUN chmod +x core_entrypoint.sh
 
 # Create a non-root user for security
 RUN useradd -ms /bin/bash -u 1001 appuser
-RUN chown -R appuser:appuser /appRUN chown -R appuser:appuser /app
+RUN chown -R appuser:appuser /app
 USER appuser
 
 # Set environment variables for RHYTHMFORM

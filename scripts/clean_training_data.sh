@@ -3,6 +3,11 @@
 # This script removes all .musicxml, .pdf, and .png files from the
 # training_data directory, while preserving the directory structure.
 
+if [ -z "$RHYTHMFORMHOME" ]; then
+    echo "Error: RHYTHMFORMHOME environment variable is not set."
+    exit 1
+fi
+
 # Get the directory of the current script
 TRAINING_DATA_DIR="$RHYTHMFORMHOME/training_data"
 

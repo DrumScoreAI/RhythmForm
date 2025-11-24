@@ -18,6 +18,11 @@ if [ "$num_scores" -lt 1 ]; then
     exit 1
 fi
 
+if [ -z "$RHYTHMFORMHOME" ]; then
+    echo "Error: RHYTHMFORMHOME environment variable is not set."
+    exit 1
+fi
+
 clean_training_data() {
     # This function removes all .musicxml, .pdf, and .png files from the
     # training_data directory, while preserving the directory structure.

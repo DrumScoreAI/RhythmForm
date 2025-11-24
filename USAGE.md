@@ -36,8 +36,8 @@ rhythmform convert "~/Documents/funky-groove.pdf" --output "funky-groove.xml"
 
 ### 2. What Happens Behind the Scenes
 1.  **Image Processing**: RhythmForm loads the PDF and converts each page into a high-resolution image.
-2.  **AI Recognition**: The trained RhythmForm transformer model analyzes each page image, translating the visual notation into a symbolic music text (SMT) representation.
-3.  **Score Construction**: The SMT data is then used to programmatically build a `music21` score object, creating all the notes, rests, chords, and measures.
+2.  **AI Recognition**: The trained RhythmForm transformer model analyzes each page image, translating the visual notation into a symbolic text (ST) representation.
+3.  **Score Construction**: The ST data is then used to programmatically build a `music21` score object, creating all the notes, rests, chords, and measures.
 4.  **File Generation**: The final score object is exported as a standard MusicXML file.
 
 ### 3. Understanding the Output

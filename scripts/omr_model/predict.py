@@ -9,7 +9,7 @@ from .model import ImageToStModel
 
 def beam_search_predict(model, image_tensor, tokenizer, beam_width=5, max_len=200):
     """
-    Generates an SMT string prediction using beam search.
+    Generates an ST string prediction using beam search.
     """
     model.eval()
     
@@ -124,10 +124,10 @@ def main():
     print(f"\n--- Generating Prediction (Beam Width: {args.beam_width}) ---")
     predicted_st = beam_search_predict(model, image_tensor, tokenizer, beam_width=args.beam_width)
     
-    print("\n--- Ground Truth SMT ---")
+    print("\n--- Ground Truth ST ---")
     print(ground_truth_st)
     
-    print("\n--- Predicted SMT ---")
+    print("\n--- Predicted ST ---")
     print(predicted_st)
 
 

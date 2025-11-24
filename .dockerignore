@@ -1,0 +1,7 @@
+training_data/
+temp/
+__pycache__/
+*.pyc
+.DS_Store
+.vscode/
+*.pth

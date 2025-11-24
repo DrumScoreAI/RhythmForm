@@ -23,8 +23,7 @@ clean_training_data() {
     # training_data directory, while preserving the directory structure.
 
     # Get the directory of the current script
-    SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
-    TRAINING_DATA_DIR="$SCRIPT_DIR/../training_data"
+    TRAINING_DATA_DIR="$RHYTHMFORMHOME/training_data"
 
     # Check if the training_data directory exists
     if [ ! -d "$TRAINING_DATA_DIR" ]; then
@@ -50,12 +49,12 @@ echo "Synthetic score generation complete."
 
 # Create manifest file
 echo "Creating manifest file..."
-echo "pdf,musicxml,do_or_mi" > ../training_data/training_data.csv
+echo "pdf,musicxml,do_or_mi" > $TRAINING_DATA_DIR/training_data.csv
 do_or_mi="do"
-for pdf in `ls ../training_data/pdfs/*.pdf`; do
+for pdf in `ls $TRAINING_DATA_DIR/pdfs/*.pdf`; do
     pdf_bn=$(basename "$pdf")
     musicxml="${pdf_bn%.pdf}.xml"
-    echo "$pdf,$musicxml,$do_or_mi" >> ../training_data/training_data.csv
+    echo "$pdf,$musicxml,$do_or_mi" >> $TRAINING_DATA_DIR/training_data.csv
 done
 
 # Prepare data for training

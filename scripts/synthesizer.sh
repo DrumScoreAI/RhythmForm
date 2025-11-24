@@ -49,7 +49,7 @@ clean_training_data
 
 # Generate synthetic scores
 echo "Generating synthetic scores..."
-python generate_synthetic_scores.py --num_scores "$num_scores"
+python generate_synthetic_scores.py "$num_scores"
 echo "Synthetic score generation complete."
 
 # Create manifest file

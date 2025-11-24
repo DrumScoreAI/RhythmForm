@@ -14,7 +14,7 @@ DATASET_JSON_PATH = PROJECT_ROOT / 'training_data' / 'dataset.json'
 
 class ScoreDataset(Dataset):
     """
-    A PyTorch Dataset for loading score images and their corresponding SMT strings.
+    A PyTorch Dataset for loading score images and their corresponding ST strings.
     """
     def __init__(self, manifest_path=DATASET_JSON_PATH, tokenizer=None, transform=None):
         """
@@ -43,7 +43,7 @@ class ScoreDataset(Dataset):
             idx = idx.tolist()
 
         item = self.manifest[idx]
-        smt_string = item['smt']
+        st_string = item['st']
         image_path = self.root_dir / item['image_path']
         
         try:
@@ -58,10 +58,10 @@ class ScoreDataset(Dataset):
         if self.transform:
             image = self.transform(image)
 
-        sample = {'image': image, 'smt_string': smt_string}
+        sample = {'image': image, 'st_string': st_string}
 
         if self.tokenizer:
-            sample['encoded_smt'] = self.tokenizer.encode(smt_string)
+            sample['encoded_st'] = self.tokenizer.encode(st_string)
 
         return sample
 
@@ -81,7 +81,7 @@ if __name__ == '__main__':
         print("\n--- Inspecting first sample ---")
         print(f"Image tensor shape: {first_sample['image'].shape}")
         print(f"Image tensor dtype: {first_sample['image'].dtype}")
-        print(f"SMT string (first 80 chars): {first_sample['smt_string'][:80]}...")
+        print(f"ST string (first 80 chars): {first_sample['st_string'][:80]}...")
         print("-----------------------------\n")
         print("Dataset class seems to be working correctly!")
     else:

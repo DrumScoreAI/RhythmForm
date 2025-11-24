@@ -8,7 +8,7 @@ from .dataset import ScoreDataset, DATASET_JSON_PATH
 
 class SmtTokenizer:
     """
-    A tokenizer for converting SMT strings to and from sequences of integer IDs.
+    A tokenizer for converting ST strings to and from sequences of integer IDs.
     """
     def __init__(self):
         # --- THIS IS THE FIX (Part 1) ---
@@ -30,7 +30,7 @@ class SmtTokenizer:
         # Count all tokens in the dataset
         token_counts = Counter()
         for sample in dataset:
-            tokens = sample['smt_string'].strip().split(' ')
+            tokens = sample['st_string'].strip().split(' ')
             token_counts.update(tokens)
             
         # Add new tokens found in the dataset, ordered by frequency
@@ -48,9 +48,9 @@ class SmtTokenizer:
     def vocab_size(self):
         return len(self.vocab)
 
-    def encode(self, smt_string):
-        """Converts an SMT string to a list of integer IDs."""
-        tokens = smt_string.strip().split(' ')
+    def encode(self, st_string):
+        """Converts an ST string to a list of integer IDs."""
+        tokens = st_string.strip().split(' ')
         
         # --- THIS IS THE FIX ---
         # Ensure that any token not found in the vocabulary is mapped
@@ -66,7 +66,7 @@ class SmtTokenizer:
 
     def decode(self, ids):
         """
-        Decodes a list of integer IDs back into an SMT string.
+        Decodes a list of integer IDs back into an ST string.
         Stops at the first EOS token.
         """
         tokens = []
@@ -118,7 +118,7 @@ if __name__ == '__main__':
     # 2. Test encoding and decoding
     if len(score_dataset) > 0:
         print("\n--- Testing encoding and decoding ---")
-        sample_string = score_dataset[0]['smt_string']
+        sample_string = score_dataset[0]['st_string']
         print(f"Original string (first 80 chars): {sample_string[:80]}...")
         
         encoded_ids = tokenizer.encode(sample_string)

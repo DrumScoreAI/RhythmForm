@@ -23,9 +23,9 @@ MANIFEST_FILE = TRAINING_DATA_DIR / 'training_data.csv'
 FINAL_DATASET_FILE = TRAINING_DATA_DIR / 'dataset.json'
 MUSESCORE_PATH = os.environ.get("MUSESCORE_PATH", "mscore4portable") # Use environment variable or default
 
-# --- Drum MIDI to SMT Mapping ---
-# This dictionary maps MIDI numbers to the SMT representation.
-DRUM_MIDI_TO_SMT = {
+# --- Drum MIDI to ST Mapping ---
+# This dictionary maps MIDI numbers to the ST representation.
+DRUM_MIDI_TO_ST = {
     # Bass Drums
     35: 'BD',  # Acoustic Bass Drum
     36: 'BD',  # Bass Drum 1
@@ -56,19 +56,19 @@ DRUM_MIDI_TO_SMT = {
     # Add any other mappings you need
 }
 
-# --- NEW: Create a reverse mapping from SMT name to MIDI number ---
-SMT_TO_DRUM_MIDI = {v: k for k, v in DRUM_MIDI_TO_SMT.items()}
+# --- NEW: Create a reverse mapping from ST name to MIDI number ---
+ST_TO_DRUM_MIDI = {v: k for k, v in DRUM_MIDI_TO_ST.items()}
 
 
 def get_duration_token(element):
-    """Converts a music21 element's duration to an SMT duration token."""
+    """Converts a music21 element's duration to an ST duration token."""
     # Using fractions is robust for dotted notes, triplets, etc.
     duration_fraction = Fraction(element.duration.quarterLength)
     return f"[{duration_fraction.numerator}/{duration_fraction.denominator}]"
 
-def convert_note_to_smt(element):
+def convert_note_to_st(element):
     """
-    Converts a music21 element (Note, Rest, Chord) to its SMT string representation.
+    Converts a music21 element (Note, Rest, Chord) to its ST string representation.
     This is now updated to handle Unpitched and PercussionChord objects.
     """
     if isinstance(element, music21.note.Rest):
@@ -81,15 +81,15 @@ def convert_note_to_smt(element):
         pitch_name = 'unknown'
         
         if hasattr(element.pitch, 'midi'): # Old data format (standard Note)
-            pitch_name = DRUM_MIDI_TO_SMT.get(element.pitch.midi, 'unknown')
+            pitch_name = DRUM_MIDI_TO_ST.get(element.pitch.midi, 'unknown')
         elif isinstance(element, music21.note.Unpitched): # New synthetic data (Unpitched)
-            # Reconstruct the MIDI number from displayStep/displayOctave to find the SMT name
+            # Reconstruct the MIDI number from displayStep/displayOctave to find the ST name
             p = music21.pitch.Pitch()
             p.step = element.displayStep
             p.octave = element.displayOctave
             # The generator script added 2 to the octave for display, so we subtract 2 to get the real MIDI value
             p.octave -= 2
-            pitch_name = DRUM_MIDI_TO_SMT.get(p.midi, 'unknown')
+            pitch_name = DRUM_MIDI_TO_ST.get(p.midi, 'unknown')
             
         return f"note[{pitch_name},{Fraction(duration).limit_denominator()}]"
 
@@ -111,8 +111,8 @@ def convert_note_to_smt(element):
             elif hasattr(n, 'pitch') and hasattr(n.pitch, 'midi'): # Standard Note in a Chord
                 midi_numbers.append(n.pitch.midi)
 
-        # Convert MIDI numbers to SMT names and sort them alphabetically
-        pitch_names = sorted([DRUM_MIDI_TO_SMT.get(m, 'unknown') for m in midi_numbers])
+        # Convert MIDI numbers to ST names and sort them alphabetically
+        pitch_names = sorted([DRUM_MIDI_TO_ST.get(m, 'unknown') for m in midi_numbers])
         
         if not pitch_names or 'unknown' in pitch_names:
             return None # Skip empty or unknown chords
@@ -123,39 +123,39 @@ def convert_note_to_smt(element):
     return None
 
 
-# --- Symbolic Music Text (SMT) Generation ---
+# --- Symbolic Text (ST) Generation ---
 
 def get_instrument_name(unpitched_note):
     """Maps a music21 Unpitched note object back to our instrument name."""
     # --- UPDATED LOGIC ---
-    # Use the reverse mapping SMT_TO_DRUM_MIDI to find the MIDI number,
-    # then lookup the original SMT name from DRUM_MIDI_TO_SMT.
-    midi_number = SMT_TO_DRUM_MIDI.get(unpitched_note.name, None)
+    # Use the reverse mapping ST_TO_DRUM_MIDI to find the MIDI number,
+    # then lookup the original ST name from DRUM_MIDI_TO_ST.
+    midi_number = ST_TO_DRUM_MIDI.get(unpitched_note.name, None)
     if midi_number is not None:
-        return DRUM_MIDI_TO_SMT.get(midi_number, 'Unknown')
+        return DRUM_MIDI_TO_ST.get(midi_number, 'Unknown')
     
     return 'Unknown'
 
-def measure_to_smt(measure, is_repeated=False):
+def measure_to_st(measure, is_repeated=False):
     """
-    Converts a single music21 measure to its SMT representation.
+    Converts a single music21 measure to its ST representation.
     If is_repeated is True, it returns a special repeat token.
     """
     if is_repeated:
         return "repeat[bar,1]"
 
-    smt_tokens = []
+    st_tokens = []
     # Use .notesAndRests to iterate over all note, chord, and rest objects
     for element in measure.notesAndRests:
-        token = convert_note_to_smt(element)
+        token = convert_note_to_st(element)
         if token:
-            smt_tokens.append(token)
+            st_tokens.append(token)
             
-    return " ".join(smt_tokens)
+    return " ".join(st_tokens)
 
-def musicxml_to_smt(score_path, repeated_measures=None):
+def musicxml_to_st(score_path, repeated_measures=None):
     """
-    Converts a full MusicXML file to a single-line SMT string.
+    Converts a full MusicXML file to a single-line ST string.
     Uses the list of repeated_measures to insert the correct token.
     """
     if repeated_measures is None:
@@ -167,17 +167,17 @@ def musicxml_to_smt(score_path, repeated_measures=None):
         if not drum_part:
             drum_part = score.parts[0]
 
-        full_smt = []
+        full_st = []
         for measure in drum_part.getElementsByClass('Measure'):
             is_repeat = measure.number in repeated_measures
-            smt = measure_to_smt(measure, is_repeated=is_repeat)
-            full_smt.append(smt)
+            st = measure_to_st(measure, is_repeated=is_repeat)
+            full_st.append(st)
         
         # --- THIS IS THE FIX ---
         # Strip leading/trailing whitespace and handle multiple spaces
-        # to create a clean, canonical SMT string.
-        final_smt = " measure_break ".join(full_smt)
-        return " ".join(final_smt.strip().split())
+        # to create a clean, canonical ST string.
+        final_st = " measure_break ".join(full_st)
+        return " ".join(final_st.strip().split())
 
     except Exception as e:
         print(f"Error parsing {score_path} with music21: {e}")
@@ -265,7 +265,7 @@ def process_file(xml_path):
     """
     Processes a single MusicXML file:
     1. Checks for a companion .json for repeat info.
-    2. Generates SMT, using 'repeat[bar,1]' token if needed.
+    2. Generates ST, using 'repeat[bar,1]' token if needed.
     3. Creates a temporary, modified XML if repeats exist.
     4. Renders the appropriate XML to PDF and then to PNG.
     5. Cleans up temporary files.
@@ -276,7 +276,7 @@ def process_file(xml_path):
     pdf_path = OUTPUT_IMAGE_DIR / xml_path.with_suffix('.pdf').name
     png_path = OUTPUT_IMAGE_DIR / xml_path.with_suffix('.png').name
 
-    # --- 1. Handle repeats and SMT generation ---
+    # --- 1. Handle repeats and ST generation ---
     json_path = xml_path.with_suffix('.json')
     repeated_measures = []
     if json_path.exists():
@@ -288,8 +288,8 @@ def process_file(xml_path):
         except Exception as e:
             print(f"  -> Warning: Could not read JSON {json_path.name}: {e}")
 
-    smt = musicxml_to_smt(xml_path, repeated_measures)
-    if not smt:
+    st = musicxml_to_st(xml_path, repeated_measures)
+    if not st:
         return None
 
     # --- 2. Render Image (with repeats if necessary) ---
@@ -322,7 +322,7 @@ def process_file(xml_path):
              return None
 
         print(f"  -> Successfully rendered to {png_path.name}")
-        return {"image_path": str(png_path.relative_to(TRAINING_DATA_DIR)), "smt": smt}
+        return {"image_path": str(png_path.relative_to(TRAINING_DATA_DIR)), "st": st}
 
     except subprocess.CalledProcessError as e:
         print(f"  -> Error during rendering of {xml_to_render.name}:")

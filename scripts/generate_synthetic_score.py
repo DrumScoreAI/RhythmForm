@@ -8,7 +8,7 @@ from pathlib import Path
 
 # --- Configuration ---
 # Uses the same environment variable and folder structure as prepare_dataset.py
-TRAINING_DATA_DIR = Path(os.environ.get('SFHOME', Path(__file__).parent.parent)) / 'training_data'
+TRAINING_DATA_DIR = Path(os.environ.get('RHYTHMFORMHOME', Path(__file__).parent.parent)) / 'training_data'
 XML_OUTPUT_DIR = TRAINING_DATA_DIR / 'musicxml'
 
 

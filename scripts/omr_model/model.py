@@ -78,7 +78,7 @@ class ImageToSmtModel(nn.Module):
         
         Args:
             src_image (Tensor): The input image tensor. Shape: (batch_size, channels, height, width)
-            tgt_sequence (Tensor): The target SMT token sequence. Shape: (batch_size, seq_len)
+            tgt_sequence (Tensor): The target ST token sequence. Shape: (batch_size, seq_len)
         """
         # --- Process Image (Encoder) ---
         # 1. Create patches and embed them

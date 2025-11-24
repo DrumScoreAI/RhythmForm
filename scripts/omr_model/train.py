@@ -19,8 +19,8 @@ def collate_fn(batch, pad_token_id):
     """
     images = torch.stack([item['image'] for item in batch])
     
-    # Encode and pad the SMT strings
-    encoded_strings = [item['encoded_smt'] for item in batch]
+    # Encode and pad the ST strings
+    encoded_strings = [item['encoded_st'] for item in batch]
     max_len = max(len(s) for s in encoded_strings)
     
     padded_strings = []

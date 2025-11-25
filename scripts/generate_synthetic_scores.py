@@ -5,6 +5,8 @@ import json
 import copy
 import argparse
 from pathlib import Path
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from tqdm import tqdm
 
 # --- Configuration ---
 # Uses the same environment variable and folder structure as prepare_dataset.py
@@ -178,26 +180,42 @@ if __name__ == '__main__':
         default=30, 
         help="Number of scores to generate (default: 30)"
     )
+    parser.add_argument(
+        "--cores",
+        type=int,
+        default=1,
+        help="Number of CPU cores to use for parallel generation (default: 1)"
+    )
     args = parser.parse_args()
     
     num_scores_to_generate = args.num_scores
-    print(f"Generating {num_scores_to_generate} scores into {XML_OUTPUT_DIR}")
-    
-    for i in range(num_scores_to_generate):
-        if i < num_scores_to_generate / 3:
-            level = 0
-        elif i < num_scores_to_generate * 2 / 3:
-            level = 1
-        else:
-            level = 2
+    num_cores_to_use = args.cores
+    print(f"Generating {num_scores_to_generate} scores into {XML_OUTPUT_DIR} using {num_cores_to_use} cores")
 
-        # 50% chance to enable the measure repeat feature for a given score
-        use_repeats_for_this_score = random.random() < 0.5
+    tasks = []
+    with ProcessPoolExecutor(max_workers=num_cores_to_use) as executor:
+        for i in range(num_scores_to_generate):
+            if i < num_scores_to_generate / 3:
+                level = 0
+            elif i < num_scores_to_generate * 2 / 3:
+                level = 1
+            else:
+                level = 2
 
-        file_path = XML_OUTPUT_DIR / f"synthetic_score_{i+1}_level_{level}.xml"
-        generate_drum_score(
-            num_measures=random.randint(12, 24), 
-            output_path=file_path,
-            complexity=level,
-            use_repeats=use_repeats_for_this_score
-        )
+            use_repeats_for_this_score = random.random() < 0.5
+
+            file_path = XML_OUTPUT_DIR / f"synthetic_score_{i+1}_level_{level}.xml"
+            tasks.append(
+                executor.submit(
+                    generate_drum_score,
+                    num_measures=random.randint(12, 24),
+                    output_path=file_path,
+                    complexity=level,
+                    use_repeats=use_repeats_for_this_score
+                )
+            )
+        # Optionally, show progress
+        for tqdm_instance in tqdm(as_completed(tasks), total=len(tasks)):
+            pass
+
+    print("All synthetic scores generated.")

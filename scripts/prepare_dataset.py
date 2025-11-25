@@ -8,6 +8,7 @@ import xml.etree.ElementTree as ET
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from fractions import Fraction
 from tqdm import tqdm
+import argparse
 
 # --- Configuration ---
 # --- THIS IS THE FIX (Part 1) ---
@@ -341,6 +342,17 @@ def main():
     Main function to generate the dataset using a manifest file.
     It reads training_data.csv, processes each entry in parallel to generate
     """
+
+    # --- Add argparse for --cores argument ---
+    parser = argparse.ArgumentParser(description="Prepare dataset for RhythmForm.")
+    parser.add_argument(
+        "--cores",
+        type=int,
+        default=None,
+        help="Number of CPU cores to use for parallel processing (default: use all available cores)."
+    )
+    args = parser.parse_args()
+
     # Ensure output directories exist
     OUTPUT_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
     PDF_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -370,9 +382,9 @@ def main():
 
     dataset = []
     # Use ProcessPoolExecutor for parallel processing
-    with ProcessPoolExecutor() as executor:
+    with ProcessPoolExecutor(max_workers=args.cores) as executor:
         future_to_xml = {executor.submit(process_file, xml_file): xml_file for xml_file in xml_paths_to_process}
-        for future in as_completed(future_to_xml):
+        for future in tqdm(as_completed(future_to_xml), total=len(future_to_xml), desc="Processing files"):
             result = future.result()
             if result:
                 dataset.append(result)

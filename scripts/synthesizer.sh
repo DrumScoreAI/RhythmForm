@@ -1,11 +1,19 @@
 #!/bin/bash
 
-if [ "$#" -eq 1 ]; then
-    num_scores=$1
-fi
+num_scores=$1
+num_cores=$2
 
 if [ -z "$num_scores" ]; then
     num_scores=30
+fi
+
+if [ -z "$num_cores" ]; then
+    num_cores=1
+fi
+
+if ! [[ "$num_cores" =~ ^[0-9]+$ ]]; then
+    echo "Error: Number of cores must be an integer."
+    exit 1
 fi
 
 if ! [[ "$num_scores" =~ ^[0-9]+$ ]]; then
@@ -15,6 +23,11 @@ fi
 
 if [ "$num_scores" -lt 1 ]; then
     echo "Error: Number of scores must be at least 1."
+    exit 1
+fi
+
+if [ "$num_cores" -lt 1 ]; then
+    echo "Error: Number of cores must be at least 1."
     exit 1
 fi
 
@@ -46,13 +59,13 @@ clean_training_data() {
 clean_training_data
 
 # Generate synthetic scores
-echo "Generating synthetic scores..."
-python generate_synthetic_scores.py "$num_scores"
+echo "Generating synthetic scores using $num_cores cores..."
+python generate_synthetic_scores.py "$num_scores" --cores "$num_cores"
 echo "Synthetic score generation complete."
 
 # Convert MusicXML to PDF
-echo "Converting MusicXML files to PDF..."
-$RHYTHMFORMHOME/scripts/mscore_batch_convert.sh 2>/dev/null
+echo "Converting MusicXML files to PDF using $num_cores cores..."
+find $TRAINING_DATA_DIR/musicxml -name "*.xml" -print0 | xargs -0 -P "$num_cores" -I {} $RHYTHMFORMHOME/scripts/_mscore_mp_wrapper.sh {}
 echo "Conversion to PDF complete."
 
 # Create manifest file
@@ -66,19 +79,19 @@ for xml in `ls $TRAINING_DATA_DIR/musicxml/*.xml`; do
 done
 
 # Prepare data for training
-echo "Preparing data for training..."
-python prepare_dataset.py
+echo "Preparing data for training using $num_cores cores..."
+python prepare_dataset.py --cores "$num_cores"
 echo "Data preparation complete."
 
 # Run tokenizer
-echo "Running tokenizer..."
+echo "Running tokenizer (serial)..."
 python -m omr_model.tokenizer
 echo "Tokenizer run complete."
 
 # CHMOD training data
-echo "Setting permissions for training data..."
-find $TRAINING_DATA_DIR -type f -exec chmod 666 {} \;
-find $TRAINING_DATA_DIR -type d -exec chmod 777 {} \;
+echo "Setting permissions for training data using $num_cores cores..."
+find $TRAINING_DATA_DIR -type f -print0 | xargs -P "$num_cores" -0 -I {} chmod 666 {}
+find $TRAINING_DATA_DIR -type d -print0 | xargs -P "$num_cores" -0 -I {} chmod 777 {}
 echo "Permissions set."
 
 echo "All data synthesis tasks completed successfully."

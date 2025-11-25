@@ -65,8 +65,9 @@ Pre-built Docker images are available on GitHub Container Registry (GHCR) for di
   **Expected volume:** Attach your data directory to `/app/training_data`.  
   Example:
   ```sh
-  docker run --rm -v /path/to/training_data:/app/training_data ghcr.io/drumscoreai/rhythmform-synthesizer:latest
+  docker run --rm -v /path/to/training_data:/app/training_data ghcr.io/drumscoreai/rhythmform-synthesizer:latest <num_scores> <num_cores>
   ```
+  where `num_scores` defines the number of scores to be generated and `num_cores` defines the maximum number of CPUs to be used for any parallelised tasks.
 
 - **`ghcr.io/drumscoreai/rhythmform-trainer:latest`**  
   Convenience image for model training.  

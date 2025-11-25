@@ -52,14 +52,19 @@ echo "Generating synthetic scores..."
 python generate_synthetic_scores.py "$num_scores"
 echo "Synthetic score generation complete."
 
+# Convert MusicXML to PDF
+echo "Converting MusicXML files to PDF..."
+$RHYTHMFORMHOME/scripts/mscore_batch_convert.sh
+echo "Conversion to PDF complete."
+
 # Create manifest file
 echo "Creating manifest file..."
 echo "pdf,musicxml,do_or_mi" > $TRAINING_DATA_DIR/training_data.csv
 do_or_mi="do"
-for pdf in `ls $TRAINING_DATA_DIR/pdfs/*.pdf`; do
-    pdf_bn=$(basename "$pdf")
-    musicxml="${pdf_bn%.pdf}.xml"
-    echo "$pdf,$musicxml,$do_or_mi" >> $TRAINING_DATA_DIR/training_data.csv
+for xml in `ls $TRAINING_DATA_DIR/musicxml/*.xml`; do
+    xml_bn=$(basename "$xml")
+    pdf="${xml_bn%.xml}.pdf"
+    echo "$pdf,$xml,$do_or_mi" >> $TRAINING_DATA_DIR/training_data.csv
 done
 
 # Prepare data for training

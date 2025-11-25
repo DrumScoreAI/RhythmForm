@@ -30,11 +30,9 @@ clean_training_data() {
     # Get the directory of the current script
     TRAINING_DATA_DIR="$RHYTHMFORMHOME/training_data"
 
-    # Check if the training_data directory exists
-    if [ ! -d "$TRAINING_DATA_DIR" ]; then
-        echo "Error: Directory '$TRAINING_DATA_DIR' not found."
-        exit 1
-    fi
+    mkdir -p "$TRAINING_DATA_DIR/musicxml"
+    mkdir -p "$TRAINING_DATA_DIR/pdfs"
+    mkdir -p "$TRAINING_DATA_DIR/images"
 
     echo "Cleaning files from $TRAINING_DATA_DIR..."
 
@@ -79,7 +77,8 @@ echo "Tokenizer run complete."
 
 # CHMOD training data
 echo "Setting permissions for training data..."
-chmod -R 777 $TRAINING_DATA_DIR
+find $TRAINING_DATA_DIR -type f -exec chmod 666 {} \;
+find $TRAINING_DATA_DIR -type d -exec chmod 777 {} \;
 echo "Permissions set."
 
 echo "All data synthesis tasks completed successfully."

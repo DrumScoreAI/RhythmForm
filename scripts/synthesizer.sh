@@ -64,7 +64,7 @@ do_or_mi="do"
 for xml in `ls $TRAINING_DATA_DIR/musicxml/*.xml`; do
     xml_bn=$(basename "$xml")
     pdf="${xml_bn%.xml}.pdf"
-    echo "$pdf,$xml,$do_or_mi" >> $TRAINING_DATA_DIR/training_data.csv
+    echo "$pdf,$xml_bn,$do_or_mi" >> $TRAINING_DATA_DIR/training_data.csv
 done
 
 # Prepare data for training

@@ -19,12 +19,16 @@ RUN apt-get update && apt-get install -y \
     sudo \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and make the MuseScore 4 AppImage executable.
-# Using an ARG allows you to easily update the version later.
+# Download and extract MuseScore AppImage
 ARG MUSESCORE_VERSION=4.6.3
 ARG GIT_HASH=252940956
 RUN wget https://github.com/musescore/MuseScore/releases/download/v${MUSESCORE_VERSION}/MuseScore-Studio-${MUSESCORE_VERSION}.${GIT_HASH}-x86_64.AppImage -O /app/musescore.AppImage \
-    && chmod +x /app/musescore.AppImage
+    && chmod +x /app/musescore.AppImage \
+    && /app/musescore.AppImage --appimage-extract \
+    && mv squashfs-root /app/musescore-extracted \
+    && ln -s /app/musescore-extracted/usr/bin/mscore /app/mscore \
+    && ln -s /app/musescore-extracted/usr/bin/mscore /app/musescore \
+    && rm /app/musescore.AppImage
 
 # Create a non-root user for security
 RUN useradd -ms /bin/bash -u 1001 appuser
@@ -35,8 +39,8 @@ USER appuser
 ENV RHYTHMFORMHOME=/app
 ENV PYTHONPATH=/app:$PYTHONPATH
 
-# Point MUSESCORE_PATH to the downloaded AppImage
-ENV MUSESCORE_PATH=/app/musescore.AppImage
+# Point MUSESCORE_PATH to the extracted directory
+ENV MUSESCORE_PATH=/app/musescore-extracted
 ENV PATH="/app:${PATH}"
 
 RUN ln -s /usr/bin/pydoc3 /app/pydoc \
@@ -58,4 +62,4 @@ HEALTHCHECK --interval=60s --timeout=30s --start-period=5m \
   CMD pgrep -f "core_entrypoint.sh" || exit 1
 
 # Specify the command to run on container startup.
-ENTRYPOINT ["core_entrypoint.sh"] 
+ENTRYPOINT ["core_entrypoint.sh"]

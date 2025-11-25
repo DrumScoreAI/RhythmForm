@@ -77,5 +77,10 @@ echo "Running tokenizer..."
 python -m omr_model.tokenizer
 echo "Tokenizer run complete."
 
+# CHMOD training data
+echo "Setting permissions for training data..."
+chmod -R 777 $TRAINING_DATA_DIR
+echo "Permissions set."
+
 echo "All data synthesis tasks completed successfully."
 echo "You are ready to train the OMR model."

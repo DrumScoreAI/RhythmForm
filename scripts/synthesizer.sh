@@ -54,7 +54,7 @@ echo "Synthetic score generation complete."
 
 # Convert MusicXML to PDF
 echo "Converting MusicXML files to PDF..."
-$RHYTHMFORMHOME/scripts/mscore_batch_convert.sh
+$RHYTHMFORMHOME/scripts/mscore_batch_convert.sh 2>/dev/null
 echo "Conversion to PDF complete."
 
 # Create manifest file

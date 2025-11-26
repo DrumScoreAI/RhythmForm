@@ -59,8 +59,19 @@ Pre-built Docker images are available on GitHub Container Registry (GHCR) for di
   docker run -it --rm ghcr.io/drumscoreai/rhythmform-core:latest bash
   ```
 
+  **`ghcr.io/drumscoreai/rhythmform-core-cpu:latest`**  
+  The full package image without GPU dependencies.  
+  *No default command is set.*  
+  Use this image for interactive exploration, debugging, or running any script manually.  
+  Do not use this image for training as it will not recognise GPUs.
+  Example:
+  ```sh
+  docker run -it --rm ghcr.io/drumscoreai/rhythmform-core-cpu:latest bash
+  ```
+
 - **`ghcr.io/drumscoreai/rhythmform-synthesizer:latest`**  
-  Convenience image for data synthesis.  
+  Convenience image for data synthesis.
+  Uses `FROM ghcr.io/drumscoreai/rhythmform-core-cpu:latest` and so does *not* support GPUs.
   The default command runs the data synthesis pipeline.  
   **Expected volume:** Attach your data directory to `/app/training_data`.  
   Example:
@@ -70,7 +81,8 @@ Pre-built Docker images are available on GitHub Container Registry (GHCR) for di
   where `num_scores` defines the number of scores to be generated and `num_cores` defines the maximum number of CPUs to be used for any parallelised tasks.
 
 - **`ghcr.io/drumscoreai/rhythmform-trainer:latest`**  
-  Convenience image for model training.  
+  Convenience image for model training.
+  Uses `FROM ghcr.io/drumscoreai/rhythmform-core:latest` for GPU support.
   The default command runs the model training pipeline.  
   **Expected volume:** Attach your data directory to `/app/training_data`.  
   Example:

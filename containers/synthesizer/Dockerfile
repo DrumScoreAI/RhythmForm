@@ -1,5 +1,5 @@
 # Use an official NVIDIA CUDA image as a base.
-FROM ghcr.io/drumscoreai/rhythmform-core:latest
+FROM ghcr.io/drumscoreai/rhythmform-core-cpu:latest
 
 # Set the working directory in the container
 WORKDIR /app/scripts

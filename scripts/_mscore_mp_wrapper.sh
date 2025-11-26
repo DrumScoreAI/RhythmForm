@@ -16,5 +16,6 @@ xml_file=$1
 
 filename="${xml_file##*/}"
 xml_dir="${xml_file%/*}"
-pdf_dir="${xml_dir/../pdfs}"
-$MUSESCORE_PATH -o "$pdf_dir/${filename%.xml}.pdf" -r 300 "$xml_file" 2>/dev/null
+pdf_dir="${xml_dir}/../pdfs"
+echo $filename $xml_dir $pdf_dir ${pdf_dir}/${filename%.xml}.pdf
+$MUSESCORE_PATH -o "${pdf_dir}/${filename%.xml}.pdf" -r 300 "${xml_file}" 2>/dev/null

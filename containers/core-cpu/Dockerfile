@@ -35,6 +35,17 @@ COPY scripts ./scripts
 COPY containers/core-cpu/core-cpu_entrypoint.sh .
 RUN chmod +x core-cpu_entrypoint.sh
 
+# Download and extract MuseScore AppImage
+ARG MUSESCORE_VERSION=4.6.3
+ARG GIT_HASH=252940956
+RUN wget https://github.com/musescore/MuseScore/releases/download/v${MUSESCORE_VERSION}/MuseScore-Studio-${MUSESCORE_VERSION}.${GIT_HASH}-x86_64.AppImage -O /app/musescore.AppImage \
+    && chmod +x /app/musescore.AppImage \
+    && /app/musescore.AppImage --appimage-extract \
+    && mv squashfs-root /app/musescore-extracted \
+    && ln -s /app/musescore-extracted/usr/bin/mscore /app/mscore \
+    && ln -s /app/musescore-extracted/usr/bin/mscore /app/musescore \
+    && rm /app/musescore.AppImage
+
 # Create a non-root user for security
 RUN useradd -ms /bin/bash -u 1001 appuser
 RUN chown -R appuser:appuser /app
@@ -42,6 +53,10 @@ USER appuser
 
 ENV RHYTHMFORMHOME=/app
 ENV PYTHONPATH=/app:$PYTHONPATH
+
+# Point MUSESCORE_PATH to the extracted directory
+ENV MUSESCORE_PATH=/app/musescore-extracted
+ENV PATH="/app:${PATH}"
 
 WORKDIR /app/scripts
 

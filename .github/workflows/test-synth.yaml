@@ -1,9 +1,10 @@
 name: Test Synthesizer
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_run:
+    workflows: ["Build and Push Synthesizer Image"]
+    types:
+      - completed
 
 jobs:
   test-synthesizer:

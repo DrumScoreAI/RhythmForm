@@ -32,8 +32,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY scripts ./scripts
 
 # Copy entrypoint script
-COPY containers/core/core-cpu_endpoint.sh .
-RUN chmod +x core-cpu_endpoint.sh
+COPY containers/core-cpu/core-cpu_entrypoint.sh .
+RUN chmod +x core-cpu_entrypoint.sh
 
 # Create a non-root user for security
 RUN useradd -ms /bin/bash -u 1001 appuser
@@ -45,4 +45,4 @@ ENV PYTHONPATH=/app:$PYTHONPATH
 
 WORKDIR /app/scripts
 
-ENTRYPOINT ["/app/core-cpu_endpoint.sh"]
+ENTRYPOINT ["/app/core-cpu_entrypoint.sh"]

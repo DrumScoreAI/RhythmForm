@@ -1,4 +1,4 @@
-name: Build and Push Synthsizer Image
+name: Build and Push Synthesizer Image
 
 on:
   workflow_run:

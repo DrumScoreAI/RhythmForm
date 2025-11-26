@@ -51,7 +51,7 @@ RUN ln -s /usr/bin/pydoc3 /app/pydoc \
 COPY requirements.txt .
 
 # Install Python dependencies# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN python3 -m pip install --no-cache-dir -r requirements.txt
 
 # Copy code
 COPY scripts ./scripts

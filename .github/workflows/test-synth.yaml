@@ -1,0 +1,43 @@
+name: Test Synthesizer
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-synthesizer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up training_data directory
+        run: mkdir -p training_data
+
+      - name: Run RhythmForm Synthesizer Docker
+        run: |
+          docker run -v ${{ github.workspace }}/training_data:/app/training_data -it ghcr.io/drumscoreai/rhythmform-synthesizer:latest 1 1
+
+      - name: Check output files
+        run: |
+          required_files=(
+            "dataset.json"
+            "tokenizer_vocab.json"
+            "training_data.csv"
+            "images/synthetic_score_1_level_0.png"
+            "musicxml/synthetic_score_1_level_0.xml"
+            "pdfs/synthetic_score_1_level_0.pdf"
+          )
+          missing=0
+          for file in "${required_files[@]}"; do
+            if [ ! -f "training_data/$file" ]; then
+              echo "$file -- MISSING"
+              missing=$((missing + 1))
+            else
+              echo "$file -- OK"
+            fi
+          done
+          if [ $missing -ne 0 ]; then
+            exit 1
+          fi

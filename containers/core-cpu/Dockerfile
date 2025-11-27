@@ -37,6 +37,8 @@ RUN apt-get install -y \
 RUN apt-get install -y \
     libxcb-sync1
 RUN apt-get install -y \
+    libopengl0
+RUN apt-get install -y \
     libxcb-xfixes0 \
     libxcb-shape0 \
     libxcb-randr0 \

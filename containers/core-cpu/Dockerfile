@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
     git \
     wget
 RUN apt-get install -y \
-    libpipewire-0.3 \
+    libpipewire-0.3.0t64 \
     libx11-6 \
     libxext6 \
     libxrender1 \
@@ -40,9 +40,9 @@ RUN apt-get install -y \
     libfontconfig1 \
     libfreetype6
 RUN apt-get install -y \
-    libasound2 \
+    libasound2t64 \
     libnss3 \
-    libssl3 \
+    libssl3t64 \
     libpulse0 \
     libsndfile1 \
     libxcomposite1 \
@@ -56,7 +56,7 @@ RUN apt-get install -y \
     libxss1 \
     libxv1 \
     libxxf86vm1 \
-    libcups2 \
+    libcups2t64 \
     libwayland-client0 \
     libwayland-cursor0 \
     libwayland-egl1 \

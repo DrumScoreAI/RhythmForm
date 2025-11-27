@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y \
     libfuse2 \
     sudo \
     libpipewire-0.3-dev \
+    libglx-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create and activate a virtual environment, then install requirements

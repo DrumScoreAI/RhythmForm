@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     fuse \
     libfuse2 \
     sudo \
+    libpipewire-0.3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Download and extract MuseScore AppImage

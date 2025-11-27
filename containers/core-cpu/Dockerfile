@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     fuse \
     libfuse2 \
     sudo \
+    libpipewire-0.3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create and activate a virtual environment, then install requirements
@@ -57,7 +58,7 @@ ENV RHYTHMFORMHOME=/app
 ENV PYTHONPATH=/app:$PYTHONPATH
 
 # Point MUSESCORE_PATH to the extracted directory
-ENV MUSESCORE_PATH=/app/musescore-extracted
+ENV MUSESCORE_PATH=/app/mscore
 
 WORKDIR /app/scripts
 

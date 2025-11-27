@@ -1,5 +1,5 @@
 # Use an official NVIDIA CUDA image as a base.
-FROM nvidia/cuda:12.1.1-cudnn8-devel-ubuntu22.04
+FROM nvidia/cuda:13.0.2-cudnn-devel-ubuntu24.04
 
 # Set the working directory in the container
 WORKDIR /app

@@ -10,15 +10,53 @@ ENV PYTHONUNBUFFERED=1
 
 # Install system dependencies, including wget to download MuseScore and fuse which is required by AppImages.
 RUN apt-get update && apt-get install -y \
-    python3.10 \
+    python3.12 \
+    python3.12-venv \
     python3-pip \
     git \
     wget \
-    fuse \
-    libfuse2 \
-    sudo \
-    libpipewire-0.3-dev \
-    libglx-dev \
+    libpipewire-0.3-0 \
+    libx11-6 \
+    libxext6 \
+    libxrender1 \
+    libxcb1 \
+    libxcb-glx0 \
+    libxcb-keysyms1 \
+    libxcb-image0 \
+    libxcb-shm0 \
+    libxcb-icccm4 \
+    libxcb-sync1 \
+    libxcb-xfixes0 \
+    libxcb-shape0 \
+    libxcb-randr0 \
+    libxcb-render-util0 \
+    libxcb-xkb1 \
+    libxkbcommon0 \
+    libxkbcommon-x11-0 \
+    libgl1 \
+    libegl1 \
+    libdbus-1-3 \
+    libfontconfig1 \
+    libfreetype6 \
+    libasound2 \
+    libnss3 \
+    libssl3 \
+    libpulse0 \
+    libsndfile1 \
+    libxcomposite1 \
+    libxcursor1 \
+    libxdamage1 \
+    libxi6 \
+    libxtst6 \
+    libxrandr2 \
+    libxinerama1 \
+    libxss1 \
+    libxv1 \
+    libxxf86vm1 \
+    libcups2 \
+    libwayland-client0 \
+    libwayland-cursor0 \
+    libwayland-egl1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Download and extract MuseScore AppImage

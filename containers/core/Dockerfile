@@ -14,7 +14,8 @@ RUN apt-get update && apt-get install -y \
     python3.12-venv \
     python3-pip \
     git \
-    wget \
+    wget
+RUN apt-get install -y \
     libpipewire-0.3 \
     libx11-6 \
     libxext6 \
@@ -26,7 +27,8 @@ RUN apt-get update && apt-get install -y \
     libxcb-shm0 \
     libxcb-icccm4 \
     libxcb-sync1 \
-    libxcb-xfixes0 \
+    libxcb-xfixes0
+RUN apt-get install -y \
     libxcb-shape0 \
     libxcb-randr0 \
     libxcb-render-util0 \

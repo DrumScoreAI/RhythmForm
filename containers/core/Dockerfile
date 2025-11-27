@@ -64,10 +64,6 @@ RUN apt-get update && apt-get install -y \
 RUN python3.12 -m venv /app/venv
 ENV PATH="/app:/home/appuser/.local/bin:/app/venv/bin:${PATH}"
 
-RUN ln -s /usr/bin/pydoc3 /app/venv/bin/pydoc \
-    && ln -s /usr/bin/python3 /app/venv/bin/python \
-    && ln -s /usr/bin/python3-config /app/venv/bin/python-config
-
 COPY requirements.txt .
 
 RUN pip install --upgrade pip

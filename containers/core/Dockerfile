@@ -41,7 +41,7 @@ ENV PYTHONPATH=/app:$PYTHONPATH
 
 # Point MUSESCORE_PATH to the extracted directory
 ENV MUSESCORE_PATH=/app/musescore-extracted
-ENV PATH="/app:${PATH}"
+ENV PATH="/app:/home/appuser/.local/bin:${PATH}"
 
 RUN ln -s /usr/bin/pydoc3 /app/pydoc \
     && ln -s /usr/bin/python3 /app/python \

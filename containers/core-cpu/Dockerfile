@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y \
 
 # Create and activate a virtual environment, then install requirements
 RUN python3.12 -m venv /app/venv
-ENV PATH="/app/venv/bin:$PATH"
+ENV PATH="/app:/home/appuser/.local/bin:/app/venv/bin:${PATH}"
 
 COPY requirements.txt .
 
@@ -56,7 +56,6 @@ ENV PYTHONPATH=/app:$PYTHONPATH
 
 # Point MUSESCORE_PATH to the extracted directory
 ENV MUSESCORE_PATH=/app/musescore-extracted
-ENV PATH="/app:${PATH}"
 
 WORKDIR /app/scripts
 

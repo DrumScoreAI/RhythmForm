@@ -60,6 +60,19 @@ RUN apt-get update && apt-get install -y \
     libwayland-egl1 \
     && rm -rf /var/lib/apt/lists/*
 
+# Create and activate a virtual environment, then install requirements
+RUN python3.12 -m venv /app/venv
+ENV PATH="/app:/home/appuser/.local/bin:/app/venv/bin:${PATH}"
+
+RUN ln -s /usr/bin/pydoc3 /app/venv/bin/pydoc \
+    && ln -s /usr/bin/python3 /app/venv/bin/python \
+    && ln -s /usr/bin/python3-config /app/venv/bin/python-config
+
+COPY requirements.txt .
+
+RUN pip install --upgrade pip
+RUN pip install --no-cache-dir -r requirements.txt
+
 # Download and extract MuseScore AppImage
 ARG MUSESCORE_VERSION=4.6.3
 ARG GIT_HASH=252940956
@@ -85,16 +98,6 @@ ENV PYTHONPATH=/app:$PYTHONPATH
 # Point MUSESCORE_PATH to the extracted directory
 ENV MUSESCORE_PATH=/app/musescore-extracted
 ENV PATH="/app:/home/appuser/.local/bin:${PATH}"
-
-RUN ln -s /usr/bin/pydoc3 /app/pydoc \
-    && ln -s /usr/bin/python3 /app/python \
-    && ln -s /usr/bin/python3-config /app/python-config
-
-# Copy the requirements file first to leverage Docker layer caching
-COPY requirements.txt .
-
-# Install Python dependencies# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy code
 COPY scripts ./scripts

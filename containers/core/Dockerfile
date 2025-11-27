@@ -26,7 +26,8 @@ RUN wget https://github.com/musescore/MuseScore/releases/download/v${MUSESCORE_V
     && chmod +x /app/musescore.AppImage \
     && /app/musescore.AppImage --appimage-extract \
     && mv squashfs-root /app/musescore-extracted \
-    && chmod -R 777 /app/musescore-extracted \
+    && find /app/musescore-extracted -type d -exec chmod 777 {} \; \
+    && find /app/musescore-extracted -type f -exec chmod 777 {} \; \
     && ln -s /app/musescore-extracted/usr/bin/mscore4portable /app/mscore \
     && ln -s /app/musescore-extracted/usr/bin/mscore4portable /app/musescore \
     && rm /app/musescore.AppImage

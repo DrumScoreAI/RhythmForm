@@ -14,34 +14,19 @@ RUN apt-get update && apt-get install -y \
     python3.10-venv \
     python3-pip \
     git \
-    wget
-RUN apt-get install -y \
-    libpipewire-0.3.0t64
-RUN apt-get install -y \
-    libx11-6
-RUN apt-get install -y \
-    libxext6
-RUN apt-get install -y \
-    libxrender1
-RUN apt-get install -y \
-    libxcb1
-RUN apt-get install -y \
-    libxcb-glx0
-RUN apt-get install -y \
-    libxcb-keysyms1
-RUN apt-get install -y \
-    libxcb-image0
-RUN apt-get install -y \
-    libxcb-shm0
-RUN apt-get install -y \
-    libxcb-icccm4
-RUN apt-get install -y \
-    libxcb-sync1
-RUN apt-get install -y \
-    libxcb-xfixes0
-RUN apt-get install -y \
-    libopengl0
-RUN apt-get install -y \
+    wget \
+    libx11-6 \
+    libxext6 \
+    libxrender1 \
+    libxcb1 \
+    libxcb-glx0 \
+    libxcb-keysyms1 \
+    libxcb-image0 \
+    libxcb-shm0 \
+    libxcb-icccm4 \
+    libxcb-sync1 \
+    libxcb-xfixes0 \
+    libopengl0 \
     libxcb-shape0 \
     libxcb-randr0 \
     libxcb-render-util0 \
@@ -71,7 +56,11 @@ RUN apt-get install -y \
     libcups2t64 \
     libwayland-client0 \
     libwayland-cursor0 \
-    libwayland-egl1 \
+    libwayland-egl1
+RUN apt-get install -y \
+    pipewire-audio-client-libraries \
+    pipewire-pulse \
+    libspa-0.2-bluetooth \
     && rm -rf /var/lib/apt/lists/*
 
 # Download and extract MuseScore AppImage

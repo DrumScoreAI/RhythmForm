@@ -13,7 +13,8 @@ RUN apt-get update && apt-get install -y \
     python3.12-venv \
     python3-pip \
     git \
-    wget \
+    wget
+RUN apt-get install -y \
     libpipewire-0.3 \
     libx11-6 \
     libxext6 \
@@ -24,7 +25,8 @@ RUN apt-get update && apt-get install -y \
     libxcb-image0 \
     libxcb-shm0 \
     libxcb-icccm4 \
-    libxcb-sync1 \
+    libxcb-sync1
+RUN apt-get install -y \
     libxcb-xfixes0 \
     libxcb-shape0 \
     libxcb-randr0 \
@@ -36,7 +38,8 @@ RUN apt-get update && apt-get install -y \
     libegl1 \
     libdbus-1-3 \
     libfontconfig1 \
-    libfreetype6 \
+    libfreetype6
+RUN apt-get install -y \
     libasound2 \
     libnss3 \
     libssl3 \
@@ -47,7 +50,8 @@ RUN apt-get update && apt-get install -y \
     libxdamage1 \
     libxi6 \
     libxtst6 \
-    libxrandr2 \
+    libxrandr2
+RUN apt-get install -y \
     libxinerama1 \
     libxss1 \
     libxv1 \

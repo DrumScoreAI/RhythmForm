@@ -10,8 +10,8 @@ ENV PYTHONUNBUFFERED=1
 
 # Install system dependencies, including wget to download MuseScore and fuse which is required by AppImages.
 RUN apt-get update && apt-get install -y \
-    python3.12 \
-    python3.12-venv \
+    python3.10 \
+    python3.10-venv \
     python3-pip \
     git \
     wget
@@ -40,7 +40,8 @@ RUN apt-get install -y \
     libdbus-1-3 \
     libfontconfig1 \
     libfreetype6 \
-    libasound2 \
+    libasound2
+RUN apt-get install -y \
     libnss3 \
     libssl3 \
     libpulse0 \

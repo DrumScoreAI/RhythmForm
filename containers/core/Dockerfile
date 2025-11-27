@@ -59,6 +59,8 @@ RUN apt-get update && apt-get install -y \
     libwayland-cursor0 \
     libwayland-egl1 \
     libglib2.0-0t64 \
+    libxcb-cursor0 \
+    xvfb \
     && rm -rf /var/lib/apt/lists/*
 
 # Create and activate a virtual environment, then install requirements

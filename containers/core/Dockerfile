@@ -16,16 +16,26 @@ RUN apt-get update && apt-get install -y \
     git \
     wget
 RUN apt-get install -y \
-    libpipewire-0.3.0t64 \
-    libx11-6 \
-    libxext6 \
-    libxrender1 \
-    libxcb1 \
-    libxcb-glx0 \
-    libxcb-keysyms1 \
-    libxcb-image0 \
-    libxcb-shm0 \
-    libxcb-icccm4 \
+    libpipewire-0.3.0t64
+RUN apt-get install -y \
+    libx11-6
+RUN apt-get install -y \
+    libxext6
+RUN apt-get install -y \
+    libxrender1
+RUN apt-get install -y \
+    libxcb1
+RUN apt-get install -y \
+    libxcb-glx0
+RUN apt-get install -y \
+    libxcb-keysyms1
+RUN apt-get install -y \
+    libxcb-image0
+RUN apt-get install -y \
+    libxcb-shm0
+RUN apt-get install -y \
+    libxcb-icccm4
+RUN apt-get install -y \
     libxcb-sync1
 RUN apt-get install -y \
     libxcb-xfixes0 \
@@ -39,8 +49,7 @@ RUN apt-get install -y \
     libegl1 \
     libdbus-1-3 \
     libfontconfig1 \
-    libfreetype6
-RUN apt-get install -y \
+    libfreetype6 \
     libasound2t64 \
     libnss3 \
     libssl3t64 \
@@ -51,8 +60,7 @@ RUN apt-get install -y \
     libxdamage1 \
     libxi6 \
     libxtst6 \
-    libxrandr2
-RUN apt-get install -y \
+    libxrandr2 \
     libxinerama1 \
     libxss1 \
     libxv1 \

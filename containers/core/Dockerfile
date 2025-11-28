@@ -15,7 +15,7 @@ ENV LC_ALL=en_GB.UTF-8
 RUN apt-get update && apt-get install -y \
     locales \
     locale-gen \
-    en_GB.UTF-8 \
+    # en_GB.UTF-8 \
     python3.12 \
     python3.12-venv \
     python3-pip \

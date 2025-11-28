@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     python3.12 \
     python3.12-venv \
     python3-pip \
+    pdftoppm \
     git \
     wget \
     libpipewire-0.3.0t64 \

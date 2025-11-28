@@ -14,7 +14,7 @@ ENV LC_ALL=en_GB.UTF-8
 # Install system dependencies, including wget to download MuseScore and fuse which is required by AppImages.
 RUN apt-get update && apt-get install -y \
     locales \
-    locale-gen \
+    locales-all \
     # en_GB.UTF-8 \
     python3.12 \
     python3.12-venv \

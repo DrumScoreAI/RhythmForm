@@ -12,7 +12,7 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     locales \
-    locale-gen \
+    locales-all \
     # en_GB.UTF-8 \
     python3.12 \
     python3.12-venv \

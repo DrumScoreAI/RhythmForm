@@ -274,7 +274,7 @@ def process_file(xml_path):
     """
     print(f"Processing: {xml_path.name}")
     # Note: Temporary PDFs are created during rendering, but the final image is a PNG.
-    pdf_path = OUTPUT_IMAGE_DIR / xml_path.with_suffix('.pdf').name
+    pdf_path = PDF_OUTPUT_DIR / xml_path.with_suffix('.pdf').name
     png_path = OUTPUT_IMAGE_DIR / xml_path.with_suffix('.png').name
 
     # --- 1. Handle repeats and ST generation ---

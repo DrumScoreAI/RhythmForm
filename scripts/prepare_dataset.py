@@ -332,10 +332,11 @@ def process_file(xml_path):
         print(e.stderr)
         return None
     finally:
+        pass
         # --- 3. Cleanup ---
         # --- CHANGE: Keep the altered XML for debugging, only delete the temp PDF ---
-        if pdf_path.exists():
-            pdf_path.unlink()
+        # if pdf_path.exists():
+        #     pdf_path.unlink()
         # The altered_xml_path is intentionally NOT deleted.
 
 

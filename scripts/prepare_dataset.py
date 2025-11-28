@@ -303,6 +303,8 @@ def process_file(xml_path):
     try:
         # Render the (potentially temporary) XML to PDF
         subprocess.run([
+            'xvfb-run', 
+            '-a',
             MUSESCORE_PATH,
             '-o', str(pdf_path),
             str(xml_to_render)

@@ -4,11 +4,16 @@ FROM ubuntu:24.04
 # Set environment variables to ensure non-interactive installation
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
-
+ENV LANG=en_GB.UTF-8
+ENV LANGUAGE=en_GB:en
+ENV LC_ALL=en_GB.UTF-8
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
+    locales \
+    locale-gen \
+    en_GB.UTF-8 \
     python3.12 \
     python3.12-venv \
     python3-pip \

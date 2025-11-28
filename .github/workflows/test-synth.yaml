@@ -33,4 +33,4 @@ jobs:
 
       - name: Check output files
         run: |
-          ${{ github.workspace }}/tests/test_synth.sh $PWD
+          ${{ github.workspace }}/tests/test_synth.sh ${{ github.workspace }}

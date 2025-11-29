@@ -16,7 +16,9 @@ CHECKPOINT_DIR = PROJECT_ROOT / 'checkpoints'
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 1 # Adjust based on your GPU memory ( use 1 if running a CPU-based test )
 NUM_EPOCHS = 50
+FINE_NUM_EPOCHS = 10
 LEARNING_RATE = 1e-4
+FINE_LEARNING_RATE = 1e-5
 VALIDATION_SPLIT = 0.1
 
 # --- THIS IS THE FIX ---

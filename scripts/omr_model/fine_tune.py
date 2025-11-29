@@ -27,8 +27,8 @@ def collate_fn(batch, pad_token_id):
 def parse_args():
     parser = argparse.ArgumentParser(description="Fine-tune the OMR model.")
     parser.add_argument('--batch-size', type=int, default=config.BATCH_SIZE)
-    parser.add_argument('--learning-rate', type=float, default=1e-5, help='Lower LR for fine-tuning')
-    parser.add_argument('--num-epochs', type=int, default=10)
+    parser.add_argument('--learning-rate', type=float, default=config.FINE_LEARNING_RATE, help='Lower LR for fine-tuning')
+    parser.add_argument('--num-epochs', type=int, default=config.FINE_NUM_EPOCHS)
     parser.add_argument('--num-workers', type=int, default=config.NUM_WORKERS)
     parser.add_argument('--validation-split', type=float, default=config.VALIDATION_SPLIT)
     parser.add_argument('--pretrained-checkpoint', type=str, required=True, help='Path to pre-trained model .pth')
@@ -76,7 +76,7 @@ def main():
     model = ImageToStModel(
         vocab_size=tokenizer.vocab_size,
         d_model=config.D_MODEL,
-        nhead=config.N_HEADS,
+        nhead=config.NHEAD,
         num_encoder_layers=config.NUM_ENCODER_LAYERS,
         num_decoder_layers=config.NUM_DECODER_LAYERS,
         dim_feedforward=config.DIM_FEEDFORWARD,

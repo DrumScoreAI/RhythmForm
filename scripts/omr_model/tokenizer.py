@@ -4,7 +4,8 @@ from pathlib import Path
 from collections import Counter
 
 # Import the dataset class
-from .dataset import ScoreDataset, DATASET_JSON_PATH
+from .dataset import ScoreDataset
+from . import config
 
 class StTokenizer:
     """
@@ -103,8 +104,9 @@ class StTokenizer:
 # This block allows you to test the tokenizer by running `python omr_model/tokenizer.py`
 if __name__ == '__main__':
     # Define where to save the tokenizer vocab
-    PROJECT_ROOT = Path(os.environ.get('RHYTHMFORMHOME', Path(__file__).parent.parent))
-    TOKENIZER_SAVE_PATH = PROJECT_ROOT / 'training_data' / 'tokenizer_vocab.json'
+    PROJECT_ROOT = config.PROJECT_ROOT
+    TOKENIZER_SAVE_PATH = config.TOKENIZER_VOCAB_PATH
+    DATASET_JSON_PATH = config.DATASET_JSON_PATH
 
     # 1. Build vocabulary from scratch
     print("--- Building tokenizer from dataset ---")

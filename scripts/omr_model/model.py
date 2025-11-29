@@ -1,13 +1,13 @@
 import torch
 import torch.nn as nn
 import math
+from . import config
 
 class PositionalEncoding(nn.Module):
     """
     Injects positional information into the input embeddings.
     From the PyTorch tutorial: https://pytorch.org/tutorials/beginner/transformer_tutorial.html
     """
-    # --- THIS IS THE FIX ---
     # Increase the default max_len to a larger value to handle bigger images.
     def __init__(self, d_model, dropout=0.1, max_len=10000):
         super(PositionalEncoding, self).__init__()
@@ -42,8 +42,7 @@ class ImageToStModel(nn.Module):
         # Layer to convert image into patches and embed them
         self.patch_embedding = nn.Conv2d(1, d_model, kernel_size=patch_size, stride=patch_size)
         
-        # --- THIS IS THE FIX ---
-        # The PositionalEncoding will now use the new default max_len of 10000.
+        # The PositionalEncoding with default max_len of 10000.
         self.encoder_pos_encoder = PositionalEncoding(d_model, dropout)
 
         # --- Text Decoder Components ---
@@ -124,13 +123,13 @@ class ImageToStModel(nn.Module):
 # This block allows you to test the model by running `python -m omr_model.model`
 if __name__ == '__main__':
     # --- Configuration (we'll move this to config.py later) ---
-    PATCH_SIZE = 32
-    VOCAB_SIZE = 150 # Example vocab size
-    D_MODEL = 256
-    NHEAD = 4
-    NUM_ENCODER_LAYERS = 3
-    NUM_DECODER_LAYERS = 3
-    DIM_FEEDFORWARD = 1024
+    PATCH_SIZE = config.PATCH_SIZE
+    VOCAB_SIZE = config.VOCAB_SIZE # Example vocab size
+    D_MODEL = config.D_MODEL
+    NHEAD = config.NHEAD
+    NUM_ENCODER_LAYERS = config.NUM_ENCODER_LAYERS
+    NUM_DECODER_LAYERS = config.NUM_DECODER_LAYERS
+    DIM_FEEDFORWARD = config.DIM_FEEDFORWARD
     
     # --- Create Model ---
     model = ImageToStModel(

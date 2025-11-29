@@ -47,8 +47,9 @@ except (json.JSONDecodeError, TypeError):
 
 
 D_MODEL = 256       # Embedding dimension
-N_HEADS = 8         # Number of attention heads
+NHEAD = 8         # Number of attention heads
 NUM_ENCODER_LAYERS = 6
 NUM_DECODER_LAYERS = 6
 DIM_FEEDFORWARD = 1024
 DROPOUT = 0.1
+PATCH_SIZE = 32    # Size of image patches

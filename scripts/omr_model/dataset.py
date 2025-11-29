@@ -4,12 +4,13 @@ from pathlib import Path
 from PIL import Image
 import torch
 from torch.utils.data import Dataset, DataLoader
+from . import config
 
 # --- Path Configuration ---
 # Use the RHYTHMFORMHOME env var for the project root, with a fallback.
 # This ensures the path is correct regardless of where the script is run from.
-PROJECT_ROOT = Path(os.environ.get('RHYTHMFORMHOME', Path(__file__).parent.parent.parent))
-DATASET_JSON_PATH = PROJECT_ROOT / 'training_data' / 'dataset.json'
+PROJECT_ROOT = config.PROJECT_ROOT
+DATASET_JSON_PATH = config.DATASET_JSON_PATH
 
 
 class ScoreDataset(Dataset):

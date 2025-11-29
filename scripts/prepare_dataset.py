@@ -10,18 +10,17 @@ from fractions import Fraction
 from tqdm import tqdm
 import argparse
 
+from .omr_model import config
+
 # --- Configuration ---
-# --- THIS IS THE FIX (Part 1) ---
-# Add a configuration for image resolution (DPI). 150 is a good starting point
-# for lower resolution, compared to a typical default of 300.
-IMAGE_DPI = 100
-PROJECT_ROOT = Path(os.environ.get('RHYTHMFORMHOME', Path(__file__).parent.parent.parent))
-TRAINING_DATA_DIR = PROJECT_ROOT / 'training_data'
-XML_DIR = TRAINING_DATA_DIR / 'musicxml'
-OUTPUT_IMAGE_DIR = TRAINING_DATA_DIR / 'images'
-PDF_OUTPUT_DIR = TRAINING_DATA_DIR / 'pdfs'
-MANIFEST_FILE = TRAINING_DATA_DIR / 'training_data.csv'
-FINAL_DATASET_FILE = TRAINING_DATA_DIR / 'dataset.json'
+IMAGE_DPI = config.IMAGE_DPI
+PROJECT_ROOT = config.PROJECT_ROOT
+TRAINING_DATA_DIR = config.TRAINING_DATA_DIR
+XML_DIR = config.XML_DIR
+OUTPUT_IMAGE_DIR = config.DATA_IMAGES_DIR
+PDF_OUTPUT_DIR = config.PDF_OUTPUT_DIR
+MANIFEST_FILE = config.MANIFEST_FILE
+DATASET_JSON_PATH = config.DATASET_JSON_PATH
 MUSESCORE_PATH = os.environ.get("MUSESCORE_PATH", "mscore4portable") # Use environment variable or default
 
 # --- Drum MIDI to ST Mapping ---
@@ -396,11 +395,11 @@ def main():
     dataset.sort(key=lambda x: x['image_path'])
 
     # Save the final dataset manifest
-    with open(FINAL_DATASET_FILE, 'w') as f:
+    with open(DATASET_JSON_PATH, 'w') as f:
         json.dump(dataset, f, indent=2)
 
     print(f"\nDataset creation complete. {len(dataset)} pairs created.")
-    print(f"Manifest saved to {FINAL_DATASET_FILE}")
+    print(f"Manifest saved to {DATASET_JSON_PATH}")
 
 
 if __name__ == '__main__':

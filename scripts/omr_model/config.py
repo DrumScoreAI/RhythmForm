@@ -2,15 +2,28 @@ import os
 from pathlib import Path
 import torch
 from multiprocessing import cpu_count
+from glob import glob
 
 # --- Path Configuration ---
 # Use the RHYTHMFORMHOME env var for the project root, with a fallback.
 # This ensures all paths are resolved correctly from the project root.
 PROJECT_ROOT = Path(os.environ.get('RHYTHMFORMHOME', Path(__file__).parent.parent.parent))
 TRAINING_DATA_DIR = PROJECT_ROOT / 'training_data'
+XML_DIR = TRAINING_DATA_DIR / 'musicxml'
+DATA_IMAGES_DIR = TRAINING_DATA_DIR / 'images'
+PDF_OUTPUT_DIR = TRAINING_DATA_DIR / 'pdfs'
+MANIFEST_FILE = TRAINING_DATA_DIR / 'training_data.csv'
 DATASET_JSON_PATH = TRAINING_DATA_DIR / 'dataset.json'
 TOKENIZER_VOCAB_PATH = TRAINING_DATA_DIR / 'tokenizer_vocab.json'
 CHECKPOINT_DIR = PROJECT_ROOT / 'checkpoints'
+
+pretrained_models = glob(str(CHECKPOINT_DIR / 'model_epoch_*.pth'))
+if pretrained_models:
+    for model_path in pretrained_models:
+        highest_epoch = max(int(Path(p).stem.split('_')[-1]) for p in pretrained_models)
+    FINETUNE_PRETRAINED_MODEL_PATH = CHECKPOINT_DIR / f'model_epoch_{highest_epoch}.pth'
+else:
+    FINETUNE_PRETRAINED_MODEL_PATH = CHECKPOINT_DIR / 'best_model.pth'
 
 # --- Training Configuration ---
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -20,6 +33,8 @@ FINE_NUM_EPOCHS = 10
 LEARNING_RATE = 1e-4
 FINE_LEARNING_RATE = 1e-5
 VALIDATION_SPLIT = 0.1
+
+IMAGE_DPI = 100  # DPI for image rendering
 
 # --- THIS IS THE FIX ---
 # On WSL, multiprocessing for the DataLoader can cause memory issues and crash the system.

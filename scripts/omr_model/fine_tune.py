@@ -31,8 +31,8 @@ def parse_args():
     parser.add_argument('--num-epochs', type=int, default=config.FINE_NUM_EPOCHS)
     parser.add_argument('--num-workers', type=int, default=config.NUM_WORKERS)
     parser.add_argument('--validation-split', type=float, default=config.VALIDATION_SPLIT)
-    parser.add_argument('--pretrained-checkpoint', type=str, required=True, help='Path to pre-trained model .pth')
-    parser.add_argument('--finetune-manifest', type=str, required=True, help='Path to fine-tune dataset manifest (json)')
+    parser.add_argument('--pretrained-checkpoint', type=str, default=str(config.FINETUNE_PRETRAINED_MODEL_PATH), help='Path to pre-trained model .pth')
+    parser.add_argument('--finetune-dataset', type=str, required=True, help='Path to fine-tune dataset manifest (json)')
     parser.add_argument('--tokenizer-vocab', type=str, default=str(config.TOKENIZER_VOCAB_PATH))
     parser.add_argument('--output-dir', type=str, default=str(config.CHECKPOINT_DIR))
     return parser.parse_args()
@@ -49,7 +49,7 @@ def main():
 
     transform = transforms.Compose([transforms.ToTensor()])
     dataset = ScoreDataset(
-        manifest_path=args.finetune_manifest,
+        manifest_path=args.finetune_dataset,
         tokenizer=tokenizer,
         transform=transform
     )

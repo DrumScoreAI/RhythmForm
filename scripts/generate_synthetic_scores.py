@@ -236,7 +236,7 @@ if __name__ == '__main__':
                     generate_drum_score,
                     num_measures=random.randint(12, 24),
                     output_path=file_path,
-                    complexity=level,
+                    complexity=level % 3,  # Cycle complexity between 0,1,2, but file names show increasing level
                     use_repeats=use_repeats_for_this_score
                 )
             )

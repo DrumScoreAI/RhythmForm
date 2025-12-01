@@ -10,7 +10,7 @@ from fractions import Fraction
 from tqdm import tqdm
 import argparse
 
-from .omr_model import config
+from omr_model import config
 
 # --- Configuration ---
 IMAGE_DPI = config.IMAGE_DPI

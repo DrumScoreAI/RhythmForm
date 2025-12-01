@@ -56,12 +56,12 @@ try:
         vocab_list = json.load(f)
         VOCAB_SIZE = len(vocab_list)
 except FileNotFoundError:
-    print(f"Warning: Tokenizer vocab not found at {TOKENIZER_VOCAB_PATH}. Using a default VOCAB_SIZE of 500.")
-    print("Run 'python -m scripts.omr_model.tokenizer' to generate it.")
+    # print(f"Warning: Tokenizer vocab not found at {TOKENIZER_VOCAB_PATH}. Using a default VOCAB_SIZE of 500.")
+    # print("Run 'python -m scripts.omr_model.tokenizer' to generate it.")
     VOCAB_SIZE = 500
 except (json.JSONDecodeError, TypeError):
     # Handle cases where the file is not a simple list
-    print(f"Warning: Could not determine vocab size from {TOKENIZER_VOCAB_PATH}. Using default.")
+    # print(f"Warning: Could not determine vocab size from {TOKENIZER_VOCAB_PATH}. Using default.")
     VOCAB_SIZE = 500
 
 

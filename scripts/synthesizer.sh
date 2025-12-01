@@ -83,8 +83,22 @@ mkdir -p "$TRAINING_DATA_DIR/logs"
 if [ "$use_stdout" == "true" ]; then
     echo "Logging to stdout as requested."
 else
-    exec > "$TRAINING_DATA_DIR/logs/synth_log_$(date +%Y%m%d_%H%M%S).log" 2>&1
+    logfile="$TRAINING_DATA_DIR/logs/synth_log_$(date +%Y%m%d_%H%M%S).log"
+    echo "Logging to file: $logfile"
+    exec > "$logfile" 2>&1
 fi
+echo ""
+echo "------RhythmForm Score Synthesizer------"
+echo "----------------------------------------"
+echo "Starting data synthesis with the following parameters:"
+echo "  RHYTHMFORMHOME: $RHYTHMFORMHOME"
+echo "  Training data directory: $TRAINING_DATA_DIR"
+echo "  Number of scores to generate: $num_scores"
+echo "  Number of cores to use: $num_cores"
+echo "  Continuation mode: $continuation"
+echo "  Output mode: $( [ "$use_stdout" == "true" ] && echo "stdout" || echo "$logfile" )"
+echo "----------------------------------------"
+echo ""
 
 clean_training_data() {
     # This function removes all .musicxml, .pdf, and .png files from the

@@ -189,7 +189,6 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--continuation",
-        type=bool,
         action='store_true',
         help="Continuation mode: skip already existing files"
     )

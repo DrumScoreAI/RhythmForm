@@ -7,11 +7,11 @@ use_stdout=false
 continuation=false
 
 usage() {
-    echo "Usage: $0 [-s|--scores NUM] [-c|--cores NUM] [-S|--use_stdout] [-C|--continuation]"
+    echo "Usage: $0 [-s|--scores NUM] [-n|--num-cores NUM] [-S|--use_stdout] [-c|--continuation]"
     echo "  -s, --scores NUM         Number of scores to generate (default: 30)"
-    echo "  -c, --cores NUM          Number of cores to use (default: 1)"
+    echo "  -n, --num-cores NUM      Number of cores to use (default: 1)"
     echo "  -S, --use_stdout         Log to stdout instead of file"
-    echo "  -C, --continuation       (Not yet implemented)"
+    echo "  -c, --continuation       Continue previous synthesis run"
     echo "  -h, --help               Show this help message"
 }
 
@@ -23,7 +23,7 @@ while [[ $# -gt 0 ]]; do
             num_scores="$2"
             shift; shift
             ;;
-        -c|--cores)
+        -n|--num-cores)
             num_cores="$2"
             shift; shift
             ;;
@@ -31,7 +31,7 @@ while [[ $# -gt 0 ]]; do
             use_stdout=true
             shift
             ;;
-        -C|--continuation)
+        -c|--continuation)
             continuation=true
             shift
             ;;

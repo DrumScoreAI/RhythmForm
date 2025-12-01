@@ -1,59 +1,59 @@
-name: Build and Push Trainer Image
+# name: Build and Push Trainer Image
 
-on:
-  workflow_run:
-    workflows: ["Build and Push Core Image"]
-    types:
-      - completed
+# on:
+#   workflow_run:
+#     workflows: ["Build and Push Core Image"]
+#     types:
+#       - completed
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+# env:
+#   REGISTRY: ghcr.io
+#   IMAGE_NAME: ${{ github.repository }}
 
-jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+# jobs:
+#   build-and-push:
+#     runs-on: ubuntu-latest
+#     permissions:
+#       contents: read
+#       packages: write
 
-    steps:
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          # Removes pre-installed tools to free up ~10-20GB
-          tool-cache: false
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: true
+#     steps:
+#       - name: Free Disk Space (Ubuntu)
+#         uses: jlumbroso/free-disk-space@main
+#         with:
+#           # Removes pre-installed tools to free up ~10-20GB
+#           tool-cache: false
+#           android: true
+#           dotnet: true
+#           haskell: true
+#           large-packages: true
+#           docker-images: true
+#           swap-storage: true
 
-      - name: Checkout repository
-        uses: actions/checkout@v4
+#       - name: Checkout repository
+#         uses: actions/checkout@v4
 
-      - name: Log in to the Container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+#       - name: Log in to the Container registry
+#         uses: docker/login-action@v3
+#         with:
+#           registry: ${{ env.REGISTRY }}
+#           username: ${{ github.actor }}
+#           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-trainer
-          tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,format=short
+#       - name: Extract metadata (tags, labels) for Docker
+#         id: meta
+#         uses: docker/metadata-action@v5
+#         with:
+#           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-trainer
+#           tags: |
+#             type=raw,value=latest,enable={{is_default_branch}}
+#             type=sha,format=short
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: containers/trainer/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+#       - name: Build and push Docker image
+#         uses: docker/build-push-action@v5
+#         with:
+#           context: .
+#           file: containers/trainer/Dockerfile
+#           push: true
+#           tags: ${{ steps.meta.outputs.tags }}
+#           labels: ${{ steps.meta.outputs.labels }}

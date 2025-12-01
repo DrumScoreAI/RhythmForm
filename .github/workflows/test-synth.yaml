@@ -29,7 +29,7 @@ jobs:
 
       - name: Run RhythmForm Synthesizer Docker
         run: |
-          docker run -u $(id -u):$(id -g) -v ${{ github.workspace }}/training_data:/app/training_data ghcr.io/drumscoreai/rhythmform-synthesizer:latest 1 1
+          docker run -u $(id -u):$(id -g) -v ${{ github.workspace }}/training_data:/app/training_data ghcr.io/drumscoreai/rhythmform-synthesizer:latest 1 1 true
 
       - name: Check output files
         run: |

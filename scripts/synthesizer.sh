@@ -2,6 +2,7 @@
 
 num_scores=$1
 num_cores=$2
+use_stdout=$3
 
 if [ -z "$num_scores" ]; then
     num_scores=30
@@ -43,7 +44,11 @@ mkdir -p "$TRAINING_DATA_DIR/pdfs"
 mkdir -p "$TRAINING_DATA_DIR/images"
 mkdir -p "$TRAINING_DATA_DIR/logs"
 
-exec > "$TRAINING_DATA_DIR/logs/synth_log_$(date +%Y%m%d_%H%M%S).log" 2>&1
+if [ "$use_stdout" == "true" ]; then
+    echo "Logging to stdout as requested."
+else
+    exec > "$TRAINING_DATA_DIR/logs/synth_log_$(date +%Y%m%d_%H%M%S).log" 2>&1
+fi
 
 clean_training_data() {
     # This function removes all .musicxml, .pdf, and .png files from the

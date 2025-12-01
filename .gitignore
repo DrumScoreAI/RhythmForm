@@ -217,6 +217,7 @@ temp/
 *.xml
 *.raw
 .vscode/
+references/
 
 # Model training specific
 training_data/

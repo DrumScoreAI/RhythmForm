@@ -2,6 +2,15 @@ import argparse
 import pickle
 from .markov_chain import MarkovChain
 
+def generate_sequence(model, length=100, start_token=None):
+    return model.generate(length=length, start_token=start_token)
+
+def generate_musicxml(sequence):
+    # Placeholder function: Convert the generated sequence into MusicXML format.
+    # The actual implementation would depend on the specific symbolic text format used.
+    musicxml_content = f"<musicxml>\n<!-- Generated Sequence -->\n{sequence}\n</musicxml>"
+    return musicxml_content
+
 def main():
     parser = argparse.ArgumentParser(description="Generate a sequence using a trained MarkovChain model.")
     parser.add_argument('--model', type=str, required=True, help='Path to the trained MarkovChain model (pickle file)')
@@ -17,7 +26,7 @@ def main():
         raise ValueError('Loaded object is not a MarkovChain instance')
 
     # Generate sequence
-    sequence = model.generate(args.length, start_token=args.start)
+    sequence = generate_sequence(model, length=args.length, start_token=args.start)
 
     # Output
     if args.output:

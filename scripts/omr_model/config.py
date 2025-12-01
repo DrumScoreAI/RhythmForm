@@ -35,6 +35,8 @@ FINE_LEARNING_RATE = 1e-5
 VALIDATION_SPLIT = 0.1
 
 IMAGE_DPI = 100  # DPI for image rendering
+IMG_HEIGHT = 256  # Height to resize images
+IMG_WIDTH = 1024  # Width to resize images
 
 # --- THIS IS THE FIX ---
 # On WSL, multiprocessing for the DataLoader can cause memory issues and crash the system.

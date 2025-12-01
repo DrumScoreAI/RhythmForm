@@ -56,7 +56,7 @@ DRUM_MIDI_TO_ST = {
     # Add any other mappings you need
 }
 
-# --- NEW: Create a reverse mapping from ST name to MIDI number ---
+# --- Create a reverse mapping from ST name to MIDI number ---
 ST_TO_DRUM_MIDI = {v: k for k, v in DRUM_MIDI_TO_ST.items()}
 
 
@@ -337,7 +337,6 @@ def process_file(xml_path):
         # if pdf_path.exists():
         #     pdf_path.unlink()
         # The altered_xml_path is intentionally NOT deleted.
-
 
 def main():
     """

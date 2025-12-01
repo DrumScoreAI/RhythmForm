@@ -7,6 +7,7 @@ import argparse
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
+from glob import glob
 
 # --- Configuration ---
 # Uses the same environment variable and folder structure as prepare_dataset.py
@@ -186,21 +187,46 @@ if __name__ == '__main__':
         default=1,
         help="Number of CPU cores to use for parallel generation (default: 1)"
     )
+    parser.add_argument(
+        "--continuation",
+        type=bool,
+        action='store_true',
+        help="Continuation mode: skip already existing files"
+    )
     args = parser.parse_args()
     
     num_scores_to_generate = args.num_scores
     num_cores_to_use = args.cores
-    print(f"Generating {num_scores_to_generate} scores into {XML_OUTPUT_DIR} using {num_cores_to_use} cores")
+    continuation = args.continuation
+    print(f"Generating {num_scores_to_generate} scores into {XML_OUTPUT_DIR} using {num_cores_to_use} cores with continuation={continuation}")
 
     tasks = []
+    if continuation:
+        existing_files = glob(str(XML_OUTPUT_DIR / "synthetic_score_*.xml"))
+        existing_files = [ f for f in existing_files if len(Path(f).stem.split('_')) == 5 ]
+        max_ind = -1
+        max_level = -1
+        # example file name = synthetic_score_9_level_2.xml
+        for f in existing_files:
+            stem = Path(f).stem
+            parts = stem.split('_')
+            ind = int(parts[2])  # '9' -> 9
+            level = int(parts[4][0])  # '2.xml' -> 2
+            if ind > max_ind:
+                max_ind = ind
+            if level > max_level:
+                max_level = level
+        prev_level = max_level + 1
+    else:
+        prev_level = 0
     with ProcessPoolExecutor(max_workers=num_cores_to_use) as executor:
         for i in range(num_scores_to_generate):
             if i < num_scores_to_generate / 3:
-                level = 0
+                level = 0 + prev_level
             elif i < num_scores_to_generate * 2 / 3:
-                level = 1
+                level = 1 + prev_level
             else:
-                level = 2
+                level = 2 + prev_level
 
             use_repeats_for_this_score = random.random() < 0.5
 

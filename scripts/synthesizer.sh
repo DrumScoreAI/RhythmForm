@@ -1,17 +1,53 @@
 #!/bin/bash
 
-num_scores=$1
-num_cores=$2
-use_stdout=$3
+# Default values
+num_scores=30
+num_cores=1
+use_stdout=false
+continuation=false
 
-if [ -z "$num_scores" ]; then
-    num_scores=30
-fi
+usage() {
+    echo "Usage: $0 [-s|--scores NUM] [-c|--cores NUM] [-S|--use_stdout] [-C|--continuation]"
+    echo "  -s, --scores NUM         Number of scores to generate (default: 30)"
+    echo "  -c, --cores NUM          Number of cores to use (default: 1)"
+    echo "  -S, --use_stdout         Log to stdout instead of file"
+    echo "  -C, --continuation       (Not yet implemented)"
+    echo "  -h, --help               Show this help message"
+}
 
-if [ -z "$num_cores" ]; then
-    num_cores=1
-fi
+# Parse command-line options
+while [[ $# -gt 0 ]]; do
+    key="$1"
+    case $key in
+        -s|--scores)
+            num_scores="$2"
+            shift; shift
+            ;;
+        -c|--cores)
+            num_cores="$2"
+            shift; shift
+            ;;
+        -S|--use_stdout)
+            use_stdout=true
+            shift
+            ;;
+        -C|--continuation)
+            continuation=true
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            usage
+            exit 1
+            ;;
+    esac
+done
 
+# Validate arguments
 if ! [[ "$num_cores" =~ ^[0-9]+$ ]]; then
     echo "Error: Number of cores must be an integer."
     exit 1
@@ -62,11 +98,25 @@ clean_training_data() {
 }
 
 # Call the function to clean training data
-clean_training_data
+if [ "$continuation" == "false" ]; then
+    echo "Starting fresh synthesis run. Cleaning training data..."
+    clean_training_data
+    start_index=0
+else
+    echo "Continuation mode selected. Skipping cleanup of training data."
+    # Determine the number of existing scores to set the start index
+    existing_scores=$(ls $TRAINING_DATA_DIR/musicxml/*[0-9].xml 2>/dev/null | wc -l)
+    start_index=$existing_scores
+fi
 
 # Generate synthetic scores
 echo "Generating synthetic scores using $num_cores cores..."
-python generate_synthetic_scores.py "$num_scores" --cores "$num_cores"
+if [ "$continuation" == "true" ]; then
+    echo "Continuation mode enabled."
+    python generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --continuation
+else
+    python generate_synthetic_scores.py "$num_scores" --cores "$num_cores"
+fi
 echo "Synthetic score generation complete."
 
 # Convert MusicXML to PDF

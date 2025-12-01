@@ -1,23 +1,25 @@
-# name: Build and Push Trainer Image
+name: Build and Push Fine-tuner Image
 
-# on:
-#   workflow_run:
-#     workflows: ["Build and Push Core Image"]
-#     types:
-#       - completed
+on:
+  workflow_run:
+    workflows: ["Build and Push Core Image"]
+    types:
+      - completed
 
-# env:
-#   REGISTRY: ghcr.io
-#   IMAGE_NAME: ${{ github.repository }}
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
-# jobs:
-#   build-and-push:
-#     runs-on: ubuntu-latest
-#     permissions:
-#       contents: read
-#       packages: write
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
-#     steps:
+    steps:
+      - name: Placeholder Step
+        run: echo "This is a placeholder for the fine-tuner build and push workflow."
 #       - name: Free Disk Space (Ubuntu)
 #         uses: jlumbroso/free-disk-space@main
 #         with:
@@ -44,7 +46,7 @@
 #         id: meta
 #         uses: docker/metadata-action@v5
 #         with:
-#           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-trainer
+#           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-fine-tuner
 #           tags: |
 #             type=raw,value=latest,enable={{is_default_branch}}
 #             type=sha,format=short
@@ -53,7 +55,7 @@
 #         uses: docker/build-push-action@v5
 #         with:
 #           context: .
-#           file: containers/trainer/Dockerfile
+#           file: containers/fine-tuner/Dockerfile
 #           push: true
 #           tags: ${{ steps.meta.outputs.tags }}
 #           labels: ${{ steps.meta.outputs.labels }}

@@ -36,17 +36,18 @@ if [ -z "$RHYTHMFORMHOME" ]; then
     exit 1
 fi
 
+TRAINING_DATA_DIR="$RHYTHMFORMHOME/training_data"
+
+mkdir -p "$TRAINING_DATA_DIR/musicxml"
+mkdir -p "$TRAINING_DATA_DIR/pdfs"
+mkdir -p "$TRAINING_DATA_DIR/images"
+mkdir -p "$TRAINING_DATA_DIR/logs"
+
+exec > "$TRAINING_DATA_DIR/logs/synth_log_$(date +%Y%m%d_%H%M%S).log" 2>&1
+
 clean_training_data() {
     # This function removes all .musicxml, .pdf, and .png files from the
     # training_data directory, while preserving the directory structure.
-
-    # Get the directory of the current script
-    TRAINING_DATA_DIR="$RHYTHMFORMHOME/training_data"
-
-    mkdir -p "$TRAINING_DATA_DIR/musicxml"
-    mkdir -p "$TRAINING_DATA_DIR/pdfs"
-    mkdir -p "$TRAINING_DATA_DIR/images"
-
     echo "Cleaning files from $TRAINING_DATA_DIR..."
 
     # Find and delete the specified file types

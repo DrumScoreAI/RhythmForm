@@ -18,4 +18,4 @@ filename="${xml_file##*/}"
 xml_dir="${xml_file%/*}"
 pdf_dir="${xml_dir}/../pdfs"
 echo $filename $xml_dir $pdf_dir ${pdf_dir}/${filename%.xml}.pdf
-xvfb-run -a $MUSESCORE_PATH -o "${pdf_dir}/${filename%.xml}.pdf" -r 300 "${xml_file}" your_command 2>&1 | grep -v -E "pw.context|pw.conf|libOpenGL|libjack|libnss3|libpipewire"
+xvfb-run -a $MUSESCORE_PATH -o "${pdf_dir}/${filename%.xml}.pdf" -r 300 "${xml_file}" 2>&1 | grep -v -E "pw.context|pw.conf|libOpenGL|libjack|libnss3|libpipewire"

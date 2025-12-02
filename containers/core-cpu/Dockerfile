@@ -7,6 +7,7 @@ ENV PYTHONUNBUFFERED=1
 ENV LANG=en_GB.UTF-8
 ENV LANGUAGE=en_GB:en
 ENV LC_ALL=en_GB.UTF-8
+ENV QT_LOGGING_RULES="qt.qml.typeregistration=false"
 WORKDIR /app
 
 # Install system dependencies

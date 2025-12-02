@@ -10,6 +10,7 @@ ENV PYTHONUNBUFFERED=1
 ENV LANG=en_GB.UTF-8
 ENV LANGUAGE=en_GB:en
 ENV LC_ALL=en_GB.UTF-8
+ENV QT_LOGGING_RULES="qt.qml.typeregistration=false"
 
 # Install system dependencies, including wget to download MuseScore and fuse which is required by AppImages.
 RUN apt-get update && apt-get install -y \

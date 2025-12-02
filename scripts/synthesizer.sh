@@ -128,6 +128,11 @@ else
     echo "Existing scores found: $existing_scores"
 fi
 
+temp1=$RANDOM.tmp
+temp2=$RANDOM.tmp
+temp3=$RANDOM.tmp
+find $TRAINING_DATA_DIR/musicxml -name "*.xml" > $temp1
+
 # Generate synthetic scores
 echo "Generating synthetic scores using $num_cores cores..."
 if [ "$continuation" == "true" ] && [ "$existing_scores" -gt 0 ]; then
@@ -138,19 +143,35 @@ else
 fi
 echo "Synthetic score generation complete."
 
+if [ "$continuation" == "true" ] && [ "$existing_scores" -gt 0 ]; then
+    find $TRAINING_DATA_DIR/musicxml -name "*.xml" > $temp2
+    grep -Fv -f $temp1 $temp2 > $temp3
+    # rm -f $temp1 $temp2
+else
+    find $TRAINING_DATA_DIR/musicxml -name "*.xml" > $temp3
+fi
+
 # Convert MusicXML to PDF
 echo "Converting MusicXML files to PDF using $num_cores cores..."
-find $TRAINING_DATA_DIR/musicxml -name "*.xml" -print0 | xargs -0 -P "$num_cores" -I {} $RHYTHMFORMHOME/scripts/_mscore_mp_wrapper.sh {}
+cat $temp3 | xargs -P "$num_cores" -I {} $RHYTHMFORMHOME/scripts/_mscore_mp_wrapper.sh {}
 echo "Conversion to PDF complete."
 
 # Create manifest file
-echo "Creating manifest file..."
-echo "pdf,musicxml,do_or_mi" > $TRAINING_DATA_DIR/training_data.csv
 do_or_mi="do"
+# n_or_p = n for new, p for processed
+echo "Creating manifest file..."
+if [ "$continuation" == "false" ] && [ "$existing_scores" -eq 0 ]; then
+    echo "pdf,musicxml,do_or_mi,n_or_p" > $TRAINING_DATA_DIR/training_data.csv
+fi
+
 for xml in `ls $TRAINING_DATA_DIR/musicxml/*.xml`; do
     xml_bn=$(basename "$xml")
     pdf="${xml_bn%.xml}.pdf"
-    echo "$pdf,$xml_bn,$do_or_mi" >> $TRAINING_DATA_DIR/training_data.csv
+    if [ $(grep -c "$xml" $temp1) -gt 0 ]; then
+        sed -i "/$pdf,$xml_bn,$do_or_mi,n/$pdf,$xml_bn,$do_or_mi,p/g" $TRAINING_DATA_DIR/training_data.csv
+    else
+        echo "$pdf,$xml_bn,$do_or_mi,p" >> $TRAINING_DATA_DIR/training_data.csv
+    fi
 done
 
 # Prepare data for training

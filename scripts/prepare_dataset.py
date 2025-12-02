@@ -368,12 +368,14 @@ def main():
         reader = csv.DictReader(f)
         for row in reader:
             # We are currently only processing "drums-only" files
-            if row.get('do_or_mi') == 'do' and row.get('musicxml'):
+            if row.get('do_or_mi') == 'do' and row.get('n_or_p') == 'n' and row.get('musicxml'):
                 xml_path = XML_DIR / row['musicxml']
                 if xml_path.exists():
                     xml_paths_to_process.append(xml_path)
                 else:
                     print(f"  [WARNING] File '{row['musicxml']}' listed in manifest but not found in {XML_DIR}. Skipping.")
+            elif row.get('n_or_p') == 'p':
+                print(f"  [INFO] Skipping already processed file '{row.get('musicxml', 'N/A')}'.")
             elif row.get('do_or_mi') == 'do':
                 print(f"  [WARNING] 'musicxml' field missing for drums-only entry in manifest. Skipping.")
             elif row.get('do_or_mi') == 'mi':

@@ -121,7 +121,7 @@ if [ "$continuation" == "false" ]; then
 else
     echo "Continuation mode selected. Skipping cleanup of training data."
     # Determine the number of existing scores to set the start index
-    existing_scores=$(ls $TRAINING_DATA_DIR/musicxml/*[0-9].xml 2>/dev/null | wc -l)
+    existing_scores=$(ls -l $TRAINING_DATA_DIR/musicxml/*[0-9].xml | grep -v altered 2>/dev/null | wc -l)
     if [ -z "$existing_scores" ]; then
         existing_scores=0
     fi
@@ -131,7 +131,7 @@ fi
 temp1=$RANDOM.tmp
 temp2=$RANDOM.tmp
 temp3=$RANDOM.tmp
-find $TRAINING_DATA_DIR/musicxml -name "*.xml" > $temp1
+find $TRAINING_DATA_DIR/musicxml -name "*.xml" | grep -v altered > $temp1
 
 # Generate synthetic scores
 echo "Generating synthetic scores using $num_cores cores..."
@@ -144,11 +144,11 @@ fi
 echo "Synthetic score generation complete."
 
 if [ "$continuation" == "true" ] && [ "$existing_scores" -gt 0 ]; then
-    find $TRAINING_DATA_DIR/musicxml -name "*.xml" > $temp2
+    find $TRAINING_DATA_DIR/musicxml -name "*.xml" | grep -v altered > $temp2
     grep -Fv -f $temp1 $temp2 > $temp3
     # rm -f $temp1 $temp2
 else
-    find $TRAINING_DATA_DIR/musicxml -name "*.xml" > $temp3
+    find $TRAINING_DATA_DIR/musicxml -name "*.xml" | grep -v altered > $temp3
 fi
 
 # Convert MusicXML to PDF
@@ -160,19 +160,22 @@ echo "Conversion to PDF complete."
 do_or_mi="do"
 # n_or_p = n for new, p for processed
 echo "Creating manifest file..."
-if [ "$continuation" == "false" ] && [ "$existing_scores" -eq 0 ]; then
+if [ "$continuation" == "false" ] || [ "$existing_scores" -eq 0 ]; then
     echo "pdf,musicxml,do_or_mi,n_or_p" > $TRAINING_DATA_DIR/training_data.csv
 fi
 
-for xml in `ls $TRAINING_DATA_DIR/musicxml/*.xml`; do
+for xml in `ls $TRAINING_DATA_DIR/musicxml/*[0-9].xml`; do
     xml_bn=$(basename "$xml")
     pdf="${xml_bn%.xml}.pdf"
     if [ $(grep -c "$xml" $temp1) -gt 0 ]; then
-        sed -i "/$pdf,$xml_bn,$do_or_mi,n/$pdf,$xml_bn,$do_or_mi,p/g" $TRAINING_DATA_DIR/training_data.csv
+        sed -i "s/$pdf,$xml_bn,$do_or_mi,n/$pdf,$xml_bn,$do_or_mi,p/g" $TRAINING_DATA_DIR/training_data.csv
     else
-        echo "$pdf,$xml_bn,$do_or_mi,p" >> $TRAINING_DATA_DIR/training_data.csv
+        echo "$pdf,$xml_bn,$do_or_mi,n" >> $TRAINING_DATA_DIR/training_data.csv
     fi
 done
+
+rm -f $temp1 $temp2 $temp3
+echo "Manifest file created at $TRAINING_DATA_DIR/training_data.csv."
 
 # Prepare data for training
 echo "Preparing data for training using $num_cores cores..."

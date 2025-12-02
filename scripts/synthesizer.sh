@@ -118,17 +118,19 @@ clean_training_data() {
 if [ "$continuation" == "false" ]; then
     echo "Starting fresh synthesis run. Cleaning training data..."
     clean_training_data
-    start_index=0
 else
     echo "Continuation mode selected. Skipping cleanup of training data."
     # Determine the number of existing scores to set the start index
     existing_scores=$(ls $TRAINING_DATA_DIR/musicxml/*[0-9].xml 2>/dev/null | wc -l)
-    start_index=$existing_scores
+    if [ -z "$existing_scores" ]; then
+        existing_scores=0
+    fi
+    echo "Existing scores found: $existing_scores"
 fi
 
 # Generate synthetic scores
 echo "Generating synthetic scores using $num_cores cores..."
-if [ "$continuation" == "true" ]; then
+if [ "$continuation" == "true" ] && [ "$existing_scores" -gt 0 ]; then
     echo "Continuation mode enabled."
     python generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --continuation
 else

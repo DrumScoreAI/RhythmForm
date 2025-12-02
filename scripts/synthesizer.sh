@@ -80,12 +80,15 @@ mkdir -p "$TRAINING_DATA_DIR/pdfs"
 mkdir -p "$TRAINING_DATA_DIR/images"
 mkdir -p "$TRAINING_DATA_DIR/logs"
 
+errfile="$TRAINING_DATA_DIR/logs/synth_log_$(date +%Y%m%d_%H%M%S).err"
+
 if [ "$use_stdout" == "true" ]; then
     echo "Logging to stdout as requested."
+    exec 2> "$errfile"
 else
     logfile="$TRAINING_DATA_DIR/logs/synth_log_$(date +%Y%m%d_%H%M%S).log"
     echo "Logging to file: $logfile"
-    exec > "$logfile" 2>&1
+    exec > "$logfile" 2> "$errfile"
 fi
 echo ""
 echo "------RhythmForm Score Synthesizer------"

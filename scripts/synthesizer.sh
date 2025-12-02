@@ -121,7 +121,7 @@ if [ "$continuation" == "false" ]; then
 else
     echo "Continuation mode selected. Skipping cleanup of training data."
     # Determine the number of existing scores to set the start index
-    existing_scores=$(ls -l $TRAINING_DATA_DIR/musicxml/*[0-9].xml | grep -v altered 2>/dev/null | wc -l)
+    existing_scores=$(find $TRAINING_DATA_DIR/musicxml -name \*\[0-9\].xml | grep -v altered 2>/dev/null | wc -l)
     if [ -z "$existing_scores" ]; then
         existing_scores=0
     fi

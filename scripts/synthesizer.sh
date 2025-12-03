@@ -182,7 +182,7 @@ if [ "$continuation" == "false" ] || [ "$existing_scores" -eq 0 ]; then
     echo "pdf,musicxml,do_or_mi,n_or_p" > $TRAINING_DATA_DIR/training_data.csv
 fi
 
-for xml in `ls $TRAINING_DATA_DIR/musicxml/*[0-9].xml`; do
+for xml in `find $TRAINING_DATA_DIR/musicxml/ -name "*[0-9].xml"`; do
     xml_bn=$(basename "$xml")
     pdf="${xml_bn%.xml}.pdf"
     if [ $(grep -c "$xml" $temp1) -gt 0 ]; then

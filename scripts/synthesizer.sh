@@ -182,10 +182,10 @@ if [ "$continuation" == "false" ] || [ "$existing_scores" -eq 0 ]; then
     echo "pdf,musicxml,do_or_mi,n_or_p" > $TRAINING_DATA_DIR/training_data.csv
 fi
 
-for xml in `find $TRAINING_DATA_DIR/musicxml/ -name "*[0-9].xml"`; do
+find "$TRAINING_DATA_DIR/musicxml/" -name "*[0-9].xml" | while read -r xml; do
     xml_bn=$(basename "$xml")
     pdf="${xml_bn%.xml}.pdf"
-    if [ $(grep -c "$xml" $temp1) -gt 0 ]; then
+    if grep -q "$xml" "$temp1" 2>/dev/null; then
         sed -i "s/$pdf,$xml_bn,$do_or_mi,n/$pdf,$xml_bn,$do_or_mi,p/g" $TRAINING_DATA_DIR/training_data.csv
     else
         echo "$pdf,$xml_bn,$do_or_mi,n" >> $TRAINING_DATA_DIR/training_data.csv

@@ -156,11 +156,19 @@ start_count=$(find $TRAINING_DATA_DIR/pdfs -name "*.pdf" 2>/dev/null | wc -l)
 # Convert MusicXML to PDF
 echo "Converting MusicXML files to PDF using $num_cores cores..."
 cat $temp3 | xargs -P "$num_cores" -I {} $RHYTHMFORMHOME/scripts/_mscore_mp_wrapper.sh {}
+pid=$!
+# Monitor progress until all PDFs are generated or the process ends
+echo "Monitoring PDF conversion progress..."
 do
     sleep 1
     current_count=$(find $TRAINING_DATA_DIR/pdfs -name "*.pdf" 2>/dev/null | wc -l)
     if [ "$current_count" -gt "$start_count" ]; then
         echo "$(( current_count - existing_scores )) / $this_total PDFs generated."
+    fi
+    if [ `ps -p $pid -o pid=` ]; then
+        continue
+    else
+        break
     fi
 done; while [ "$(find $TRAINING_DATA_DIR/pdfs -name "*.pdf" 2>/dev/null | wc -l)" -lt "$(( this_total + existing_scores ))" ]
 

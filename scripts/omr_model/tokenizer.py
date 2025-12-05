@@ -32,20 +32,20 @@ class StTokenizer:
         token_counts = Counter()
         print("Counting tokens in dataset...")
         for i, sample in enumerate(dataset):
-            print(f"  Processing sample {i+1}/{len(dataset)}", end='\r')
+            # print(f"  Processing sample {i+1}/{len(dataset)}", end='\r')
             tokens = sample['st_string'].strip().split(' ')
             token_counts.update(tokens)
-        print("")
+        # print("")
             
         # Add new tokens found in the dataset, ordered by frequency
         print("Building vocabulary...")
         i=0
         for token, _ in token_counts.most_common():
             i += 1
-            print(f"  Adding token {i}: {token}", end='\r')
+            # print(f"  Adding token {i}: {token}", end='\r')
             if token not in self.vocab:
                 self.vocab.append(token)
-        print("")
+        # print("")
         # Now, create the token-to-ID mapping from the final, ordered vocab list.
         print("Creating token-to-ID mapping...")
         self.token_to_id = {token: i for i, token in enumerate(self.vocab)}

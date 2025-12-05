@@ -186,8 +186,10 @@ fi
 find "$TRAINING_DATA_DIR/musicxml/" -name "*[0-9].xml" | while read -r xml; do
     xml_bn=$(basename "$xml")
     pdf="${xml_bn%.xml}.pdf"
-    if grep -q "$xml" "$temp1" 2>/dev/null; then
-        sed -i "s/$pdf,$xml_bn,$do_or_mi,n/$pdf,$xml_bn,$do_or_mi,p/g" $TRAINING_DATA_DIR/training_data.csv
+    grep -q "$xml" "$temp1" 2>/dev/null
+    if [ $? -eq 0 ]; then
+        sed "s/$pdf,$xml_bn,$do_or_mi,n/$pdf,$xml_bn,$do_or_mi,p/g" $TRAINING_DATA_DIR/training_data.csv > $TRAINING_DATA_DIR/training_data_tmp.csv
+        cat $TRAINING_DATA_DIR/training_data_tmp.csv
     else
         echo "$pdf,$xml_bn,$do_or_mi,n" >> $TRAINING_DATA_DIR/training_data.csv
     fi

@@ -1,11 +1,18 @@
 import os
 import json
+import argparse
 from pathlib import Path
 from collections import Counter
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from tqdm import tqdm
 
 # Import the dataset class
 from .dataset import ScoreDataset
 from . import config
+
+def _count_tokens_in_sample(sample):
+    """Helper function to count tokens in a single sample for multiprocessing."""
+    return Counter(sample['st_string'].strip().split(' '))
 
 class StTokenizer:
     """
@@ -20,32 +27,30 @@ class StTokenizer:
         self.token_to_id = {}
         self.id_to_token = {}
 
-    def build_vocab(self, dataset):
+    def build_vocab(self, dataset, num_cores=1):
         """
-        Builds the vocabulary from a ScoreDataset object.
+        Builds the vocabulary from a ScoreDataset object using parallel processing.
         """
-        # --- THIS IS THE FIX (Part 2) ---
-        # Start the vocabulary with the essential special tokens.
         self.vocab = self.special_tokens[:]
         
-        # Count all tokens in the dataset
+        # Count all tokens in the dataset in parallel
         token_counts = Counter()
-        print("Counting tokens in dataset...")
-        for i, sample in enumerate(dataset):
-            print(f"  Processing sample {i+1}/{len(dataset)}", end='\r')
-            tokens = sample['st_string'].strip().split(' ')
-            token_counts.update(tokens)
-        print("")
+        print(f"Counting tokens in dataset using {num_cores} cores...")
+
+        with ProcessPoolExecutor(max_workers=num_cores) as executor:
+            # Create futures for each sample in the dataset
+            futures = [executor.submit(_count_tokens_in_sample, sample) for sample in dataset]
+            
+            # Use tqdm for a progress bar
+            for future in tqdm(as_completed(futures), total=len(dataset), desc="Processing scores"):
+                token_counts.update(future.result())
             
         # Add new tokens found in the dataset, ordered by frequency
-        print("Building vocabulary...")
-        i=0
+        print("Building vocabulary from token counts...")
         for token, _ in token_counts.most_common():
-            i += 1
-            # print(f"  Adding token {i}: {token}", end='\r')
             if token not in self.vocab:
                 self.vocab.append(token)
-        # print("")
+        
         # Now, create the token-to-ID mapping from the final, ordered vocab list.
         print("Creating token-to-ID mapping...")
         self.token_to_id = {token: i for i, token in enumerate(self.vocab)}
@@ -112,6 +117,15 @@ class StTokenizer:
 
 # This block allows you to test the tokenizer by running `python omr_model/tokenizer.py`
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Build and test the tokenizer.")
+    parser.add_argument(
+        "--cores",
+        type=int,
+        default=1,
+        help="Number of CPU cores to use for parallel processing (default: 1)"
+    )
+    args = parser.parse_args()
+
     # Define where to save the tokenizer vocab
     PROJECT_ROOT = config.PROJECT_ROOT
     TOKENIZER_SAVE_PATH = config.TOKENIZER_VOCAB_PATH
@@ -121,7 +135,7 @@ if __name__ == '__main__':
     print("--- Building tokenizer from dataset ---")
     score_dataset = ScoreDataset(manifest_path=DATASET_JSON_PATH)
     tokenizer = StTokenizer()
-    tokenizer.build_vocab(score_dataset)
+    tokenizer.build_vocab(score_dataset, num_cores=args.cores)
     
     print(f"Vocabulary size: {tokenizer.vocab_size}")
     print(f"First 10 tokens: {tokenizer.vocab[:10]}")

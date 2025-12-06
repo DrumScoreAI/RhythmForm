@@ -14,7 +14,7 @@ echo "Data preparation complete."
 
 # Run tokenizer
 echo "Running tokenizer (serial)..."
-python -m omr_model.tokenizer
+python -m omr_model.tokenizer --cores $num_cores
 echo "Tokenizer run complete."
 
 # CHMOD training data

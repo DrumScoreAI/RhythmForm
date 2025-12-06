@@ -261,7 +261,7 @@ def create_repeat_modified_xml(original_xml_path, repeated_measures):
         return original_xml_path
 
 
-def process_file(xml_path):
+def process_file(xml_path, current_dataset):
     """
     Processes a single MusicXML file:
     1. Checks for a companion .json for repeat info.
@@ -275,6 +275,9 @@ def process_file(xml_path):
     # Note: Temporary PDFs are created during rendering, but the final image is a PNG.
     pdf_path = PDF_OUTPUT_DIR / xml_path.with_suffix('.pdf').name
     png_path = OUTPUT_IMAGE_DIR / xml_path.with_suffix('.png').name
+    if png_path.exists() and pdf_path.exists() and any(entry['image_path'] == str(png_path.relative_to(TRAINING_DATA_DIR)) for entry in current_dataset):
+        print(f"  -> Skipping {xml_path.name}, already processed.")
+        return None
 
     # --- 1. Handle repeats and ST generation ---
     json_path = xml_path.with_suffix('.json')
@@ -383,10 +386,14 @@ def main():
 
     print(f"Found {len(xml_paths_to_process)} 'drums-only' files to process from manifest.")
 
+    if os.path.exists(DATASET_JSON_PATH):
+        current_dataset = json.load(open(DATASET_JSON_PATH))
+    else:
+        current_dataset = []
     dataset = []
     # Use ProcessPoolExecutor for parallel processing
     with ProcessPoolExecutor(max_workers=args.cores) as executor:
-        future_to_xml = {executor.submit(process_file, xml_file): xml_file for xml_file in xml_paths_to_process}
+        future_to_xml = {executor.submit(process_file, xml_file, current_dataset): xml_file for xml_file in xml_paths_to_process}
         for future in tqdm(as_completed(future_to_xml), total=len(future_to_xml), desc="Processing files"):
             result = future.result()
             if result:

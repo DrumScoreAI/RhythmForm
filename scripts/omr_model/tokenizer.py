@@ -32,10 +32,10 @@ class StTokenizer:
         token_counts = Counter()
         print("Counting tokens in dataset...")
         for i, sample in enumerate(dataset):
-            # print(f"  Processing sample {i+1}/{len(dataset)}", end='\r')
+            print(f"  Processing sample {i+1}/{len(dataset)}", end='\r')
             tokens = sample['st_string'].strip().split(' ')
             token_counts.update(tokens)
-        # print("")
+        print("")
             
         # Add new tokens found in the dataset, ordered by frequency
         print("Building vocabulary...")

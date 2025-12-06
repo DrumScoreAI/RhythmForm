@@ -68,6 +68,7 @@ RUN apt-get update && apt-get install -y \
     libwayland-egl1 \
     libglib2.0-0t64 \
     libxcb-cursor0 \
+    libxcb-util1 \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
 

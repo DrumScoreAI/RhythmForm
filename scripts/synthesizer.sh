@@ -215,4 +215,3 @@ find $TRAINING_DATA_DIR -type d -print0 | xargs -P "$num_cores" -0 -I {} chmod 7
 echo "Permissions set."
 
 echo "All data synthesis tasks completed successfully."
-echo "You are ready to train the OMR model."

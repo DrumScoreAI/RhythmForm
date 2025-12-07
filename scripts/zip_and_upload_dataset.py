@@ -4,6 +4,8 @@ import tarfile
 import s3fs
 import datetime
 import logging
+import argparse
+import json
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -83,6 +85,16 @@ def upload_to_s3(file_path, bucket, object_name=None):
 
 def main():
     """Main function to orchestrate archiving and uploading."""
+    # --- Argument Parsing ---
+    parser = argparse.ArgumentParser(description="Archive and upload the training dataset to S3.")
+    parser.add_argument(
+        "--note",
+        type=str,
+        default="No metadata note provided.",
+        help="A metadata note to include in the archive (e.g., '1st generation synthetic data')."
+    )
+    args = parser.parse_args()
+
     # Validate environment variables
     if not all([S3_ENDPOINT_URL, S3_BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY]):
         logging.error("One or more required S3 environment variables are not set.")
@@ -92,16 +104,33 @@ def main():
     # Ensure the archive directory exists
     os.makedirs(ARCHIVE_DIR, exist_ok=True)
 
-    # Generate a unique filename based on the current timestamp
+    # --- Metadata Creation ---
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    metadata = {
+        "creation_timestamp_utc": datetime.datetime.utcnow().isoformat(),
+        "note": args.note
+    }
+    metadata_path = os.path.join(SOURCE_DIR, "metadata.json")
+    with open(metadata_path, 'w') as f:
+        json.dump(metadata, f, indent=2)
+    logging.info(f"Created metadata file at {metadata_path}")
+
+    # Generate a unique filename based on the current timestamp
     base_filename = f"training_data_{timestamp}"
     
     zip_path = os.path.join(ARCHIVE_DIR, f"{base_filename}.zip")
     tar_path = os.path.join(ARCHIVE_DIR, f"{base_filename}.tar.gz")
 
-    # Create archives
+    # Create archives (which will now include metadata.json)
     create_zip_archive(SOURCE_DIR, zip_path, ARCHIVE_DIR)
     create_tar_gz_archive(SOURCE_DIR, tar_path, ARCHIVE_DIR)
+
+    # --- Cleanup metadata file ---
+    try:
+        os.remove(metadata_path)
+        logging.info(f"Cleaned up temporary metadata file: {metadata_path}")
+    except OSError as e:
+        logging.error(f"Error removing metadata file: {e}")
 
     # Upload archives
     upload_to_s3(zip_path, S3_BUCKET_NAME)

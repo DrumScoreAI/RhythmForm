@@ -8,7 +8,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  # Docker image names must be lowercase
+  IMAGE_NAME: ${{ toLowerCase(github.repository) }}
   S3_ENDPOINT_URL: https://s3.eidf.ac.uk
   S3_BUCKET_NAME: "RhythmFormDataset"
 

@@ -11,8 +11,6 @@ env:
   IMAGE_NAME: ${{ github.repository }}
   S3_ENDPOINT_URL: https://s3.eidf.ac.uk
   S3_BUCKET_NAME: "RhythmFormDataset"
-  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
 jobs:
   build-and-push:
@@ -57,7 +55,10 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: containers/core-cpu/Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          build-args: |
+            S3_ENDPOINT_URL=${{ env.S3_ENDPOINT_URL }}
+            S3_BUCKET_NAME=${{ env.S3_BUCKET_NAME }}
+            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}

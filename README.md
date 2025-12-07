@@ -105,6 +105,14 @@ RhythmForm uses a three-stage process:
 ### 1. Data Preparation
 A dataset of paired `(image, music_data)` is created. This project includes a powerful synthetic data generator (`scripts/generate_synthetic_score.py`) that creates random but musically plausible drum scores in MusicXML, which are then rendered to PDF/PNG to create a perfectly aligned dataset.
 
+#### Latest dataset
+The latest synthesized dataset can be found at:
+
+| S3 URI | Format |
+|--------|--------|
+| https://s3.eidf.ac.uk/RhythmFormDatasets/training_data_20251201_000000.zip | ZIP |
+| https://s3.eidf.ac.uk/RhythmFormDatasets/training_data_20251201_000000.tar.gz | GZIPPED TAR |
+
 ### 2. Model Training
 A transformer-based sequence-to-sequence model is trained on the dataset to learn the mapping from score images to a symbolic text (ST) representation.
 

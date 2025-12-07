@@ -9,6 +9,10 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  S3_ENDPOINT_URL: https://s3.eidf.ac.uk
+  S3_BUCKET_NAME: "RhythmFormDataset"
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
 jobs:
   build-and-push:

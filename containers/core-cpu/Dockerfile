@@ -8,6 +8,11 @@ ENV LANG=en_GB.UTF-8
 ENV LANGUAGE=en_GB:en
 ENV LC_ALL=en_GB.UTF-8
 ENV QT_LOGGING_RULES="qt.qml.typeregistration=false"
+ENV S3_ENDPOINT_URL="https://s3.eidf.ac.uk"
+ENV S3_BUCKET_NAME="${S3_BUCKET_NAME}"
+ENV AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
+ENV AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
+
 WORKDIR /app
 
 # Install system dependencies

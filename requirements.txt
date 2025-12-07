@@ -23,5 +23,3 @@ aiobotocore>=2.26.0
 fsspec>=2024.5.0
 wrapt>=1.15.0
 aioitertools>=0.11.0
-tarfile>=0.10.0
-zipfile36>=0.1.3

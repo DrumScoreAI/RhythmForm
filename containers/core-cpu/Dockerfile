@@ -9,9 +9,14 @@ ENV LANGUAGE=en_GB:en
 ENV LC_ALL=en_GB.UTF-8
 ENV QT_LOGGING_RULES="qt.qml.typeregistration=false"
 ENV S3_ENDPOINT_URL="https://s3.eidf.ac.uk"
-ENV S3_BUCKET_NAME="${S3_BUCKET_NAME}"
+ENV S3_BUCKET_NAME="RhythmFormDatasets"
 ENV AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
 ENV AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
+# Declare the build arguments
+ARG S3_ENDPOINT_URL
+ARG S3_BUCKET_NAME
+ARG AWS_ACCESS_KEY_ID
+ARG AWS_SECRET_ACCESS_KEY
 
 WORKDIR /app
 
@@ -73,6 +78,7 @@ RUN apt-get update && apt-get install -y \
     libxcb-cursor0 \
     libxcb-util1 \
     xvfb \
+    awscli \
     && rm -rf /var/lib/apt/lists/*
 
 # Create and activate a virtual environment, then install requirements
@@ -131,7 +137,4 @@ ENV S3_BUCKET_NAME=$S3_BUCKET_NAME
 ENV AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
 ENV AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
 
-# Now you can use these ENV variables in subsequent RUN, CMD, etc. instructions
-# For example, to download a file during the build:
-RUN apt-get update && apt-get install -y awscli && \
-    aws s3 --endpoint-url $S3_ENDPOINT_URL cp s3://$S3_BUCKET_NAME/my-file.txt /app/
+#for simple S3 upload:    aws s3 --endpoint-url $S3_ENDPOINT_URL cp s3://$S3_BUCKET_NAME/my-file.txt /app/my-file.txt

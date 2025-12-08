@@ -11,18 +11,16 @@ ENV LANG=en_GB.UTF-8
 ENV LANGUAGE=en_GB:en
 ENV LC_ALL=en_GB.UTF-8
 ENV QT_LOGGING_RULES="qt.qml.typeregistration=false"
+ENV S3_ENDPOINT_URL=$S3_ENDPOINT_URL
+ENV S3_BUCKET_NAME=$S3_BUCKET_NAME
+ENV AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+ENV AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
 
 # Declare build arguments for S3 credentials
 ARG S3_ENDPOINT_URL
 ARG S3_BUCKET_NAME
 ARG AWS_ACCESS_KEY_ID
 ARG AWS_SECRET_ACCESS_KEY
-
-# Set them as environment variables to be available at runtime
-ENV S3_ENDPOINT_URL=$S3_ENDPOINT_URL
-ENV S3_BUCKET_NAME=$S3_BUCKET_NAME
-ENV AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-ENV AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
 
 # Install system dependencies, including wget to download MuseScore and fuse which is required by AppImages.
 RUN apt-get update && apt-get install -y \
@@ -82,6 +80,7 @@ RUN apt-get update && apt-get install -y \
     libxcb-cursor0 \
     libxcb-util1 \
     xvfb \
+    awscli \
     && rm -rf /var/lib/apt/lists/*
 
 # Create and activate a virtual environment, then install requirements

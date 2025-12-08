@@ -78,7 +78,6 @@ RUN apt-get update && apt-get install -y \
     libxcb-cursor0 \
     libxcb-util1 \
     xvfb \
-    awscli \
     && rm -rf /var/lib/apt/lists/*
 
 # Create and activate a virtual environment, then install requirements
@@ -88,7 +87,7 @@ ENV PATH="/app:/home/appuser/.local/bin:/app/venv/bin:${PATH}"
 COPY requirements.txt .
 
 RUN pip install --upgrade pip
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir awscli
 
 # Copy the rest of your application's code
 COPY scripts ./scripts

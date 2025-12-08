@@ -87,7 +87,6 @@ RUN apt-get update && apt-get install -y \
     libxcb-cursor0 \
     libxcb-util1 \
     xvfb \
-    awscli \
     && rm -rf /var/lib/apt/lists/*
 
 # Create and activate a virtual environment, then install requirements
@@ -96,7 +95,7 @@ RUN python3.12 -m venv /app/venv
 COPY requirements.txt .
 
 RUN pip install --upgrade pip
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir awscli
 
 # Download and extract MuseScore AppImage
 RUN wget https://github.com/musescore/MuseScore/releases/download/v${MUSESCORE_VERSION}/MuseScore-Studio-${MUSESCORE_VERSION}.${GIT_HASH}-x86_64.AppImage -O /app/musescore.AppImage \

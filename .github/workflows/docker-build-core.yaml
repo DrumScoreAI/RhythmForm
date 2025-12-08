@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/${{ github.event.repository.name }}
+  IMAGE_NAME: rhythmform
   S3_ENDPOINT_URL: https://s3.eidf.ac.uk
   S3_BUCKET_NAME: "RhythmFormDataset"
 

@@ -8,6 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  ORGANIZATION: drumscoreai
   IMAGE_NAME: rhythmform
   S3_ENDPOINT_URL: https://s3.eidf.ac.uk
   S3_BUCKET_NAME: "RhythmFormDataset"
@@ -46,7 +47,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-core
+          images: ${{ env.REGISTRY }}/${{ env.ORGANIZATION }}/${{ env.IMAGE_NAME }}-core
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,format=short
@@ -57,7 +58,7 @@ jobs:
           context: .
           file: containers/core/Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ env.REGISTRY }}/${{ env.ORGANIZATION }}/${{ env.IMAGE_NAME }}-core:${{ github.sha }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             S3_ENDPOINT_URL=${{ env.S3_ENDPOINT_URL }}

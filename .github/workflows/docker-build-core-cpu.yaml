@@ -56,6 +56,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: containers/core-cpu/Dockerfile
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           build-args: |

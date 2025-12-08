@@ -6,6 +6,7 @@ import datetime
 import logging
 import argparse
 import json
+from tqdm import tqdm
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -24,35 +25,41 @@ AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 def create_zip_archive(source_dir, archive_path, exclude_dir):
     """Creates a zip archive of a directory, excluding a specific subdirectory."""
     logging.info(f"Creating zip archive: {archive_path}")
-    with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for root, dirs, files in os.walk(source_dir):
-            # Exclude the archive directory itself from being walked
-            if root == exclude_dir:
-                dirs[:] = []  # This modifies the list in-place
-                files[:] = []
-                continue
+    
+    # First, gather a list of all files to be archived for an accurate total
+    file_paths = []
+    for root, _, files in os.walk(source_dir):
+        if root == exclude_dir:
+            continue
+        for file in files:
+            file_paths.append(os.path.join(root, file))
 
-            for file in files:
-                file_path = os.path.join(root, file)
-                arcname = os.path.relpath(file_path, source_dir)
-                zipf.write(file_path, arcname)
+    with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        # Iterate over the list of files with a tqdm progress bar
+        for file_path in tqdm(file_paths, desc="Zipping files", unit="file"):
+            arcname = os.path.relpath(file_path, source_dir)
+            zipf.write(file_path, arcname)
+            
     logging.info("Zip archive created successfully.")
 
 def create_tar_gz_archive(source_dir, archive_path, exclude_dir):
     """Creates a .tar.gz archive of a directory, excluding a specific subdirectory."""
     logging.info(f"Creating tar.gz archive: {archive_path}")
     
-    def exclude_filter(tarinfo):
-        """Filter function for tarfile.add to exclude the archive directory."""
-        path_to_check = os.path.abspath(tarinfo.name)
-        if path_to_check.startswith(os.path.abspath(exclude_dir)):
-            logging.debug(f"Excluding from tar: {tarinfo.name}")
-            return None  # Exclude this item
-        logging.debug(f"Including in tar: {tarinfo.name}")
-        return tarinfo # Include this item
+    # First, gather a list of all files to be archived for an accurate total
+    file_paths = []
+    for root, _, files in os.walk(source_dir):
+        if root == exclude_dir:
+            continue
+        for file in files:
+            file_paths.append(os.path.join(root, file))
 
     with tarfile.open(archive_path, "w:gz") as tar:
-        tar.add(source_dir, arcname=os.path.basename(source_dir), filter=exclude_filter)
+        # Iterate over the list of files with a tqdm progress bar
+        for file_path in tqdm(file_paths, desc="Taring files", unit="file"):
+            arcname = os.path.relpath(file_path, source_dir)
+            tar.add(file_path, arcname=arcname)
+            
     logging.info("tar.gz archive created successfully.")
 
 def upload_to_s3(file_path, bucket, object_name=None):
@@ -107,7 +114,7 @@ def main():
     # --- Metadata Creation ---
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     metadata = {
-        "creation_timestamp_utc": datetime.datetime.utcnow().isoformat(),
+        "creation_timestamp_utc": datetime.datetime.now(datetime.UTC).isoformat(),
         "note": args.note
     }
     metadata_path = os.path.join(SOURCE_DIR, "metadata.json")

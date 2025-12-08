@@ -10,6 +10,7 @@ env:
   REGISTRY: ghcr.io
   # Docker image names must be lowercase
   IMAGE_NAME: rhythmform
+  ORGANIZATION: drumscoreai
   S3_ENDPOINT_URL: https://s3.eidf.ac.uk
   S3_BUCKET_NAME: "RhythmFormDataset"
 
@@ -47,7 +48,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-core-cpu
+          images: ${{ env.REGISTRY }}/${{ env.ORGANIZATION }}/${{ env.IMAGE_NAME }}-core-cpu
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,format=short
@@ -58,7 +59,7 @@ jobs:
           context: .
           file: containers/core-cpu/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          tags: ${{ env.REGISTRY }}/${{ env.ORGANIZATION }}/${{ env.IMAGE_NAME }}-core-cpu:${{ github.sha }}
           build-args: |
             S3_ENDPOINT_URL=${{ env.S3_ENDPOINT_URL }}
             S3_BUCKET_NAME=${{ env.S3_BUCKET_NAME }}

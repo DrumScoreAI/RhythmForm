@@ -56,5 +56,5 @@ jobs:
           context: .
           file: containers/trainer/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.ORGANIZATION }}/${{ env.IMAGE_NAME }}-trainer:${{ github.sha }}
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

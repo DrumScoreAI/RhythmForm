@@ -59,7 +59,8 @@ jobs:
           context: .
           file: containers/core-cpu/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.ORGANIZATION }}/${{ env.IMAGE_NAME }}-core-cpu:${{ github.sha }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             S3_ENDPOINT_URL=${{ env.S3_ENDPOINT_URL }}
             S3_BUCKET_NAME=${{ env.S3_BUCKET_NAME }}

@@ -8,6 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  ORGANIZATION: drumscoreai
   IMAGE_NAME: rhythmform
 
 jobs:
@@ -44,7 +45,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-synthesizer
+          images: ${{ env.REGISTRY }}/${{ env.ORGANIZATION }}/${{ env.IMAGE_NAME }}-synthesizer
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,format=short
@@ -55,5 +56,5 @@ jobs:
           context: .
           file: containers/synthesizer/Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ env.REGISTRY }}/${{ env.ORGANIZATION }}/${{ env.IMAGE_NAME }}-synthesizer:${{ github.sha }}
           labels: ${{ steps.meta.outputs.labels }}

@@ -15,12 +15,19 @@ ENV S3_ENDPOINT_URL=$S3_ENDPOINT_URL
 ENV S3_BUCKET_NAME=$S3_BUCKET_NAME
 ENV AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
 ENV AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+ENV RHYTHMFORMHOME=/app
+ENV PYTHONPATH=/app:$PYTHONPATH
+ENV MUSESCORE_PATH=/app/musescore-extracted
+ENV PATH="/app:/home/appuser/.local/bin:${PATH}"
+ENV PATH="/app:/home/appuser/.local/bin:/app/venv/bin:${PATH}"
 
 # Declare build arguments for S3 credentials
 ARG S3_ENDPOINT_URL
 ARG S3_BUCKET_NAME
 ARG AWS_ACCESS_KEY_ID
 ARG AWS_SECRET_ACCESS_KEY
+ARG MUSESCORE_VERSION=4.6.3
+ARG GIT_HASH=252940956
 
 # Install system dependencies, including wget to download MuseScore and fuse which is required by AppImages.
 RUN apt-get update && apt-get install -y \
@@ -85,7 +92,6 @@ RUN apt-get update && apt-get install -y \
 
 # Create and activate a virtual environment, then install requirements
 RUN python3.12 -m venv /app/venv
-ENV PATH="/app:/home/appuser/.local/bin:/app/venv/bin:${PATH}"
 
 COPY requirements.txt .
 
@@ -93,8 +99,6 @@ RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Download and extract MuseScore AppImage
-ARG MUSESCORE_VERSION=4.6.3
-ARG GIT_HASH=252940956
 RUN wget https://github.com/musescore/MuseScore/releases/download/v${MUSESCORE_VERSION}/MuseScore-Studio-${MUSESCORE_VERSION}.${GIT_HASH}-x86_64.AppImage -O /app/musescore.AppImage \
     && chmod +x /app/musescore.AppImage \
     && /app/musescore.AppImage --appimage-extract \
@@ -109,14 +113,6 @@ RUN wget https://github.com/musescore/MuseScore/releases/download/v${MUSESCORE_V
 RUN useradd -ms /bin/bash -u 1001 appuser
 RUN chown -R appuser:appuser /app
 USER appuser
-
-# Set environment variables for RHYTHMFORM
-ENV RHYTHMFORMHOME=/app
-ENV PYTHONPATH=/app:$PYTHONPATH
-
-# Point MUSESCORE_PATH to the extracted directory
-ENV MUSESCORE_PATH=/app/musescore-extracted
-ENV PATH="/app:/home/appuser/.local/bin:${PATH}"
 
 # Copy code
 COPY scripts ./scripts

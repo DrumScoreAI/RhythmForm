@@ -11,8 +11,6 @@ env:
   # Docker image names must be lowercase
   IMAGE_NAME: rhythmform
   ORGANIZATION: drumscoreai
-  S3_ENDPOINT_URL: https://s3.eidf.ac.uk
-  S3_BUCKET_NAME: "RhythmFormDataset"
 
 jobs:
   build-and-push:
@@ -61,8 +59,3 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            S3_ENDPOINT_URL=${{ env.S3_ENDPOINT_URL }}
-            S3_BUCKET_NAME=${{ env.S3_BUCKET_NAME }}
-            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}

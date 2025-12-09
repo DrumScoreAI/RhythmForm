@@ -1,8 +1,8 @@
 name: Build and Push Core-CPU Image
 
 on:
-  push:
-    branches: [ "main" ]
+  # push:
+  #   branches: [ "main" ]
     # You can also add 'pull_request' here if you want to build on PRs
   workflow_dispatch: # Allows you to run this workflow manually from the Actions tab
 

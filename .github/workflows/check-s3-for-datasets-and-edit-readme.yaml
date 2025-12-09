@@ -2,8 +2,8 @@ name: Check for New Datasets and Update README
 
 on:
   # Run automatically every day at 3:00 AM UTC
-  schedule:
-    - cron: '0 3 * * *'
+  # schedule:
+  #   - cron: '0 3 * * *'
   # Allow manual triggering from the GitHub Actions tab
   workflow_dispatch:
 

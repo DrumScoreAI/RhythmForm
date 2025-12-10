@@ -100,12 +100,19 @@ def main():
         default="No metadata note provided.",
         help="A metadata note to include in the archive (e.g., '1st generation synthetic data')."
     )
+    parser.add_argument(
+        "--bucket-name",
+        "-b",
+        type=str,
+        required=False,
+        help="The name of the S3 bucket to upload the archives to."
+    )
     args = parser.parse_args()
 
     # Validate environment variables
-    if not all([S3_ENDPOINT_URL, S3_BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY]):
+    if not all([S3_ENDPOINT_URL, args.bucket_name or S3_BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY]):
         logging.error("One or more required S3 environment variables are not set.")
-        logging.error("Please set: S3_ENDPOINT_URL, S3_BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY")
+        logging.error("Please set: S3_ENDPOINT_URL, --bucket-name <bucket_name> or S3_BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY")
         return
 
     # Ensure the archive directory exists
@@ -140,8 +147,12 @@ def main():
         logging.error(f"Error removing metadata file: {e}")
 
     # Upload archives
-    upload_to_s3(zip_path, S3_BUCKET_NAME)
-    upload_to_s3(tar_path, S3_BUCKET_NAME)
+    if args.bucket_name:
+        bucket_name = args.bucket_name
+    else:
+        bucket_name = S3_BUCKET_NAME
+    upload_to_s3(zip_path, bucket_name)
+    upload_to_s3(tar_path, bucket_name)
 
     logging.info("Script finished.")
 

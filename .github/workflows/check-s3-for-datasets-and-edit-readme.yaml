@@ -36,8 +36,8 @@ jobs:
 
           # --- 1. Find the latest .zip and .tar.gz files on S3 ---
           # The timestamp in the name means we can just find the alphabetically last file.
-          LATEST_ZIP=$(aws s3 ls s3://${S3_BUCKET_NAME}/ --endpoint-url ${S3_ENDPOINT_URL} | grep '\.zip$' | sort | tail -n 1 | awk '{print $4}' || echo "")
-          LATEST_TAR=$(aws s3 ls s3://${S3_BUCKET_NAME}/ --endpoint-url ${S3_ENDPOINT_URL} | grep '\.tar.gz$' | sort | tail -n 1 | awk '{print $4}' || echo "")
+          LATEST_ZIP=$(aws s3 ls ${S3_ENDPOINT_URL}/${S3_BUCKET_NAME}/ | grep '\.zip$' | sort | tail -n 1 | awk '{print $4}' || echo "")
+          LATEST_TAR=$(aws s3 ls ${S3_ENDPOINT_URL}/${S3_BUCKET_NAME}/ | grep '\.tar.gz$' | sort | tail -n 1 | awk '{print $4}' || echo "")
 
           if [ -z "$LATEST_ZIP" ] || [ -z "$LATEST_TAR" ]; then
             echo "Could not find both a .zip or .tar.gz file in the bucket. Exiting."

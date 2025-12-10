@@ -29,7 +29,7 @@ jobs:
       - name: Check for latest dataset and update README
         env:
           S3_ENDPOINT_URL: https://s3.eidf.ac.uk
-          S3_BUCKET_NAME: RhythmFormDatasets
+          S3_BUCKET_NAME: rhythmformdatasets
         run: |
           set -e
           echo "Checking for latest datasets in s3://${S3_BUCKET_NAME}..."

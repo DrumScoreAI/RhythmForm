@@ -26,8 +26,8 @@ jobs:
           # The region is required by the action, but not used by your specific endpoint
           aws-region: us-east-1
           endpoint-url: https://s3.eidf.ac.uk
-          request-checksum-calculation:when_required
-          response_checksum_validation:when_required
+          request-checksum-calculation: when_required
+          response_checksum_validation: when_required
 
       - name: Check for latest dataset and update README
         env:

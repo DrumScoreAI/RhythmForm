@@ -75,13 +75,11 @@ RUN apt-get update && apt-get install -y \
 RUN python3.12 -m venv /app/venv
 ENV PATH="/app:/home/appuser/.local/bin:/app/venv/bin:${PATH}"
 
-COPY requirements.txt .
+# Copy the rest of your application's code
+COPY * .
 
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir awscli
-
-# Copy the rest of your application's code
-COPY scripts ./scripts
 
 # Copy entrypoint script
 COPY containers/core-cpu/core-cpu_entrypoint.sh .

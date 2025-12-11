@@ -8,6 +8,10 @@ ENV LANG=en_GB.UTF-8
 ENV LANGUAGE=en_GB:en
 ENV LC_ALL=en_GB.UTF-8
 ENV QT_LOGGING_RULES="qt.qml.typeregistration=false"
+ENV RHYTHMFORMHOME=/app
+ENV PYTHONPATH=/app:$PYTHONPATH
+# Point MUSESCORE_PATH to the extracted directory
+ENV MUSESCORE_PATH=/app/mscore
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -102,12 +106,4 @@ RUN useradd -ms /bin/bash -u 1001 appuser
 RUN chown -R appuser:appuser /app
 USER appuser
 
-ENV RHYTHMFORMHOME=/app
-ENV PYTHONPATH=/app:$PYTHONPATH
-
-# Point MUSESCORE_PATH to the extracted directory
-ENV MUSESCORE_PATH=/app/mscore
-
-WORKDIR /app/scripts
-
-ENTRYPOINT ["/app/core-cpu_entrypoint.sh"]
+ENTRYPOINT ["core-cpu_entrypoint.sh"]

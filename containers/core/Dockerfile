@@ -14,9 +14,6 @@ ENV MUSESCORE_PATH=/app/musescore-extracted
 ENV PATH="/app:/home/appuser/.local/bin:${PATH}"
 ENV PATH="/app:/home/appuser/.local/bin:/app/venv/bin:${PATH}"
 
-ARG MUSESCORE_VERSION=4.6.3
-ARG GIT_HASH=252940956
-
 # Install system dependencies, including wget to download MuseScore and fuse which is required by AppImages.
 RUN apt-get update && apt-get install -y \
     locales \
@@ -87,6 +84,8 @@ RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir awscli
 
 # Download and extract MuseScore AppImage
+ARG MUSESCORE_VERSION=4.6.3
+ARG GIT_HASH=252940956
 RUN wget https://github.com/musescore/MuseScore/releases/download/v${MUSESCORE_VERSION}/MuseScore-Studio-${MUSESCORE_VERSION}.${GIT_HASH}-x86_64.AppImage -O /app/musescore.AppImage \
     && chmod +x /app/musescore.AppImage \
     && /app/musescore.AppImage --appimage-extract \

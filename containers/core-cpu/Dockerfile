@@ -9,8 +9,6 @@ ENV LANGUAGE=en_GB:en
 ENV LC_ALL=en_GB.UTF-8
 ENV QT_LOGGING_RULES="qt.qml.typeregistration=false"
 
-WORKDIR /app
-
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     locales \
@@ -71,12 +69,13 @@ RUN apt-get update && apt-get install -y \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy the rest of your application's code
+COPY . /app
+WORKDIR /app
+
 # Create and activate a virtual environment, then install requirements
 RUN python3.12 -m venv /app/venv
 ENV PATH="/app:/home/appuser/.local/bin:/app/venv/bin:${PATH}"
-
-# Copy the rest of your application's code
-COPY . .
 
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir awscli

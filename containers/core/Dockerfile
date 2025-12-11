@@ -1,9 +1,6 @@
 # Use an official NVIDIA CUDA image as a base.
 FROM nvidia/cuda:13.0.2-cudnn-devel-ubuntu24.04
 
-# Set the working directory in the container
-WORKDIR /app
-
 # Set environment variables to ensure non-interactive installation
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
@@ -80,10 +77,11 @@ RUN apt-get update && apt-get install -y \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
 
+COPY . /app
+WORKDIR /app
+
 # Create and activate a virtual environment, then install requirements
 RUN python3.12 -m venv /app/venv
-
-COPY . .
 
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir awscli

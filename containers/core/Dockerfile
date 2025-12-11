@@ -83,7 +83,7 @@ RUN apt-get update && apt-get install -y \
 # Create and activate a virtual environment, then install requirements
 RUN python3.12 -m venv /app/venv
 
-COPY requirements.txt .
+COPY * .
 
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir awscli
@@ -104,8 +104,7 @@ RUN useradd -ms /bin/bash -u 1001 appuser
 RUN chown -R appuser:appuser /app
 USER appuser
 
-# Copy code
-COPY scripts ./scripts
+# Copy entrypoint script
 COPY containers/core/core_entrypoint.sh .
 
 # Add a healthcheck to monitor the training process

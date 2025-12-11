@@ -76,7 +76,7 @@ RUN python3.12 -m venv /app/venv
 ENV PATH="/app:/home/appuser/.local/bin:/app/venv/bin:${PATH}"
 
 # Copy the rest of your application's code
-COPY * .
+COPY . .
 
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir awscli

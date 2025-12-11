@@ -83,7 +83,7 @@ RUN apt-get update && apt-get install -y \
 # Create and activate a virtual environment, then install requirements
 RUN python3.12 -m venv /app/venv
 
-COPY * .
+COPY . .
 
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir awscli

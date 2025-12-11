@@ -1,8 +1,10 @@
-
 import os
 import re
 import s3fs
 import sys
+import pathlib
+
+repository_root = pathlib.Path(os.environ.get("RHYTHMFORMHOME")) or pathlib.Path(__file__).parent.parent.resolve()
 
 def get_latest_from_s3(s3, bucket_name, extension):
     """Find the lexicographically latest file with a given extension in an S3 bucket."""
@@ -41,7 +43,7 @@ def main():
     aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
     
     # The script should be run from the repository root
-    readme_path = "README.md"
+    readme_path = repository_root /"README.md"
 
     if not (aws_access_key_id and aws_secret_access_key):
         print("Error: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables are not set.")
@@ -75,7 +77,7 @@ def main():
         with open(readme_path, "r") as f:
             readme_content = f.read()
     except FileNotFoundError:
-        print(f"Error: {readme_path} not found. This script should be run from the repository root.")
+        print(f"Error: {readme_path} not found. Check RHYTHMFORMHOME environment variable.")
         sys.exit(1)
 
     current_zip = get_current_from_readme(readme_content, ".zip")

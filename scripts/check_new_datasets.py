@@ -20,15 +20,36 @@ def get_latest_from_s3(s3, bucket_name, extension):
         print(f"Error listing S3 bucket '{bucket_name}': {e}")
         return None
 
-def get_current_from_readme(readme_content, extension):
-    """Extract the current dataset filename from the README content."""
-    # Regex to find 'training_data_YYYY_MM_DD_HH_MM_SS.zip' or .tar.gz
-    pattern = re.compile(f"training_data_[0-9_]*\\{extension}")
-    match = pattern.search(readme_content)
-    if not match:
-        print(f"Warning: Could not find file with extension '{extension}' in README.md")
+def get_metadata_from_s3(s3, bucket_name):
+    """Retrieve and return the metadata JSON content for a given file in S3."""
+    import json
+    metadata_filename = 'metadata.json'
+    s3_path = f"{bucket_name}/{metadata_filename}"
+    try:
+        with s3.open(s3_path, 'r') as f:
+            metadata = json.load(f)
+        return metadata
+    except Exception as e:
+        print(f"Error retrieving metadata file from S3.': {e}")
         return None
-    return match.group(0)
+
+def get_current_from_readme(readme_content, extension):
+    """
+    Extract the current dataset filename and its line number from the README content.
+    Returns a tuple of (filename, line_number).
+    """
+    # Regex to find lines like:
+    # | https://s3.eidf.ac.uk/RhythmFormDatasets/training_data_20251201_000000.zip | zip | 0 |
+    # and capture just the filename.
+    pattern = re.compile(f"\\|.*(training_data_[0-9_]*\\{extension}).*\\|")
+    for i, line in enumerate(readme_content.splitlines()):
+        match = pattern.search(line)
+        if match:
+            # Return the captured filename and the 1-based line number
+            return (match.group(1), i + 1)
+    
+    print(f"Warning: Could not find file with extension '{extension}' in the README.md dataset table.")
+    return None
 
 def main():
     """
@@ -80,12 +101,15 @@ def main():
         print(f"Error: {readme_path} not found. Check RHYTHMFORMHOME environment variable.")
         sys.exit(1)
 
-    current_zip = get_current_from_readme(readme_content, ".zip")
-    current_tar = get_current_from_readme(readme_content, ".tar.gz")
+    current_zip_info = get_current_from_readme(readme_content, ".zip")
+    current_tar_info = get_current_from_readme(readme_content, ".tar.gz")
 
-    if not current_zip or not current_tar:
+    if not current_zip_info or not current_tar_info:
         print("Could not determine current dataset files from README.md. Exiting.")
         sys.exit(1)
+
+    current_zip, line_zip = current_zip_info
+    current_tar, line_tar = current_tar_info
 
     print(f"Current .zip in README: {current_zip}")
     print(f"Current .tar.gz in README: {current_tar}")
@@ -93,9 +117,31 @@ def main():
     # --- 4. Compare and update if necessary ---
     if latest_zip != current_zip or latest_tar != current_tar:
         print("Newer dataset found. Updating README.md...")
+
+        metadata = get_metadata_from_s3(s3, bucket_name)
+        if metadata:
+            print("Latest dataset metadata:")
+            for key, value in metadata.items():
+                print(f"  {key}: {value}")
         
-        new_readme_content = readme_content.replace(current_zip, latest_zip)
-        new_readme_content = new_readme_content.replace(current_tar, latest_tar)
+        # --- 4a. Construct new content ---
+        base_s3_url = f"{endpoint_url}/{bucket_name}"
+        file_count = metadata.get('file_count', 0) if metadata else 0
+
+        new_zip_uri = f"{base_s3_url}/{latest_zip}"
+        new_tar_uri = f"{base_s3_url}/{latest_tar}"
+
+        new_zip_line = f"| {new_zip_uri} | zip | {file_count} |"
+        new_tar_line = f"| {new_tar_uri} | tar.gz | {file_count} |"
+
+        # --- 4b. Replace lines in README ---
+        readme_lines = readme_content.splitlines()
+        # Replace the old lines with the newly constructed ones
+        readme_lines[line_zip - 1] = new_zip_line
+        readme_lines[line_tar - 1] = new_tar_line
+        
+        # Join the lines back together, ensuring a trailing newline
+        new_readme_content = "\n".join(readme_lines) + "\n"
 
         try:
             with open(readme_path, "w") as f:

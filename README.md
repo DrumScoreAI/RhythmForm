@@ -108,10 +108,10 @@ A dataset of paired `(image, music_data)` is created. This project includes a po
 #### Latest dataset
 The latest synthesized dataset can be found at:
 
-| S3 URI | Format |
-|--------|--------|
-| https://s3.eidf.ac.uk/RhythmFormDatasets/training_data_20251201_000000.zip | ZIP |
-| https://s3.eidf.ac.uk/RhythmFormDatasets/training_data_20251201_000000.tar.gz | GZIPPED TAR |
+| S3 URI | Format | File Count |
+|--------|--------|------------|
+| https://s3.eidf.ac.uk/RhythmFormDatasets/training_data_20251201_000000.zip | zip | 0 |
+| https://s3.eidf.ac.uk/RhythmFormDatasets/training_data_20251201_000000.tar.gz | tar.gz | 0 |
 
 ### 2. Model Training
 A transformer-based sequence-to-sequence model is trained on the dataset to learn the mapping from score images to a symbolic text (ST) representation.

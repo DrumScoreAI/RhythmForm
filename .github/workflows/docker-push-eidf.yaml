@@ -57,6 +57,8 @@ jobs:
           docker pull ${{ env.GHCR_REGISTRY }}/${{ env.GH_ORGANIZATION }}/${{ env.IMAGE_NAME1 }}:latest
           docker tag ${{ env.GHCR_REGISTRY }}/${{ env.GH_ORGANIZATION }}/${{ env.IMAGE_NAME1 }}:latest ${{ env.EIDF_REGISTRY }}/${{ env.EIDF_ORGANIZATION }}/${{ env.IMAGE_NAME1 }}:latest
           docker push ${{ env.EIDF_REGISTRY }}/${{ env.EIDF_ORGANIZATION }}/${{ env.IMAGE_NAME1 }}:latest
+          docker image rm -f ${{ env.GHCR_REGISTRY }}/${{ env.GH_ORGANIZATION }}/${{ env.IMAGE_NAME1 }}:latest ${{ env.EIDF_REGISTRY }}/${{ env.EIDF_ORGANIZATION }}/${{ env.IMAGE_NAME1 }}:latest
+          docker system prune -f
       - name: Pull, Tag, and Push second image to EIDF
         run: |
           docker pull ${{ env.GHCR_REGISTRY }}/${{ env.GH_ORGANIZATION }}/${{ env.IMAGE_NAME2 }}:latest

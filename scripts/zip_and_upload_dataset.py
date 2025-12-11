@@ -41,6 +41,7 @@ def create_zip_archive(source_dir, archive_path, exclude_dir):
             zipf.write(file_path, arcname)
             
     logging.info("Zip archive created successfully.")
+    return(len(file_paths))
 
 def create_tar_gz_archive(source_dir, archive_path, exclude_dir):
     """Creates a .tar.gz archive of a directory, excluding a specific subdirectory."""
@@ -61,6 +62,7 @@ def create_tar_gz_archive(source_dir, archive_path, exclude_dir):
             tar.add(file_path, arcname=arcname)
             
     logging.info("tar.gz archive created successfully.")
+    return(len(file_paths))
 
 def upload_to_s3(file_path, bucket, object_name=None):
     """Upload a file to an S3-compatible bucket using s3fs."""
@@ -120,15 +122,7 @@ def main():
 
     # --- Metadata Creation ---
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    metadata = {
-        "creation_timestamp_utc": datetime.datetime.now(datetime.UTC).isoformat(),
-        "note": args.note
-    }
-    metadata_path = os.path.join(SOURCE_DIR, "metadata.json")
-    with open(metadata_path, 'w') as f:
-        json.dump(metadata, f, indent=2)
-    logging.info(f"Created metadata file at {metadata_path}")
-
+    
     # Generate a unique filename based on the current timestamp
     base_filename = f"training_data_{timestamp}"
     
@@ -136,15 +130,31 @@ def main():
     tar_path = os.path.join(ARCHIVE_DIR, f"{base_filename}.tar.gz")
 
     # Create archives (which will now include metadata.json)
-    create_zip_archive(SOURCE_DIR, zip_path, ARCHIVE_DIR)
-    create_tar_gz_archive(SOURCE_DIR, tar_path, ARCHIVE_DIR)
+    file_count_z = create_zip_archive(SOURCE_DIR, zip_path, ARCHIVE_DIR)
+    file_count_t = create_tar_gz_archive(SOURCE_DIR, tar_path, ARCHIVE_DIR)
+
+    try:
+        assert file_count_z == file_count_t, "File counts in zip and tar.gz do not match!"
+    except AssertionError as e:
+        logging.error(f"Assertion Error: {e}")
+        exit(1)
+    
+    metadata = {
+        "creation_timestamp_utc": datetime.datetime.now(datetime.UTC).isoformat(),
+        "note": args.note,
+        "file_count": file_count_z
+    }
+    metadata_path = os.path.join(SOURCE_DIR, "metadata.json")
+    with open(metadata_path, 'w') as f:
+        json.dump(metadata, f, indent=2)
+    logging.info(f"Created metadata file at {metadata_path}")
 
     # --- Cleanup metadata file ---
-    try:
-        os.remove(metadata_path)
-        logging.info(f"Cleaned up temporary metadata file: {metadata_path}")
-    except OSError as e:
-        logging.error(f"Error removing metadata file: {e}")
+    # try:
+    #     os.remove(metadata_path)
+    #     logging.info(f"Cleaned up temporary metadata file: {metadata_path}")
+    # except OSError as e:
+    #     logging.error(f"Error removing metadata file: {e}")
 
     # Upload archives
     if args.bucket_name:
@@ -153,6 +163,7 @@ def main():
         bucket_name = S3_BUCKET_NAME
     upload_to_s3(zip_path, bucket_name)
     upload_to_s3(tar_path, bucket_name)
+    upload_to_s3(metadata_path, bucket_name)
 
     logging.info("Script finished.")
 

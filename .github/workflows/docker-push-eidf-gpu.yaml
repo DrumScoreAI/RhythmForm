@@ -1,1 +1,66 @@
-l
+name: Push Core-CPU Images to EIDF
+
+on:
+  workflow_run:
+    workflows: ["Build and Push Trainer Image"]
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  GHCR_REGISTRY: ghcr.io
+  EIDF_REGISTRY: registry.eidf.ac.uk
+  IMAGE_NAME1: rhythmform-core
+  IMAGE_NAME2: rhythmform-trainer
+  GH_ORGANIZATION: drumscoreai
+  EIDF_ORGANIZATION: eidf235
+
+jobs:
+  push-to-eidf:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # Removes pre-installed tools to free up ~10-20GB
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to EIDF Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.EIDF_REGISTRY }}
+          username: ${{ secrets.EIDFCR_UN }}
+          password: ${{ secrets.EIDFCR_KEY }}
+
+      - name: Pull, Tag, and Push image to EIDF
+        run: |
+          docker pull ${{ env.GHCR_REGISTRY }}/${{ env.GH_ORGANIZATION }}/${{ env.IMAGE_NAME1 }}:latest
+          docker tag ${{ env.GHCR_REGISTRY }}/${{ env.GH_ORGANIZATION }}/${{ env.IMAGE_NAME1 }}:latest ${{ env.EIDF_REGISTRY }}/${{ env.EIDF_ORGANIZATION }}/${{ env.IMAGE_NAME1 }}:latest
+          docker push ${{ env.EIDF_REGISTRY }}/${{ env.EIDF_ORGANIZATION }}/${{ env.IMAGE_NAME1 }}:latest
+          docker image rm -f ${{ env.GHCR_REGISTRY }}/${{ env.GH_ORGANIZATION }}/${{ env.IMAGE_NAME1 }}:latest ${{ env.EIDF_REGISTRY }}/${{ env.EIDF_ORGANIZATION }}/${{ env.IMAGE_NAME1 }}:latest
+          docker system prune -f
+      - name: Pull, Tag, and Push second image to EIDF
+        run: |
+          docker pull ${{ env.GHCR_REGISTRY }}/${{ env.GH_ORGANIZATION }}/${{ env.IMAGE_NAME2 }}:latest
+          docker tag ${{ env.GHCR_REGISTRY }}/${{ env.GH_ORGANIZATION }}/${{ env.IMAGE_NAME2 }}:latest ${{ env.EIDF_REGISTRY }}/${{ env.EIDF_ORGANIZATION }}/${{ env.IMAGE_NAME2 }}:latest
+          docker push ${{ env.EIDF_REGISTRY }}/${{ env.EIDF_ORGANIZATION }}/${{ env.IMAGE_NAME2 }}:latest

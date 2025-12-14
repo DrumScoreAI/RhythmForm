@@ -20,11 +20,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install git
-        run: sudo apt update && sudo apt install -y git
+      - name: Install system dependencies
+        run: |
+          apt-get update
+          apt-get install -y git
+          rm -rf /var/lib/apt/lists/*
 
-      # Install s3fs in the slim container
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: pip install s3fs
 
       - name: Run dataset check script

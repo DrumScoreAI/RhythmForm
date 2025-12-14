@@ -10,54 +10,36 @@ on:
 jobs:
   update-readme:
     runs-on: ubuntu-latest
-    # Use the pre-built core-cpu container, which has Python and s3fs installed
+    # Use a slim Python image instead
     container:
-      image: ghcr.io/drumscoreai/rhythmform-core-cpu:latest
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+      image: python:3.11-slim
 
     steps:
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          # Removes pre-installed tools to free up ~10-20GB
-          tool-cache: false
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: true
-
-      # The container's working directory is /app, so the code will be checked out there
       - name: Check out repository
         uses: actions/checkout@v4
         with:
-          # We need to fetch all history to be able to push back to the repo
           fetch-depth: 0
+
+      # Install s3fs in the slim container
+      - name: Install dependencies
+        run: pip install s3fs
 
       - name: Run dataset check script
         id: check_script
         env:
-          # Pass secrets and config to the Python script
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           S3_ENDPOINT_URL: https://s3.eidf.ac.uk
           S3_BUCKET_NAME: rhythmformdatasets
-          # GITHUB_OUTPUT is an environment variable set by the runner for workflow communication
         run: python scripts/check_new_datasets.py
 
       - name: Commit and push if README was updated
-        # This step only runs if the 'updated' output from the previous step was 'true'
         if: steps.check_script.outputs.updated == 'true'
         run: |
           set -e
-          # Configure git with the bot's identity
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           
-          # Add the changed README, commit, and push
           git add README.md
           git commit -m "Docs: Update latest dataset links in README"
           git push

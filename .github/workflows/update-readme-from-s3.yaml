@@ -31,7 +31,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           S3_ENDPOINT_URL: https://s3.eidf.ac.uk
           S3_BUCKET_NAME: rhythmformdatasets
-          RHYTHMFORMHOME: $PWD
+          RHYTHMFORMHOME: ${{ github.workspace }}
         run: python scripts/check_new_datasets.py
 
       - name: Commit and push if README was updated

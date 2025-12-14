@@ -70,9 +70,13 @@ RUN apt-get update && apt-get install -y \
     libwayland-cursor0 \
     libwayland-egl1 \
     libglib2.0-0t64 \
+    xcb-cursor0 \
     libxcb-cursor0 \
     libxcb-util1 \
     xvfb \
+RUN apt-get install -y \
+    libxcb-cursor \
+    libxcb-icccm \
     && rm -rf /var/lib/apt/lists/*
 
 # Create and activate a virtual environment, then install requirements

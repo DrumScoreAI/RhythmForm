@@ -1,4 +1,4 @@
-name: Push Core-CPU Images to EIDF
+name: Push Core Images to EIDF
 
 on:
   workflow_run:

@@ -2,6 +2,7 @@
 # Default values
 
 TRAINING_DATA_DIR="$RHYTHMFORMHOME/training_data"
+cd $RHYTHMFORMHOME/scripts || exit 1
 
 num_cores=$1
 

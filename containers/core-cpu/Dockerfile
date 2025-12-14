@@ -13,6 +13,8 @@ ENV PYTHONPATH=/app:$PYTHONPATH
 # Point MUSESCORE_PATH to the extracted directory
 ENV MUSESCORE_PATH=/app/mscore
 
+RUN mkdir /app && mkdir /app/venv
+
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     locales \
@@ -73,20 +75,11 @@ RUN apt-get update && apt-get install -y \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the rest of your application's code
-COPY . /app
-WORKDIR /app
-
 # Create and activate a virtual environment, then install requirements
 RUN python3.12 -m venv /app/venv
 ENV PATH="/app:/home/appuser/.local/bin:/app/venv/bin:${PATH}"
-
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir awscli
-
-# Copy entrypoint script
-COPY containers/core-cpu/core-cpu_entrypoint.sh .
-RUN chmod +x core-cpu_entrypoint.sh
 
 # Download and extract MuseScore AppImage
 ARG MUSESCORE_VERSION=4.6.3
@@ -100,6 +93,14 @@ RUN wget https://github.com/musescore/MuseScore/releases/download/v${MUSESCORE_V
     && ln -s /app/musescore-extracted/usr/bin/mscore4portable /app/mscore \
     && ln -s /app/musescore-extracted/usr/bin/mscore4portable /app/musescore \
     && rm /app/musescore.AppImage
+
+# Copy the rest of your application's code
+COPY . /app
+WORKDIR /app
+
+# Copy entrypoint script
+COPY containers/core-cpu/core-cpu_entrypoint.sh .
+RUN chmod +x core-cpu_entrypoint.sh
 
 # Create a non-root user for security
 RUN useradd -ms /bin/bash -u 1001 appuser

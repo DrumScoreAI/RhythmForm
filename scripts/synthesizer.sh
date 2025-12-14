@@ -214,4 +214,15 @@ find $TRAINING_DATA_DIR -type f -print0 | xargs -P "$num_cores" -0 -I {} chmod 6
 find $TRAINING_DATA_DIR -type d -print0 | xargs -P "$num_cores" -0 -I {} chmod 777 {}
 echo "Permissions set."
 
+# ZIP and upload datasets to S3 (if configured)
+echo "Uploading datasets to S3..."
+if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$S3_ENDPOINT_URL" ]; then
+    echo "AWS credentials not set. Skipping upload."
+    exit 0
+else
+    echo "AWS credentials found. Proceeding with upload."
+fi
+python zip_and_upload_dataset.py --note "$num_scores scores synthesized on $(date +"%Y-%m-%d %T")" --bucket-name "rhythmformdatasets"
+echo "Zip and upload complete."
+
 echo "All data synthesis tasks completed successfully."

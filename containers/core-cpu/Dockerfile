@@ -74,16 +74,11 @@ RUN apt-get update && apt-get install -y \
     libxcb-cursor0 \
     libxcb-util1 \
     xvfb \
-RUN apt-get install -y \
-    libxcb-cursor \
-    libxcb-icccm \
     && rm -rf /var/lib/apt/lists/*
 
 # Create and activate a virtual environment, then install requirements
 RUN python3.12 -m venv /app/venv
 ENV PATH="/app:/home/appuser/.local/bin:/app/venv/bin:${PATH}"
-RUN pip install --upgrade pip
-RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir awscli
 
 # Download and extract MuseScore AppImage
 ARG MUSESCORE_VERSION=4.6.3
@@ -101,6 +96,10 @@ RUN wget https://github.com/musescore/MuseScore/releases/download/v${MUSESCORE_V
 # Copy the rest of your application's code
 COPY . /app
 WORKDIR /app
+
+# Install Python dependencies
+RUN pip install --upgrade pip
+RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir awscli
 
 # Copy entrypoint script
 COPY containers/core-cpu/core-cpu_entrypoint.sh .

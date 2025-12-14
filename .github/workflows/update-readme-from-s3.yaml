@@ -10,9 +10,6 @@ on:
 jobs:
   update-readme:
     runs-on: ubuntu-latest
-    # Use a slim Python image instead
-    container:
-      image: python:3.11-slim
 
     steps:
       - name: Check out repository
@@ -20,13 +17,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install system dependencies
-        run: |
-          apt-get update
-          apt-get install -y git
-          rm -rf /var/lib/apt/lists/*
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: pip install s3fs
 
       - name: Run dataset check script

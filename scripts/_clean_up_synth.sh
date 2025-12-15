@@ -9,6 +9,7 @@ xml=$2
 dryrun=$3
 
 bname=$(basename $xml)
+
 name=${bname%.xml}
 image=`ls images/$name.png 2>/dev/null`
 pdf=`ls pdfs/$name.pdf 2>/dev/null`

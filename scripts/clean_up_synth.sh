@@ -7,7 +7,7 @@ DRYRUN=$4
 
 cd $TRAINING_DATA_DIR
 
-find musicxml/ -print0 -name *[0-9].xml | xargs -0 -P $CORES -n 1 -I {} $SCRIPTS_DIR/_clean_up_synth.sh $TRAINING_DATA_DIR {} $DRYRUN &
+find musicxml/ -name *[0-9].xml -print0 | xargs -0 -P $CORES -n 1 -I {} $SCRIPTS_DIR/_clean_up_synth.sh $TRAINING_DATA_DIR {} $DRYRUN &
 pid=$!
 
 # Monitor progress

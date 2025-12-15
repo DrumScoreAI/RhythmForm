@@ -3,13 +3,19 @@
 TRAINING_DATA_DIR=$1
 SCRIPTS_DIR=$2
 CORES=$3
+DRYRUN=$4
 
 cd $TRAINING_DATA_DIR
 
-find musicxml/ -print0 -name *[0-9].xml | xargs -0 -P $CORES -n 1 -I {} $SCRIPTS_DIR/_clean_up_synth.sh $TRAINING_DATA_DIR {} >/dev/null &
+find musicxml/ -print0 -name *[0-9].xml | xargs -0 -P $CORES -n 1 -I {} $SCRIPTS_DIR/_clean_up_synth.sh $TRAINING_DATA_DIR {} $DRYRUN &
 pid=$!
 
 # Monitor progress
+if [ "$DRYRUN" == "dryrun" ]; then
+    echo "Dry run mode - not monitoring deletion of unpaired files."
+    wait $pid
+    exit 0
+fi
 echo "Monitoring deletion of unpaired files (PID: $pid)..."
 start_count_xml=$(find musicxml -type f 2>/dev/null | wc -l)
 start_count_pdf=$(find pdfs -type f 2>/dev/null | wc -l)

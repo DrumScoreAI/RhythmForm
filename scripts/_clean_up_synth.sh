@@ -6,6 +6,7 @@ then
 fi
 cd $1
 xml=$2
+dryrun=$3
 
 bname=$(basename $xml)
 name=${bname%.xml}
@@ -13,10 +14,19 @@ image=`ls images/$name.png 2>/dev/null`
 pdf=`ls pdfs/$name.pdf 2>/dev/null`
 if [ -z $pdf ] || [ -z $image ]
 then
-        echo $bname has no pdf or image
-        rm -v $xml
-        rm -v $image
-        rm -v $pdf
-        rm -v musicxml/$name.json
-        rm -v musicxml/${name}_altered.xml
+        if [ "$dryrun" != "dryrun" ]; then
+            rm -v $xml 2>/dev/null
+            rm -v $image 2>/dev/null
+            rm -v $pdf 2>/dev/null
+            rm -v musicxml/$name.json 2>/dev/null
+            rm -v musicxml/${name}_altered.xml 2>/dev/null
+        else
+            echo $bname has no pdf or image
+            echo "Dry run mode - not deleting files."
+            echo "Would remove: $xml"
+            echo "Would remove: $image"
+            echo "Would remove: $pdf"
+            echo "Would remove: musicxml/$name.json"
+            echo "Would remove: musicxml/${name}_altered.xml"
+        fi
 fi

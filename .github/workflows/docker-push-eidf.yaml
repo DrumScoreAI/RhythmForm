@@ -1,8 +1,8 @@
-name: Push Core Images to EIDF
+name: Push Core Image to EIDF
 
 on:
   workflow_run:
-    workflows: ["Build and Push Trainer Image"]
+    workflows: ["Build and Push Core Image"]
     types:
       - completed
     branches:
@@ -13,7 +13,7 @@ env:
   GHCR_REGISTRY: ghcr.io
   EIDF_REGISTRY: registry.eidf.ac.uk
   IMAGE_NAME1: rhythmform-core
-  IMAGE_NAME2: rhythmform-trainer
+  # IMAGE_NAME2: rhythmform-trainer  # deprecated
   GH_ORGANIZATION: drumscoreai
   EIDF_ORGANIZATION: eidf235
 
@@ -57,10 +57,10 @@ jobs:
           docker pull ${{ env.GHCR_REGISTRY }}/${{ env.GH_ORGANIZATION }}/${{ env.IMAGE_NAME1 }}:latest
           docker tag ${{ env.GHCR_REGISTRY }}/${{ env.GH_ORGANIZATION }}/${{ env.IMAGE_NAME1 }}:latest ${{ env.EIDF_REGISTRY }}/${{ env.EIDF_ORGANIZATION }}/${{ env.IMAGE_NAME1 }}:latest
           docker push ${{ env.EIDF_REGISTRY }}/${{ env.EIDF_ORGANIZATION }}/${{ env.IMAGE_NAME1 }}:latest
-          docker image rm -f ${{ env.GHCR_REGISTRY }}/${{ env.GH_ORGANIZATION }}/${{ env.IMAGE_NAME1 }}:latest ${{ env.EIDF_REGISTRY }}/${{ env.EIDF_ORGANIZATION }}/${{ env.IMAGE_NAME1 }}:latest
-          docker system prune -f
-      - name: Pull, Tag, and Push second image to EIDF
-        run: |
-          docker pull ${{ env.GHCR_REGISTRY }}/${{ env.GH_ORGANIZATION }}/${{ env.IMAGE_NAME2 }}:latest
-          docker tag ${{ env.GHCR_REGISTRY }}/${{ env.GH_ORGANIZATION }}/${{ env.IMAGE_NAME2 }}:latest ${{ env.EIDF_REGISTRY }}/${{ env.EIDF_ORGANIZATION }}/${{ env.IMAGE_NAME2 }}:latest
-          docker push ${{ env.EIDF_REGISTRY }}/${{ env.EIDF_ORGANIZATION }}/${{ env.IMAGE_NAME2 }}:latest
+      #   docker image rm -f ${{ env.GHCR_REGISTRY }}/${{ env.GH_ORGANIZATION }}/${{ env.IMAGE_NAME1 }}:latest ${{ env.EIDF_REGISTRY }}/${{ env.EIDF_ORGANIZATION }}/${{ env.IMAGE_NAME1 }}:latest
+      #   docker system prune -f
+      # - name: Pull, Tag, and Push second image to EIDF
+      #   run: |
+      #     docker pull ${{ env.GHCR_REGISTRY }}/${{ env.GH_ORGANIZATION }}/${{ env.IMAGE_NAME2 }}:latest
+      #     docker tag ${{ env.GHCR_REGISTRY }}/${{ env.GH_ORGANIZATION }}/${{ env.IMAGE_NAME2 }}:latest ${{ env.EIDF_REGISTRY }}/${{ env.EIDF_ORGANIZATION }}/${{ env.IMAGE_NAME2 }}:latest
+      #     docker push ${{ env.EIDF_REGISTRY }}/${{ env.EIDF_ORGANIZATION }}/${{ env.IMAGE_NAME2 }}:latest

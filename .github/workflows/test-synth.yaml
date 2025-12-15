@@ -30,7 +30,7 @@ jobs:
 
       - name: Run RhythmForm Synthesizer Docker
         run: |
-          docker run -u $(id -u):$(id -g) -v ${{ github.workspace }}/training_data:/app/training_data ghcr.io/drumscoreai/rhythmform-synthesizer:latest -s 1 -n 1 -S
+          docker run -u $(id -u):$(id -g) -v ${{ github.workspace }}/training_data:/app/training_data ghcr.io/drumscoreai/rhythmform-core-cpu:latest /app/scripts/synthesizer.sh -s 1 -n 1 -S
         # Usage: /app/scripts/synthesizer.sh [-s|--scores NUM] [-n|--num-cores NUM] [-S|--use_stdout] [-c|--continuation]
         # -s, --scores NUM         Number of scores to generate (default: 30)
         # -n, --num-cores NUM      Number of cores to use (default: 1)

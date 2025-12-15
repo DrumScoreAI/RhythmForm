@@ -27,7 +27,7 @@ then
             echo "Would remove: $xml"
             echo "Would remove: $image"
             echo "Would remove: $pdf"
-            echo "Would remove: musicxml/$name.json"
-            echo "Would remove: musicxml/${name}_altered.xml"
+            echo "Would remove: musicxml/$name.json if present"
+            echo "Would remove: musicxml/${name}_altered.xml if present"
         fi
 fi

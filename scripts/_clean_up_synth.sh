@@ -16,11 +16,11 @@ pdf=`ls pdfs/$name.pdf 2>/dev/null`
 if [ -z $pdf ] || [ -z $image ]
 then
         if [ "$dryrun" != "dryrun" ]; then
-            rm -v $xml 2>/dev/null
-            rm -v $image 2>/dev/null
-            rm -v $pdf 2>/dev/null
-            rm -v musicxml/$name.json 2>/dev/null
-            rm -v musicxml/${name}_altered.xml 2>/dev/null
+            rm $xml 2>/dev/null
+            rm $image 2>/dev/null
+            rm $pdf 2>/dev/null
+            rm musicxml/$name.json 2>/dev/null
+            rm musicxml/${name}_altered.xml 2>/dev/null
         else
             echo $bname has no pdf or image
             echo "Dry run mode - not deleting files."

@@ -144,8 +144,8 @@ fi
 echo "Synthetic score generation complete."
 
 if [ "$continuation" == "true" ] && [ "$existing_scores" -gt 0 ]; then
-    find $TRAINING_DATA_DIR/musicxml -name "*.xml" | grep -v altered > $temp2
-    grep -Fv -f $temp1 $temp2 > $temp3
+    find $TRAINING_DATA_DIR/musicxml -name "*.xml" | grep -v altered | sort > $temp2
+    comm -13 $temp1 $temp2 > $temp3
     # rm -f $temp1 $temp2
 else
     find $TRAINING_DATA_DIR/musicxml -name "*.xml" | grep -v altered > $temp3

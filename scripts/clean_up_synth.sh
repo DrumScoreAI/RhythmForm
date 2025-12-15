@@ -19,9 +19,11 @@ while ps -p $pid > /dev/null; do
     current_count_pdf=$(find pdfs -type f 2>/dev/null | wc -l)
     current_count_image=$(find images -type f 2>/dev/null | wc -l)
     # Calculate how many new PDFs have been created by this run
-    deleted=$((start_count - current_count))
-    echo -ne "  -> Removed $deleted unpaired files...\r"
-    sleep 2
+    deleted_xml=$((start_count_xml - current_count_xml))
+    deleted_pdf=$((start_count_pdf - current_count_pdf))
+    deleted_image=$((start_count_image - current_count_image))
+    echo -ne "  -> Removed $deleted_xml XML files, $deleted_pdf PDF files, and $deleted_image image files...\r"
+    sleep 10
 done
 
 

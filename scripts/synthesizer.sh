@@ -210,8 +210,8 @@ echo "Tokenizer run complete."
 
 # CHMOD training data
 echo "Setting permissions for training data using $num_cores cores..."
-find $TRAINING_DATA_DIR -type f -print0 | xargs -P "$num_cores" -0 -I {} chmod 666 {}
-find $TRAINING_DATA_DIR -type d -print0 | xargs -P "$num_cores" -0 -I {} chmod 777 {}
+find $TRAINING_DATA_DIR -type f -print0 | xargs -P "$num_cores" -0 -I {} chmod 666 {} >/dev/null 2>&1
+find $TRAINING_DATA_DIR -type d -print0 | xargs -P "$num_cores" -0 -I {} chmod 777 {} >/dev/null 2>&1
 echo "Permissions set."
 
 # ZIP and upload datasets to S3 (if configured)

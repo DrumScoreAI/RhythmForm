@@ -137,9 +137,9 @@ find $TRAINING_DATA_DIR/musicxml -name "*.xml" | grep -v altered | sort -V > $te
 echo "Generating synthetic scores using $num_cores cores..."
 if [ "$continuation" == "true" ] && [ "$existing_scores" -gt 0 ]; then
     echo "Continuation mode enabled."
-    python generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --continuation
+    python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --continuation
 else
-    python generate_synthetic_scores.py "$num_scores" --cores "$num_cores"
+    python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores"
 fi
 echo "Synthetic score generation complete."
 
@@ -200,12 +200,14 @@ echo "Manifest file created at $TRAINING_DATA_DIR/training_data.csv."
 
 # Prepare data for training
 echo "Preparing data for training using $num_cores cores..."
-python prepare_dataset.py --cores $num_cores
+python $RHYTHMFORMHOME/scripts/prepare_dataset.py --cores $num_cores
 echo "Data preparation complete."
 
 # Run tokenizer
 echo "Running tokenizer (serial)..."
+cd $RHYTHMFORMHOME/scripts/
 python -m omr_model.tokenizer --cores $num_cores
+cd -
 echo "Tokenizer run complete."
 
 # CHMOD training data
@@ -222,7 +224,7 @@ if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$S3_E
 else
     echo "AWS credentials found. Proceeding with upload."
 fi
-python zip_and_upload_dataset.py --note "$num_scores scores synthesized on $(date +"%Y-%m-%d %T")" --bucket-name "rhythmformdatasets"
+python $RHYTHMFORMHOME/scripts/zip_and_upload_dataset.py --note "$num_scores scores synthesized on $(date +"%Y-%m-%d %T")" --bucket-name "rhythmformdatasets"
 echo "Zip and upload complete."
 
 echo "All data synthesis tasks completed successfully."

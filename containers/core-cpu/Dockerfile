@@ -8,6 +8,7 @@ ENV LANG=en_GB.UTF-8
 ENV LANGUAGE=en_GB:en
 ENV LC_ALL=en_GB.UTF-8
 ENV QT_LOGGING_RULES="qt.qml.typeregistration=false"
+ENV QT_QPA_PLATFORM="offscreen"
 ENV RHYTHMFORMHOME=/app
 ENV PYTHONPATH=/app:$PYTHONPATH
 # Point MUSESCORE_PATH to the extracted directory

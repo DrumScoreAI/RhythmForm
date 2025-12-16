@@ -2,6 +2,17 @@ import os
 import csv
 from pathlib import Path
 import sys
+import json
+import pandas as pd
+
+def find_dataset_entries(row):
+    if 'is_in_pdf' in row and 'is_in_musicxml' in row and 'is_in_image' in row:
+        if row['is_in_pdf'] and row['is_in_musicxml'] and row['is_in_image']:
+            return 'p'
+        else:
+            return 'n'
+    return 'unknown'
+    
 
 def rebuild_manifest(training_data_dir: Path|str):
     """
@@ -19,63 +30,89 @@ def rebuild_manifest(training_data_dir: Path|str):
         elif isinstance(training_data_dir, str):
             training_data_dir = Path(training_data_dir)
         pdfs_dir = training_data_dir / 'pdfs'
+        images_dir = training_data_dir / 'images'
         musicxml_dir = training_data_dir / 'musicxml'
         manifest_path = training_data_dir / 'training_data.csv'
+        dataset_file = training_data_dir / 'dataset.json'
 
-        if not all([training_data_dir.is_dir(), pdfs_dir.is_dir(), musicxml_dir.is_dir(), manifest_path.is_file()]):
+        if not all([training_data_dir.is_dir(), pdfs_dir.is_dir(), images_dir.is_dir(), musicxml_dir.is_dir(), manifest_path.is_file()]):
             print("Error: Required directories or files not found. Make sure you are running this script from the project root directory.", file=sys.stderr)
             sys.exit(1)
+        
+        print("Scanning for MusicXML files...")
+        # Create a set of MusicXML basenames for efficient lookup
+        musicxml_filenames = pd.DataFrame([f.stem for f in musicxml_dir.glob('*[0-9].xml')], columns=['stem']).sort_values(by='stem')
+        print(f"Found {len(musicxml_filenames)} MusicXML files.")
 
         print("Scanning for PDF files...")
         # Create a set of PDF basenames for efficient lookup
-        pdf_filenames = {f.stem for f in pdfs_dir.glob('*.pdf')}
+        pdf_filenames = pd.DataFrame([f.stem for f in pdfs_dir.glob('*.pdf')], columns=['stem']).sort_values(by='stem')
         print(f"Found {len(pdf_filenames)} PDF files.")
+
+        print("Scanning for Image files...")
+        # Create a set of Image basenames for efficient lookup
+        image_filenames = pd.DataFrame([f.stem for f in images_dir.glob('*.png')], columns=['stem']).sort_values(by='stem')
+        print(f"Found {len(image_filenames)} Image files.")
+
+        print("Loading dataset.json if present...")
+        dataset = {}
+        if dataset_file.is_file():
+            with open(dataset_file, 'r') as df:
+                dataset = json.load(df)
+            print(f"Loaded dataset.json with {len(dataset)} entries.")
+        else:
+            print("No dataset.json found, proceeding without it.")
+        
+        dataset = pd.DataFrame.from_dict(dataset)
 
         print("Updating manifest (training_data.csv)...")
         
         # Read the manifest into memory and create a lookup for xml filenames
-        with open(manifest_path, 'r', newline='') as f:
-            reader = csv.reader(f)
-            manifest_data = list(reader)
-        
-        xml_fn_to_row_idx = {row[1]: i for i, row in enumerate(manifest_data) if len(row) > 1}
+        manifest_data = pd.read_csv(manifest_path)
 
         updated_rows = 0
         added_rows = 0
+
+        manifest_data['stem'] = manifest_data['musicxml'].apply(lambda x: Path(x).stem)
+        manifest_data.sort_values(by='stem', inplace=True)
+
+        # If anything is missing, assume it needs processed
+        manifest_data['n_or_p'] = manifest_data.apply(lambda row: 'n' if row['pdf'] == '' or row['musicxml'] == '' or row['image'] == '' else 'unknown', axis=1)
+
+        pdf_filenames['in_manifest'] = pdf_filenames['stem'].isin(manifest_data['pdf'])
+        musicxml_filenames['in_manifest'] = musicxml_filenames['stem'].isin(manifest_data['musicxml'])
+        image_filenames['in_manifest'] = image_filenames['stem'].isin(manifest_data['image'])
         
-        # Iterate through musicxml files and update/add to manifest
-        musicxml_files = list(musicxml_dir.glob('*[0-9].xml'))
-        for i, xml_path in enumerate(musicxml_files):
-            xml_bn = xml_path.name
-            pdf_bn_stem = xml_path.stem
-            pdf_fn = f"{pdf_bn_stem}.pdf"
+        # update manifest with cases where there are pdfs, musicxml and images not listed
+        unlisted_pdfs = pdf_filenames[~pdf_filenames['in_manifest']]
+        unlisted_musicxmls = musicxml_filenames[~musicxml_filenames['in_manifest']]
+        unlisted_images = image_filenames[~image_filenames['in_manifest']]
 
-            # Check if the corresponding PDF exists
-            pdf_exists = pdf_bn_stem in pdf_filenames
-            
-            if xml_bn in xml_fn_to_row_idx:
-                # Entry exists, check if update is needed
-                row_idx = xml_fn_to_row_idx[xml_bn]
-                if len(manifest_data[row_idx]) == 4:
-                    _, _, _, processing_status = manifest_data[row_idx]
-                    if processing_status == 'n' and pdf_exists:
-                        manifest_data[row_idx][3] = 'p' # Update status to 'processed'
-                        updated_rows += 1
-            else:
-                # Entry does not exist, add it
+        if unlisted_images.empty or unlisted_musicxmls.empty or unlisted_pdfs.empty:
+            print("No unlisted files found to add to manifest.")
+        else:
+            in_all = unlisted_musicxmls.merge(unlisted_images, on='stem').merge(unlisted_pdfs, on='stem')
+            for _, row in in_all.iterrows():
+                pdf_fn = f"{row['stem']}.pdf"
+                xml_bn = f"{row['stem']}.xml"
+                image_fn = f"{row['stem']}.png"
                 do_or_mi = 'do'  # Default to 'do' for new entries
-                processing_status = 'p' if pdf_exists else 'n'
-                new_row = [pdf_fn, xml_bn, do_or_mi, processing_status]
-                manifest_data.append(new_row)
+                processing_status = 'p'
+                new_row = {'pdf': pdf_fn, 'musicxml': xml_bn, 'image': image_fn, 'do_or_mi': do_or_mi, 'n_or_p': processing_status}
+                manifest_data = pd.concat([manifest_data, pd.DataFrame([new_row])], ignore_index=True)
                 added_rows += 1
+            print(f"Added {added_rows} new rows to manifest.")
+            del in_all
 
-            if (i + 1) % 1000 == 0:
-                print(f"Processed {i+1}/{len(musicxml_files)} MusicXML files...", end='\r')
+        manifest_data['is_in_pdf'] = manifest_data['pdf'].isin(pdf_filenames['stem'])
+        manifest_data['is_in_musicxml'] = manifest_data['musicxml'].isin(musicxml_filenames['stem'])
+        manifest_data['is_in_image'] = manifest_data['image'].isin(image_filenames['stem'])
+
+        manifest_data['n_or_p'] = manifest_data.apply(find_dataset_entries, axis=1)
 
         # Write the updated data back to the manifest
-        with open(manifest_path, 'w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerows(manifest_data)
+        manifest_data.drop(columns=['stem', 'is_in_pdf', 'is_in_musicxml', 'is_in_image'], inplace=True)
+        manifest_data.to_csv(manifest_path, index=False)
 
         print(f"\nManifest update complete. Updated {updated_rows} rows, added {added_rows} new rows.")
 

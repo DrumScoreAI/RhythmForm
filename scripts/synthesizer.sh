@@ -181,7 +181,7 @@ do_or_mi="do"
 # n_or_p = n for new, p for processed
 echo "Creating manifest file..."
 if [ "$continuation" == "false" ] || [ "$existing_scores" -eq 0 ]; then
-    echo "pdf,musicxml,do_or_mi,n_or_p" > $TRAINING_DATA_DIR/training_data.csv
+    echo "pdf,image,musicxml,do_or_mi,n_or_p" > $TRAINING_DATA_DIR/training_data.csv
 fi
 
 echo "Populating manifest file..."

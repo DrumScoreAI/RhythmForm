@@ -1,10 +1,10 @@
 name: Test Synthesizer
 
 on:
-  # workflow_run:
-  #   workflows: ["Build and Push Synthesizer Image"]
-  #   types:
-  #     - completed
+  workflow_run:
+    workflows: ["Build and Push Core Image", "Build and Push Core-CPU Image"]
+    types:
+      - completed
   workflow_dispatch: # Allows you to run this workflow manually from the Actions tab
 
 jobs:

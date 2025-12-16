@@ -183,17 +183,18 @@ if [ "$continuation" == "false" ] || [ "$existing_scores" -eq 0 ]; then
     echo "pdf,musicxml,do_or_mi,n_or_p" > $TRAINING_DATA_DIR/training_data.csv
 fi
 
-find "$TRAINING_DATA_DIR/musicxml/" -name "*[0-9].xml" | while read -r xml; do
-    xml_bn=$(basename "$xml")
-    pdf="${xml_bn%.xml}.pdf"
-    grep -q "$xml" "$temp1" 2>/dev/null
-    if [ $? -eq 0 ]; then
-        sed "s/$pdf,$xml_bn,$do_or_mi,n/$pdf,$xml_bn,$do_or_mi,p/g" $TRAINING_DATA_DIR/training_data.csv > $TRAINING_DATA_DIR/training_data_tmp.csv
-        # cat $TRAINING_DATA_DIR/training_data_tmp.csv
-    else
-        echo "$pdf,$xml_bn,$do_or_mi,n" >> $TRAINING_DATA_DIR/training_data.csv
-    fi
-done
+# find "$TRAINING_DATA_DIR/musicxml/" -name "*[0-9].xml" | while read -r xml; do
+#     xml_bn=$(basename "$xml")
+#     pdf="${xml_bn%.xml}.pdf"
+#     grep -q "$xml" "$temp1" 2>/dev/null
+#     if [ $? -eq 0 ]; then
+#         sed "s/$pdf,$xml_bn,$do_or_mi,n/$pdf,$xml_bn,$do_or_mi,p/g" $TRAINING_DATA_DIR/training_data.csv > $TRAINING_DATA_DIR/training_data_tmp.csv
+#         # cat $TRAINING_DATA_DIR/training_data_tmp.csv
+#     else
+#         echo "$pdf,$xml_bn,$do_or_mi,n" >> $TRAINING_DATA_DIR/training_data.csv
+#     fi
+# done
+python $RHYTHMFORMHOME/scripts/rebuild_manifest.py $TRAINING_DATA_DIR
 
 rm -f $temp1 $temp2 $temp3
 echo "Manifest file created at $TRAINING_DATA_DIR/training_data.csv."

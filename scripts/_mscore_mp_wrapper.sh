@@ -38,7 +38,7 @@ while (( i < xvfb_display_max )); do
   fi
   exec 5>"$xvfb_lockdir/$i" || continue           # open a lockfile
   if flock -x -n 5; then                          # try to lock it
-    exec xvfb-run --server-num="$i" "$MUSESCORE_PATH" -o "${pdf_dir}/${filename%.xml}.pdf" -r 300 "${xml_file}" 2>&1 || exit  # if locked, run xvfb-run
+    exec xvfb-run --server-num="$i" "$MUSESCORE_PATH" -o "${pdf_dir}/${filename%.xml}.pdf" -r 300 "${xml_file}" 2>&1 | grep -v -E "pw.context|pw.conf|libOpenGL|libjack|libnss3|libpipewire"  # if locked, run xvfb-run
   fi
   (( i++ ))
 done

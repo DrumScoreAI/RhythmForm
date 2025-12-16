@@ -146,7 +146,7 @@ if [ "$continuation" == "true" ] && [ "$existing_scores" -gt 0 ]; then
     comm -13 $temp1 $temp2 > $temp3
     # rm -f $temp1 $temp2
 else
-    find $TRAINING_DATA_DIR/musicxml -name "*.xml" | grep -v altered > $temp3
+    find $TRAINING_DATA_DIR/musicxml -name "*.xml" | grep -v altered | sort -V> $temp3
 fi
 
 this_total=$(cat $temp3 | wc -l)

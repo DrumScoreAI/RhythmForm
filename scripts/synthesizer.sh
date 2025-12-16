@@ -16,28 +16,25 @@ usage() {
 }
 
 # Parse command-line options
-while [[ $# -gt 0 ]]; do
-    key="$1"
-    case $key in
-        -s|--scores)
-            num_scores="$2"
-            shift; shift
+while [ "$1" != "" ]; do
+    case $1 in
+        -s | --scores)
+            shift
+            num_scores=$1
             ;;
-        -n|--num-cores)
-            num_cores="$2"
-            shift; shift
+        -n | --num-cores)
+            shift
+            num_cores=$1
             ;;
-        -S|--use_stdout)
+        -S | --use_stdout)
             use_stdout=true
-            shift
             ;;
-        -c|--continuation)
+        -c | --continuation)
             continuation=true
-            shift
             ;;
-        -h|--help)
+        -h | --help)
             usage
-            exit 0
+            exit
             ;;
         *)
             echo "Unknown option: $1"
@@ -45,6 +42,7 @@ while [[ $# -gt 0 ]]; do
             exit 1
             ;;
     esac
+    shift
 done
 
 # Validate arguments

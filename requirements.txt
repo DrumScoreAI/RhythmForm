@@ -3,6 +3,9 @@ torch>=2.0.0
 transformers>=4.30.0
 Pillow>=10.0.0
 
+# Data handling
+pandas>=2.0.0
+
 # Music format handling
 music21>=9.1.0
 lxml>=4.9.0

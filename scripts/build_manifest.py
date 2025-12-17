@@ -6,13 +6,12 @@ import json
 import pandas as pd
 
 def find_dataset_entries(row):
-    if 'is_in_pdf' in row and 'is_in_musicxml' in row and 'is_in_image' in row:
-        if row['is_in_pdf'] and row['is_in_musicxml'] and row['is_in_image']:
-            return 'p'
-        else:
-            return 'n'
-    return 'unknown'
-    
+    if row['is_in_pdf'] and row['is_in_musicxml'] and row['is_in_image']:
+        return 'p'
+    elif row['is_in_pdf'] and row['is_in_musicxml'] and not row['is_in_image']:
+        return 'n'
+    else:
+        return 'unknown'
 
 def rebuild_manifest(training_data_dir: Path|str):
     """

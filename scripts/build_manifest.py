@@ -87,21 +87,29 @@ def rebuild_manifest(training_data_dir: Path|str):
         unlisted_musicxmls = musicxml_filenames[~musicxml_filenames['in_manifest']]
         unlisted_images = image_filenames[~image_filenames['in_manifest']]
 
-        if unlisted_images.empty or unlisted_musicxmls.empty or unlisted_pdfs.empty:
-            print("No unlisted files found to add to manifest.")
+        # We need at least MusicXML and PDF to form a valid entry. Image might be missing (needs generation).
+        if unlisted_musicxmls.empty or unlisted_pdfs.empty:
+            print("No unlisted MusicXML or PDF files found to add to manifest.")
         else:
-            in_all = unlisted_musicxmls.merge(unlisted_images, on='stem').merge(unlisted_pdfs, on='stem')
-            for _, row in in_all.iterrows():
-                pdf_fn = f"{row['stem']}.pdf"
-                xml_bn = f"{row['stem']}.xml"
-                image_fn = f"{row['stem']}.png"
+            # Find stems present in both MusicXML and PDF
+            new_stems = unlisted_musicxmls.merge(unlisted_pdfs, on='stem')
+            
+            # If we have images, we can merge them in to check existence, but we shouldn't require them.
+            # Let's just iterate over the found stems.
+            for _, row in new_stems.iterrows():
+                stem = row['stem']
+                pdf_fn = f"{stem}.pdf"
+                xml_bn = f"{stem}.xml"
+                image_fn = f"{stem}.png"
+                
                 do_or_mi = 'do'  # Default to 'do' for new entries
-                processing_status = 'p'
+                # We set it to 'n' initially, but the recalculation later will fix it based on actual file existence
+                processing_status = 'n' 
+                
                 new_row = {'pdf': pdf_fn, 'musicxml': xml_bn, 'image': image_fn, 'do_or_mi': do_or_mi, 'n_or_p': processing_status}
                 manifest_data = pd.concat([manifest_data, pd.DataFrame([new_row])], ignore_index=True)
                 added_rows += 1
             print(f"Added {added_rows} new rows to manifest.")
-            del in_all
 
         manifest_data['is_in_pdf'] = manifest_data['pdf'].isin(pdf_filenames['stem'])
         manifest_data['is_in_musicxml'] = manifest_data['musicxml'].isin(musicxml_filenames['stem'])

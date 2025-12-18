@@ -39,7 +39,11 @@ class StTokenizer:
 
         with ProcessPoolExecutor(max_workers=num_cores) as executor:
             # Create futures for each sample in the dataset
-            futures = [executor.submit(_count_tokens_in_sample, sample) for sample in dataset]
+            futures = []
+            num_samples = len(dataset)
+            for i, sample in enumerate(dataset):
+                print(f"Ingesting samples: {i+1}/{num_samples}", end='\r')
+                futures.append(executor.submit(_count_tokens_in_sample, sample))
             
             # Use tqdm for a progress bar
             for future in tqdm(as_completed(futures), total=len(dataset), desc="Processing scores"):

@@ -23,24 +23,25 @@ pdf_dir="${xml_dir}/../pdfs"
 # Posted by Charles Duffy, modified by community. See post 'Timeline' for change history
 # Retrieved 2025-12-14, License - CC BY-SA 3.0
 # allow settings to be updated via environment
-: "${xvfb_lockdir:=$HOME/.xvfb-locks}"
-: "${xvfb_display_min:=99}"
-: "${xvfb_display_max:=59999}"
+# : "${xvfb_lockdir:=$HOME/.xvfb-locks}"
+# : "${xvfb_display_min:=99}"
+# : "${xvfb_display_max:=599}"
 
-# assuming only one user will use this, let's put the locks in our own home directory
-# avoids vulnerability to symlink attacks.
-mkdir -p -- "$xvfb_lockdir" || exit
+# # assuming only one user will use this, let's put the locks in our own home directory
+# # avoids vulnerability to symlink attacks.
+# mkdir -p -- "$xvfb_lockdir" || exit
 
-i=$xvfb_display_min     # minimum display number
-while (( i < xvfb_display_max )); do
-  if [ -f "/tmp/.X$i-lock" ]; then                # still avoid an obvious open display
-    (( ++i )); continue
-  fi
-  exec 5>"$xvfb_lockdir/$i" || continue           # open a lockfile
-  if flock -x -n 5; then                          # try to lock it
-    exec xvfb-run --server-num="$i" "$MUSESCORE_PATH" -o "${pdf_dir}/${filename%.xml}.pdf" -r 300 "${xml_file}" 2>&1 | grep -v -E "pw.context|pw.conf|libOpenGL|libjack|libnss3|libpipewire"  # if locked, run xvfb-run
-  fi
-  (( i++ ))
-done
-echo "Error: No available X displays in range $xvfb_display_min to $xvfb_display_max" >&2
-exit 1
+# i=$xvfb_display_min     # minimum display number
+# while (( i < xvfb_display_max )); do
+#   if [ -f "/tmp/.X$i-lock" ]; then                # still avoid an obvious open display
+#     (( ++i )); continue
+#   fi
+#   exec 5>"$xvfb_lockdir/$i" || continue           # open a lockfile
+#   if flock -x -n 5; then                          # try to lock it
+#     exec xvfb-run --server-num="$i" "$MUSESCORE_PATH" -o "${pdf_dir}/${filename%.xml}.pdf" -r 300 "${xml_file}" 2>&1 | grep -v -E "pw.context|pw.conf|libOpenGL|libjack|libnss3|libpipewire"  # if locked, run xvfb-run
+#   fi
+#   (( i++ ))
+# done
+# echo "Error: No available X displays in range $xvfb_display_min to $xvfb_display_max" >&2
+# exit 1
+"$MUSESCORE_PATH" -o "${pdf_dir}/${filename%.xml}.pdf" -r 300 "${xml_file}" 2>&1 | grep -v -E "pw.context|pw.conf|libOpenGL|libjack|libnss3|libpipewire"

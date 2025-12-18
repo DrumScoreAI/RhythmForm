@@ -76,11 +76,11 @@ def rebuild_manifest(training_data_dir: Path|str):
         manifest_data.sort_values(by='stem', inplace=True)
 
         # If anything is missing, assume it needs processed
-        manifest_data['n_or_p'] = manifest_data.apply(lambda row: 'n' if row['pdf'] == '' or row['musicxml'] == '' or row['image'] == '' else 'unknown', axis=1)
+        manifest_data['n_or_p'] = manifest_data.apply(lambda row: 'n' if row['pdf'] == '' or row['musicxml'] == '' or row['image'] == '' else 'n', axis=1)
 
-        pdf_filenames['in_manifest'] = pdf_filenames['stem'].isin(manifest_data['pdf'])
-        musicxml_filenames['in_manifest'] = musicxml_filenames['stem'].isin(manifest_data['musicxml'])
-        image_filenames['in_manifest'] = image_filenames['stem'].isin(manifest_data['image'])
+        pdf_filenames['in_manifest'] = pdf_filenames['stem'].isin(manifest_data['stem'])
+        musicxml_filenames['in_manifest'] = musicxml_filenames['stem'].isin(manifest_data['stem'])
+        image_filenames['in_manifest'] = image_filenames['stem'].isin(manifest_data['stem'])
         
         # update manifest with cases where there are pdfs, musicxml and images not listed
         unlisted_pdfs = pdf_filenames[~pdf_filenames['in_manifest']]
@@ -110,15 +110,18 @@ def rebuild_manifest(training_data_dir: Path|str):
                 manifest_data = pd.concat([manifest_data, pd.DataFrame([new_row])], ignore_index=True)
                 added_rows += 1
             print(f"Added {added_rows} new rows to manifest.")
+        
+        # Recalculate stem for all rows, including newly added ones
+        manifest_data['stem'] = manifest_data['musicxml'].apply(lambda x: Path(x).stem)
 
-        manifest_data['is_in_pdf'] = manifest_data['pdf'].isin(pdf_filenames['stem'])
-        manifest_data['is_in_musicxml'] = manifest_data['musicxml'].isin(musicxml_filenames['stem'])
-        manifest_data['is_in_image'] = manifest_data['image'].isin(image_filenames['stem'])
+        manifest_data['is_in_pdf'] = manifest_data['stem'].isin(pdf_filenames['stem'])
+        manifest_data['is_in_musicxml'] = manifest_data['stem'].isin(musicxml_filenames['stem'])
+        manifest_data['is_in_image'] = manifest_data['stem'].isin(image_filenames['stem'])
 
         manifest_data['n_or_p'] = manifest_data.apply(find_dataset_entries, axis=1)
 
         # Write the updated data back to the manifest
-        manifest_data.drop(columns=['stem', 'is_in_pdf', 'is_in_musicxml', 'is_in_image'], inplace=True)
+        manifest_data = manifest_data.drop(columns=['stem', 'is_in_pdf', 'is_in_musicxml', 'is_in_image'])
         manifest_data.to_csv(manifest_path, index=False)
 
         print(f"\nManifest update complete. Updated {updated_rows} rows, added {added_rows} new rows.")

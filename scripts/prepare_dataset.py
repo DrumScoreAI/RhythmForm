@@ -9,7 +9,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from fractions import Fraction
 from tqdm import tqdm
 import argparse
-
+import glob
 from omr_model import config
 
 # --- Configuration ---
@@ -385,6 +385,9 @@ def main():
                 print(f"  [INFO] Skipping 'mi' entry. Multi-instrument files are not yet supported.")
 
     print(f"Found {len(xml_paths_to_process)} 'drums-only' files to process from manifest.")
+
+    # extra check to skip already processed files
+    xml_paths_to_process = [p for p in xml_paths_to_process if Path(p).stem + '.png' not in glob.glob(str(OUTPUT_IMAGE_DIR / '*.png'))]
 
     if os.path.exists(DATASET_JSON_PATH):
         current_dataset = json.load(open(DATASET_JSON_PATH))

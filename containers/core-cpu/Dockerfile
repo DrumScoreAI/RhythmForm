@@ -93,13 +93,19 @@ RUN wget https://github.com/musescore/MuseScore/releases/download/v${MUSESCORE_V
     && ln -s /app/musescore-extracted/usr/bin/mscore4portable /app/musescore \
     && rm /app/musescore.AppImage
 
-# Copy the rest of your application's code
-COPY . /app
+# Copy requirements first to leverage Docker cache
+COPY requirements.txt /app/requirements.txt
 WORKDIR /app
 
 # Install Python dependencies
 RUN pip install --upgrade pip
+# Install CPU-only version of PyTorch to save significant space (avoids CUDA binaries)
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+# Install remaining requirements (torch will be skipped as it's already satisfied)
 RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir awscli
+
+# Copy the rest of your application's code
+COPY . /app
 
 # Copy entrypoint script
 COPY containers/core-cpu/core-cpu_entrypoint.sh .

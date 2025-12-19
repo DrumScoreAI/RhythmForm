@@ -160,7 +160,8 @@ this_total=$(cat $temp3 | wc -l)
 start_count=$(find $TRAINING_DATA_DIR/pdfs -name "*.pdf" 2>/dev/null | wc -l)
 # Convert MusicXML to PDF
 echo "Converting MusicXML files to PDF using $num_cores cores..."
-cat $temp3 | xargs -P "$half_cores" -I {} $RHYTHMFORMHOME/scripts/_mscore_mp_wrapper.sh {} &
+# Use xvfb-run -a to start a single Xvfb instance for all parallel conversions
+xvfb-run -a bash -c "cat $temp3 | xargs -P $half_cores -I {} $RHYTHMFORMHOME/scripts/mscore_convert.sh {}" &
 pid=$!
 
 # Monitor progress

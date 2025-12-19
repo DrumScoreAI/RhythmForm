@@ -71,6 +71,13 @@ if [ -z "$RHYTHMFORMHOME" ]; then
     exit 1
 fi
 
+if [ "$num_cores" -ge 2 ]; then
+    half_cores=$((num_cores / 2))
+else
+    half_cores=1
+fi
+
+
 TRAINING_DATA_DIR="$RHYTHMFORMHOME/training_data"
 
 mkdir -p "$TRAINING_DATA_DIR/musicxml"
@@ -153,7 +160,7 @@ this_total=$(cat $temp3 | wc -l)
 start_count=$(find $TRAINING_DATA_DIR/pdfs -name "*.pdf" 2>/dev/null | wc -l)
 # Convert MusicXML to PDF
 echo "Converting MusicXML files to PDF using $num_cores cores..."
-cat $temp3 | xargs -P "$num_cores" -I {} $RHYTHMFORMHOME/scripts/_mscore_mp_wrapper.sh {} &
+cat $temp3 | xargs -P "$half_cores" -I {} $RHYTHMFORMHOME/scripts/_mscore_mp_wrapper.sh {} &
 pid=$!
 
 # Monitor progress

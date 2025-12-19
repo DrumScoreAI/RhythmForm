@@ -113,11 +113,9 @@ RUN chmod +x core-cpu_entrypoint.sh
 
 # Create a non-root user for security
 RUN useradd -ms /bin/bash -u 1001 appuser
-RUN chown -R appuser:appuser /app
-USER appuser
-
 RUN mkdir -p /home/appuser/.aws
 COPY s3/creds_template /home/appuser/.aws/credentials
-RUN chown -R appuser:appuser /home/appuser/.aws
+RUN chown -R appuser:appuser /app
+USER appuser
 
 ENTRYPOINT ["core-cpu_entrypoint.sh"]

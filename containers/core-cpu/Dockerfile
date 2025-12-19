@@ -104,10 +104,6 @@ RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/wh
 # Install remaining requirements (torch will be skipped as it's already satisfied)
 RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir awscli
 
-RUN mkdir /home/appuser/.aws
-COPY s3/creds_template /home/appuser/.aws/credentials
-RUN chown -R appuser:appuser /home/appuser/.aws
-
 # Copy the rest of your application's code
 COPY . /app
 
@@ -119,5 +115,9 @@ RUN chmod +x core-cpu_entrypoint.sh
 RUN useradd -ms /bin/bash -u 1001 appuser
 RUN chown -R appuser:appuser /app
 USER appuser
+
+RUN mkdir -p /home/appuser/.aws
+COPY s3/creds_template /home/appuser/.aws/credentials
+RUN chown -R appuser:appuser /home/appuser/.aws
 
 ENTRYPOINT ["core-cpu_entrypoint.sh"]

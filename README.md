@@ -110,8 +110,8 @@ The latest synthesized dataset can be found at:
 
 | S3 URI | Format | File Count |
 |--------|--------|------------|
-| https://s3.eidf.ac.uk/rhythmformdatasets/training_data_20251210_222157.zip | zip | 0 |
-| https://s3.eidf.ac.uk/rhythmformdatasets/training_data_20251210_222157.tar.gz | tar.gz | 0 |
+| https://s3.eidf.ac.uk/rhythmformdatasets/training_data_20251219_164418.zip | zip | 7208 |
+| https://s3.eidf.ac.uk/rhythmformdatasets/training_data_20251219_164418.tar.gz | tar.gz | 7208 |
 
 ### 2. Model Training
 A transformer-based sequence-to-sequence model is trained on the dataset to learn the mapping from score images to a symbolic text (ST) representation.

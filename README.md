@@ -53,7 +53,6 @@ Pre-built Docker images are available on GitHub Container Registry (GHCR) for di
 - **`ghcr.io/drumscoreai/rhythmform-core:latest`**  
   The full package image with all dependencies installed.  
   *No default command is set.*  
-  Use this image for interactive exploration, debugging, or running any script manually.  
   Example:
   ```sh
   docker run -it --rm ghcr.io/drumscoreai/rhythmform-core:latest bash
@@ -61,42 +60,20 @@ Pre-built Docker images are available on GitHub Container Registry (GHCR) for di
 
   **`ghcr.io/drumscoreai/rhythmform-core-cpu:latest`**  
   The full package image without GPU dependencies.  
-  *No default command is set.*  
-  Use this image for interactive exploration, debugging, or running any script manually.  
+  *No default command is set.*
+  Use this container for data synthesis.
   Do not use this image for training as it will not recognise GPUs.
-  Example:
+  Examples:
   ```sh
   docker run -it --rm ghcr.io/drumscoreai/rhythmform-core-cpu:latest bash
   ```
-
-- **`ghcr.io/drumscoreai/rhythmform-synthesizer:latest`**  
-  Convenience image for data synthesis.
-  Uses `FROM ghcr.io/drumscoreai/rhythmform-core-cpu:latest` and so does *not* support GPUs.
-  The default command runs the data synthesis pipeline.  
-  **Expected volume:** Attach your data directory to `/app/training_data`.  
-  Example:
   ```sh
-  docker run --rm -v /path/to/training_data:/app/training_data ghcr.io/drumscoreai/rhythmform-synthesizer:latest <num_scores> <num_cores>
+  docker run -it --rm -v /training_data:/app/training_data ghcr.io/drumscoreai/rhythmform-core-cpu:latest /app/scripts/synthesized.sh -s 100 -n 4
   ```
-  where `num_scores` defines the number of scores to be generated and `num_cores` defines the maximum number of CPUs to be used for any parallelised tasks.
-
-- **`ghcr.io/drumscoreai/rhythmform-trainer:latest`**  
-  Convenience image for model training.
-  Uses `FROM ghcr.io/drumscoreai/rhythmform-core:latest` for GPU support.
-  The default command runs the model training pipeline.  
-  **Expected volume:** Attach your data directory to `/app/training_data`.  
-  Example:
-  ```sh
-  docker run --rm -v /path/to/training_data:/app/training_data ghcr.io/drumscoreai/rhythmform-trainer:latest
-  ```
-
-- **`ghcr.io/drumscoreai/rhythmform-predictor:latest`**  
-  *(Coming soon)*  
-  This image will provide a default command for running inference/prediction.
+  where `-s` defines the number of scores to be generated and `-n` defines the maximum number of CPUs to be used for any parallelised tasks. Use `-h` for additional options.
 
 **Note:**  
 - All images expect data to be mounted at `/app/training_data` for reading and writing datasets, models, and outputs.
-- You can override the default command in any image by specifying your own command after the image name.
 
 ## How It Works
 

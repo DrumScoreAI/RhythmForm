@@ -75,7 +75,7 @@ RUN apt-get update && apt-get install -y \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
 
-COPY . /app
+COPY requirements.txt .
 WORKDIR /app
 
 # Create and activate a virtual environment, then install requirements
@@ -97,10 +97,14 @@ RUN wget https://github.com/musescore/MuseScore/releases/download/v${MUSESCORE_V
     && ln -s /app/musescore-extracted/usr/bin/mscore4portable /app/musescore \
     && rm /app/musescore.AppImage
 
+COPY . /app
+
 # Create a non-root user for security
 RUN useradd -ms /bin/bash -u 1001 appuser
 RUN chown -R appuser:appuser /app
 USER appuser
+
+WORKDIR /app/scripts
 
 # Copy entrypoint script
 COPY containers/core/core_entrypoint.sh .

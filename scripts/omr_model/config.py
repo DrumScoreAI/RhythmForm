@@ -3,6 +3,7 @@ from pathlib import Path
 import torch
 from multiprocessing import cpu_count
 from glob import glob
+import subprocess
 
 # --- Path Configuration ---
 # Use the RHYTHMFORMHOME env var for the project root, with a fallback.
@@ -40,9 +41,10 @@ IMG_WIDTH = 1024  # Width to resize images
 
 # --- THIS IS THE FIX ---
 # On WSL, multiprocessing for the DataLoader can cause memory issues and crash the system.
-# Setting NUM_WORKERS to 0 disables multiprocessing and makes the training stable,
-# though it may be slightly slower.
-NUM_WORKERS = cpu_count() // 2
+# We will reduce the number of workers in that environment.
+if subprocess.getoutput('uname -r').lower().find('microsoft') != -1:
+    NUM_WORKERS = cpu_count() // 2
+    
 
 # --- Model Hyperparameters ---
 # These should match the model architecture defined in model.py

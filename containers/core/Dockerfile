@@ -75,8 +75,8 @@ RUN apt-get update && apt-get install -y \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
 WORKDIR /app
+COPY requirements.txt .
 
 # Create and activate a virtual environment, then install requirements
 RUN python3.12 -m venv /app/venv

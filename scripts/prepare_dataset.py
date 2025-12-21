@@ -390,10 +390,17 @@ def main():
     xml_paths_to_process = [p for p in xml_paths_to_process if Path(p).stem + '.png' not in glob.glob(str(OUTPUT_IMAGE_DIR / '*.png'))]
 
     if os.path.exists(DATASET_JSON_PATH):
-        current_dataset = json.load(open(DATASET_JSON_PATH))
+        with open(DATASET_JSON_PATH, 'r') as f:
+            try:
+                current_dataset = json.load(f)
+            except json.JSONDecodeError:
+                print(f"Warning: Could not decode JSON from {DATASET_JSON_PATH}. Starting with an empty dataset.")
+                current_dataset = []
     else:
         current_dataset = []
-    dataset = []
+    
+    dataset = current_dataset[:] # Start with a copy of the existing dataset
+
     # Use ProcessPoolExecutor for parallel processing
     with ProcessPoolExecutor(max_workers=args.cores) as executor:
         future_to_xml = {executor.submit(process_file, xml_file, current_dataset): xml_file for xml_file in xml_paths_to_process}

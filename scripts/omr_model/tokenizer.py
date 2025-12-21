@@ -19,7 +19,6 @@ class StTokenizer:
     A tokenizer for converting ST strings to and from sequences of integer IDs.
     """
     def __init__(self):
-        # --- THIS IS THE FIX (Part 1) ---
         # Define the special tokens that the model requires.
         # The order here is important.
         self.special_tokens = ['<pad>', '<sos>', '<eos>', '<unk>']
@@ -71,7 +70,6 @@ class StTokenizer:
         """Converts an ST string to a list of integer IDs."""
         tokens = st_string.strip().split(' ')
         
-        # --- THIS IS THE FIX ---
         # Ensure that any token not found in the vocabulary is mapped
         # to the ID of the '<unk>' token.
         unk_id = self.token_to_id['<unk>']
@@ -99,7 +97,7 @@ class StTokenizer:
 
     def save(self, filepath):
         """Saves the tokenizer's ordered vocabulary list to a JSON file."""
-        # --- THIS IS THE FIX (Part 2) ---
+
         # Save the ordered vocabulary list, not the dictionary.
         # This is the single source of truth for vocab size and token order.
         with open(filepath, 'w') as f:

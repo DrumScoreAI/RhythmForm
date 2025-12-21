@@ -44,6 +44,8 @@ IMG_WIDTH = 1024  # Width to resize images
 # We will reduce the number of workers in that environment.
 if subprocess.getoutput('uname -r').lower().find('microsoft') != -1:
     NUM_WORKERS = cpu_count() // 2
+else:
+    NUM_WORKERS = int(cpu_count() * 7/8)
     
 
 # --- Model Hyperparameters ---

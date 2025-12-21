@@ -82,7 +82,7 @@ COPY requirements.txt .
 RUN python3.12 -m venv /app/venv
 
 RUN pip install --upgrade pip
-RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir awscli
+RUN pip install --no-cache-dir -r /app/requirements.txt && pip install --no-cache-dir awscli
 
 # Download and extract MuseScore AppImage
 ARG MUSESCORE_VERSION=4.6.3

@@ -188,54 +188,42 @@ if __name__ == '__main__':
         help="Number of CPU cores to use for parallel generation (default: 1)"
     )
     parser.add_argument(
-        "--continuation",
-        action='store_true',
-        help="Continuation mode: skip already existing files"
+        "--start-index",
+        type=int,
+        default=0,
+        help="Starting index for score generation (default: 0)"
     )
     args = parser.parse_args()
     
     num_scores_to_generate = args.num_scores
     num_cores_to_use = args.cores
-    continuation = args.continuation
-    print(f"Generating {num_scores_to_generate} scores into {XML_OUTPUT_DIR} using {num_cores_to_use} cores with continuation={continuation}")
+    start_index = args.start_index
+    print(f"Generating {num_scores_to_generate} scores into {XML_OUTPUT_DIR} using {num_cores_to_use} cores, starting at index {start_index}")
 
     tasks = []
-    if continuation:
-        existing_files = glob(str(XML_OUTPUT_DIR / "synthetic_score_*.xml"))
-        existing_files = [ f for f in existing_files if len(Path(f).stem.split('_')) == 5 ]
-        max_ind = -1
-        max_level = -1
-        # example file name = synthetic_score_9_level_2.xml
-        for f in existing_files:
-            stem = Path(f).stem
-            parts = stem.split('_')
-            ind = int(parts[2])  # '9' -> 9
-            level = int(parts[4][0])  # '2.xml' -> 2
-            if ind > max_ind:
-                max_ind = ind
-            if level > max_level:
-                max_level = level
-        prev_level = max_level + 1
-    else:
-        prev_level = 0
+    # This logic is now simplified. We just generate scores starting from the given index.
+    # The complexity level can be based on the global index.
     with ProcessPoolExecutor(max_workers=num_cores_to_use) as executor:
         for i in range(num_scores_to_generate):
-            if i < num_scores_to_generate / 3:
-                level = 0 + prev_level
-            elif i < num_scores_to_generate * 2 / 3:
-                level = 1 + prev_level
+            score_index = i + start_index
+            
+            # Determine complexity based on the overall score index
+            if score_index < 40000: # Example threshold
+                level = 0
+            elif score_index < 80000: # Example threshold
+                level = 1
             else:
-                level = 2 + prev_level
+                level = 2
 
             use_repeats_for_this_score = random.random() < 0.5
 
-            file_path = XML_OUTPUT_DIR / f"synthetic_score_{i+1}_level_{level}.xml"
+            file_path = XML_OUTPUT_DIR / f"synthetic_score_{score_index + 1}_level_{level}.xml"
             tasks.append(
                 executor.submit(
                     generate_drum_score,
                     num_measures=random.randint(12, 24),
                     output_path=file_path,
-                    complexity=level % 3,  # Cycle complexity between 0,1,2, but file names show increasing level
+                    complexity=level,
                     use_repeats=use_repeats_for_this_score
                 )
             )

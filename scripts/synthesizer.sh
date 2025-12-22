@@ -130,6 +130,7 @@ else
     if [ -z "$existing_scores" ]; then
         existing_scores=0
     fi
+    start_index=$existing_scores
     echo "Existing scores found: $existing_scores"
 fi
 
@@ -142,7 +143,7 @@ find $TRAINING_DATA_DIR/musicxml -name "*.xml" | grep -v altered | sort -V > $te
 echo "Generating synthetic scores using $num_cores cores..."
 if [ "$continuation" == "true" ] && [ "$existing_scores" -gt 0 ]; then
     echo "Continuation mode enabled."
-    python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --continuation
+    python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --start-index "$start_index"
 else
     python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores"
 fi

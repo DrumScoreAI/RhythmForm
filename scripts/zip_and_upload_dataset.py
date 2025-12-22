@@ -39,7 +39,11 @@ def create_zip_archive(source_dir, archive_path, exclude_dir):
         # Iterate over the list of files with a tqdm progress bar
         for file_path in tqdm(file_paths, desc="Zipping files", unit="file", leave=False, file=sys.stdout):
             arcname = os.path.relpath(file_path, source_dir)
-            zipf.write(file_path, arcname)
+            try:
+                zipf.write(file_path, arcname)
+            except Exception as e:
+                logging.error(f"Error adding file {file_path} to zip: {e}")
+                continue
             
     logging.info("Zip archive created successfully.")
     return(len(file_paths))
@@ -60,7 +64,11 @@ def create_tar_gz_archive(source_dir, archive_path, exclude_dir):
         # Iterate over the list of files with a tqdm progress bar
         for file_path in tqdm(file_paths, desc="Taring files", unit="file", leave=False, file=sys.stdout):
             arcname = os.path.relpath(file_path, source_dir)
-            tar.add(file_path, arcname=arcname)
+            try:
+                tar.add(file_path, arcname=arcname)
+            except Exception as e:
+                logging.error(f"Error adding file {file_path} to tar.gz: {e}")
+                continue
             
     logging.info("tar.gz archive created successfully.")
     return(len(file_paths))

@@ -120,13 +120,20 @@ class StTokenizer:
         """Loads the tokenizer's vocabulary from a JSON file."""
         # --- THIS IS THE FIX (Part 3) ---
         # Load the ordered vocabulary list.
-        with open(filepath, 'r') as f:
-            self.vocab = json.load(f)
-        
-        # Rebuild the mappings from the loaded vocabulary list.
-        self.token_to_id = {token: i for i, token in enumerate(self.vocab)}
-        self.id_to_token = {idx: token for token, idx in self.token_to_id.items()}
-        print(f"Tokenizer vocabulary loaded from {filepath}")
+        try:
+            with open(filepath, 'r') as f:
+                self.vocab = json.load(f)
+            
+            # Rebuild the mappings from the loaded vocabulary list.
+            self.token_to_id = {token: i for i, token in enumerate(self.vocab)}
+            self.id_to_token = {idx: token for token, idx in self.token_to_id.items()}
+            print(f"Tokenizer vocabulary loaded from {filepath}")
+        except FileNotFoundError:
+            print(f"Tokenizer vocabulary not found at {filepath}. Initializing an empty tokenizer.")
+            # Initialize with special tokens only, so it's in a consistent state.
+            self.vocab = self.special_tokens[:]
+            self.token_to_id = {token: i for i, token in enumerate(self.vocab)}
+            self.id_to_token = {idx: token for token, idx in self.token_to_id.items()}
 
 
 # This block allows you to test the tokenizer by running `python omr_model/tokenizer.py`
@@ -138,6 +145,11 @@ if __name__ == '__main__':
         default=1,
         help="Number of CPU cores to use for parallel processing (default: 1)"
     )
+    parser.add_argument(
+        "--force-rebuild",
+        action="store_true",
+        help="Force the vocabulary to be rebuilt even if it already exists."
+    )
     args = parser.parse_args()
 
     # Define where to save the tokenizer vocab
@@ -145,18 +157,33 @@ if __name__ == '__main__':
     TOKENIZER_SAVE_PATH = config.TOKENIZER_VOCAB_PATH
     DATASET_JSON_PATH = config.DATASET_JSON_PATH
 
-    # 1. Build vocabulary from scratch
-    print("--- Building tokenizer from dataset ---")
-    score_dataset = ScoreDataset(manifest_path=DATASET_JSON_PATH)
     tokenizer = StTokenizer()
-    tokenizer.build_vocab(score_dataset, num_cores=args.cores)
-    
+
+    # Decide whether to build or load the vocabulary
+    if args.force_rebuild or not os.path.exists(TOKENIZER_SAVE_PATH):
+        print("--- Building tokenizer from dataset ---")
+        if not os.path.exists(DATASET_JSON_PATH):
+            raise FileNotFoundError(
+                f"Dataset manifest not found at {DATASET_JSON_PATH}. "
+                "Please run the data preparation script first."
+            )
+        score_dataset = ScoreDataset(manifest_path=DATASET_JSON_PATH)
+        tokenizer.build_vocab(score_dataset, num_cores=args.cores)
+        
+        # Save the newly built tokenizer
+        print("\n--- Saving tokenizer ---")
+        tokenizer.save(TOKENIZER_SAVE_PATH)
+    else:
+        print("--- Loading existing tokenizer ---")
+        tokenizer.load(TOKENIZER_SAVE_PATH)
+
     print(f"Vocabulary size: {tokenizer.vocab_size}")
     print(f"First 10 tokens: {tokenizer.vocab[:10]}")
     
-    # 2. Test encoding and decoding
+    # Test encoding and decoding with a sample from the dataset
+    print("\n--- Testing encoding and decoding ---")
+    score_dataset = ScoreDataset(manifest_path=DATASET_JSON_PATH)
     if len(score_dataset) > 0:
-        print("\n--- Testing encoding and decoding ---")
         sample_string = score_dataset[0]['st_string']
         print(f"Original string (first 80 chars): {sample_string[:80]}...")
         
@@ -168,15 +195,14 @@ if __name__ == '__main__':
         
         assert sample_string == decoded_string
         print("✅ Encode/Decode test passed!")
+    else:
+        print("Dataset is empty. Skipping encode/decode test.")
 
-    # 3. Save the tokenizer
-    print("\n--- Saving tokenizer ---")
-    tokenizer.save(TOKENIZER_SAVE_PATH)
-
-    # 4. Load the tokenizer and verify it works
-    print("\n--- Loading tokenizer ---")
+    # Verify the loaded tokenizer works
+    print("\n--- Verifying tokenizer integrity ---")
     new_tokenizer = StTokenizer()
     new_tokenizer.load(TOKENIZER_SAVE_PATH)
     print(f"Loaded vocabulary size: {new_tokenizer.vocab_size}")
     assert tokenizer.vocab_size == new_tokenizer.vocab_size
-    print("✅ Load test passed!")
+    assert tokenizer.vocab == new_tokenizer.vocab
+    print("✅ Tokenizer integrity test passed!")

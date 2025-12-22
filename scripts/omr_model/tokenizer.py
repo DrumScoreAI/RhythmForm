@@ -14,6 +14,13 @@ def _count_tokens_in_sample(sample):
     """Helper function to count tokens in a single sample for multiprocessing."""
     return Counter(sample['st_string'].strip().split(' '))
 
+def _process_chunk(dataset_chunk):
+    """Processes a chunk of the dataset and returns an aggregated token counter."""
+    chunk_token_counts = Counter()
+    for sample in dataset_chunk:
+        chunk_token_counts.update(_count_tokens_in_sample(sample))
+    return chunk_token_counts
+
 class StTokenizer:
     """
     A tokenizer for converting ST strings to and from sequences of integer IDs.
@@ -36,16 +43,21 @@ class StTokenizer:
         token_counts = Counter()
         print(f"Counting tokens in dataset using {num_cores} cores...")
 
+        # --- Parallelization Improvement ---
+        # Split the dataset into chunks to be processed in parallel.
+        # This is much more efficient than submitting a separate job for each sample.
+        chunk_size = len(dataset) // num_cores
+        if chunk_size == 0:
+            chunk_size = 1 # Ensure at least one item per chunk
+        
+        chunks = [dataset[i:i + chunk_size] for i in range(0, len(dataset), chunk_size)]
+        
         with ProcessPoolExecutor(max_workers=num_cores) as executor:
-            # Create futures for each sample in the dataset
-            futures = []
-            num_samples = len(dataset)
-            for i, sample in enumerate(dataset):
-                print(f"Ingesting samples: {i+1}/{num_samples}", end='\r')
-                futures.append(executor.submit(_count_tokens_in_sample, sample))
+            # Submit each chunk for processing
+            futures = [executor.submit(_process_chunk, chunk) for chunk in chunks]
             
-            # Use tqdm for a progress bar
-            for future in tqdm(as_completed(futures), total=len(dataset), desc="Processing scores"):
+            # Use tqdm for a progress bar over the futures
+            for future in tqdm(as_completed(futures), total=len(futures), desc="Processing dataset chunks"):
                 token_counts.update(future.result())
             
         # Add new tokens found in the dataset, ordered by frequency

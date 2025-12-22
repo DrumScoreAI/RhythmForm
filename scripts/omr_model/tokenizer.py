@@ -61,11 +61,8 @@ class StTokenizer:
         chunk_size = len(dataset) // num_cores
         if chunk_size == 0:
             chunk_size = 1 # Ensure at least one item per chunk
-        print('here')
         
         chunks = [dataset[i:i + chunk_size] for i in range(0, len(dataset), chunk_size)]
-
-        print('now here')
         
         with ProcessPoolExecutor(max_workers=num_cores) as executor:
             # Submit each chunk for processing

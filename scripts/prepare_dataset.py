@@ -328,10 +328,12 @@ def process_file(xml_path):
         print(e.stderr)
         return None
     finally:
+        pass
         # --- 3. Cleanup ---
         # Keep the altered XML for debugging, but remove the intermediate PDF.
-        if pdf_path.exists():
-            pdf_path.unlink()
+        # if pdf_path.exists():
+        #     pdf_path.unlink()
+
 
 def process_chunk(xml_paths_chunk):
     """

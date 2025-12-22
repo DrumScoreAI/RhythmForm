@@ -37,7 +37,7 @@ def create_zip_archive(source_dir, archive_path, exclude_dir):
 
     with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
         # Iterate over the list of files with a tqdm progress bar
-        for file_path in tqdm(file_paths, desc="Zipping files", unit="file", leave=False, file=sys.stdout):
+        for file_path in tqdm(file_paths, desc="Zipping files", unit="file", leave=False):
             arcname = os.path.relpath(file_path, source_dir)
             try:
                 zipf.write(file_path, arcname)
@@ -62,7 +62,7 @@ def create_tar_gz_archive(source_dir, archive_path, exclude_dir):
 
     with tarfile.open(archive_path, "w:gz") as tar:
         # Iterate over the list of files with a tqdm progress bar
-        for file_path in tqdm(file_paths, desc="Taring files", unit="file", leave=False, file=sys.stdout):
+        for file_path in tqdm(file_paths, desc="Taring files", unit="file", leave=False):
             arcname = os.path.relpath(file_path, source_dir)
             try:
                 tar.add(file_path, arcname=arcname)

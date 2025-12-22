@@ -6,9 +6,17 @@ from collections import Counter
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
 
-# Import the dataset class
-from .dataset import ScoreDataset
-from . import config
+if __name__ == '__main__' and __package__ is None:
+    from os import sys, path
+    # Add the project root to the python path
+    sys.path.append(path.dirname(path.dirname(path.dirname(path.abspath(__file__)))))
+    # Now we can import as if we were a module
+    from scripts.omr_model.dataset import ScoreDataset
+    from scripts.omr_model import config
+else:
+    # Import the dataset class
+    from .dataset import ScoreDataset
+    from . import config
 
 def _count_tokens_in_sample(sample):
     """Helper function to count tokens in a single sample for multiprocessing."""

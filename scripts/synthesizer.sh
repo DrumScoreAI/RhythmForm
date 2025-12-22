@@ -206,7 +206,7 @@ echo "Data preparation complete."
 
 # Run tokenizer
 echo "Running tokenizer (serial)..."
-python -m scripts.omr_model.tokenizer --cores $num_cores
+python $RHYTHMFORMHOME/scripts/omr_model/tokenizer.py --cores $num_cores
 echo "Tokenizer run complete."
 
 # CHMOD training data

@@ -164,38 +164,42 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
-    # Define where to save the tokenizer vocab
-    PROJECT_ROOT = config.PROJECT_ROOT
+    # Define paths
     TOKENIZER_SAVE_PATH = config.TOKENIZER_VOCAB_PATH
     DATASET_JSON_PATH = config.DATASET_JSON_PATH
 
+    # Handle --force-rebuild by deleting the old vocab file
+    if args.force_rebuild and os.path.exists(TOKENIZER_SAVE_PATH):
+        print("--- Force rebuild requested. Deleting existing vocabulary. ---")
+        os.remove(TOKENIZER_SAVE_PATH)
+
+    # 1. Load tokenizer. This will initialize it if it doesn't exist.
+    print("--- Loading tokenizer ---")
     tokenizer = StTokenizer()
+    tokenizer.load(TOKENIZER_SAVE_PATH)
+    original_vocab_size = tokenizer.vocab_size
 
-    # Decide whether to build or load the vocabulary
-    if args.force_rebuild or not os.path.exists(TOKENIZER_SAVE_PATH):
-        print("--- Building tokenizer from dataset ---")
-        if not os.path.exists(DATASET_JSON_PATH):
-            raise FileNotFoundError(
-                f"Dataset manifest not found at {DATASET_JSON_PATH}. "
-                "Please run the data preparation script first."
-            )
-        score_dataset = ScoreDataset(manifest_path=DATASET_JSON_PATH)
-        tokenizer.build_vocab(score_dataset, num_cores=args.cores)
-        
-        # Save the newly built tokenizer
-        print("\n--- Saving tokenizer ---")
-        tokenizer.save(TOKENIZER_SAVE_PATH)
-    else:
-        print("--- Loading existing tokenizer ---")
-        tokenizer.load(TOKENIZER_SAVE_PATH)
+    # 2. Build/update vocabulary from the full dataset
+    print("\n--- Building/updating vocabulary from dataset ---")
+    if not os.path.exists(DATASET_JSON_PATH):
+        raise FileNotFoundError(
+            f"Dataset manifest not found at {DATASET_JSON_PATH}. "
+            "Please run the data preparation script first."
+        )
+    score_dataset = ScoreDataset(manifest_path=DATASET_JSON_PATH)
+    tokenizer.build_vocab(score_dataset, num_cores=args.cores)
 
-    print(f"Vocabulary size: {tokenizer.vocab_size}")
+    # 3. Save the potentially updated tokenizer
+    print("\n--- Saving tokenizer ---")
+    tokenizer.save(TOKENIZER_SAVE_PATH)
+    print(f"Vocabulary updated. Size changed from {original_vocab_size} to {tokenizer.vocab_size}.")
+
+    # 4. Verification and testing
+    print(f"\nFinal vocabulary size: {tokenizer.vocab_size}")
     print(f"First 10 tokens: {tokenizer.vocab[:10]}")
     
-    # Test encoding and decoding with a sample from the dataset
-    print("\n--- Testing encoding and decoding ---")
-    score_dataset = ScoreDataset(manifest_path=DATASET_JSON_PATH)
     if len(score_dataset) > 0:
+        print("\n--- Testing encoding and decoding ---")
         sample_string = score_dataset[0]['st_string']
         print(f"Original string (first 80 chars): {sample_string[:80]}...")
         
@@ -210,7 +214,6 @@ if __name__ == '__main__':
     else:
         print("Dataset is empty. Skipping encode/decode test.")
 
-    # Verify the loaded tokenizer works
     print("\n--- Verifying tokenizer integrity ---")
     new_tokenizer = StTokenizer()
     new_tokenizer.load(TOKENIZER_SAVE_PATH)

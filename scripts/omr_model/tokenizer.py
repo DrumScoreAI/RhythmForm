@@ -7,7 +7,8 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
 
 if __name__ == '__main__' and __package__ is None:
-    from os import sys, path
+    from os import path
+    import sys
     # Add the project root to the python path
     sys.path.append(path.dirname(path.dirname(path.dirname(path.abspath(__file__)))))
     # Now we can import as if we were a module

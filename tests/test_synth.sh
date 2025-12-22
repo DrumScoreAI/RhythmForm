@@ -25,7 +25,7 @@ for file in "${required_files[@]}"; do
     fi
 done
 echo "Required files missing: $missing"
-tokens=$(head -n -1 training_data/tokenizer_vocab.json | tail -n +2 | wc -l)
+tokens=$(head -n -1 $TRAINING_DATA_DIR/tokenizer_vocab.json | tail -n +2 | wc -l)
 echo "Number of tokens in tokenizer_vocab.json: $tokens"
 if [ $tokens -le 4 ] || [ $missing -ne 0 ]; then
     echo "Some required files are missing or tokenizer_vocab.json has insufficient tokens."

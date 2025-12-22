@@ -225,7 +225,7 @@ if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$S3_E
 else
     echo "AWS credentials found. Proceeding with upload."
 fi
-python $RHYTHMFORMHOME/scripts/zip_and_upload_dataset.py --note "$num_scores scores synthesized on $(date +"%Y-%m-%d %T")" --bucket-name "rhythmformdatasets"
+python $RHYTHMFORMHOME/scripts/zip_and_upload_dataset.py --note "$num_scores scores synthesized on $(date +"%Y-%m-%d %T")" --bucket-name "rhythmformdatasets" --tar-only
 echo "Zip and upload complete."
 
 echo "All data synthesis tasks completed successfully."

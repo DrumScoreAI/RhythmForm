@@ -118,6 +118,16 @@ def main():
         required=False,
         help="The name of the S3 bucket to upload the archives to."
     )
+    parser.add_argument(
+        "--tar-only",
+        action='store_true',
+        help="If set, only create and upload the tar.gz archive."
+    )
+    parser.add_argument(
+        "--zip-only",
+        action='store_true',
+        help="If set, only create and upload the zip archive."
+    )
     args = parser.parse_args()
 
     # Validate environment variables
@@ -139,19 +149,27 @@ def main():
     tar_path = os.path.join(ARCHIVE_DIR, f"{base_filename}.tar.gz")
 
     # Create archives (which will now include metadata.json)
-    file_count_z = create_zip_archive(SOURCE_DIR, zip_path, ARCHIVE_DIR)
-    file_count_t = create_tar_gz_archive(SOURCE_DIR, tar_path, ARCHIVE_DIR)
-
-    try:
-        assert file_count_z == file_count_t, "File counts in zip and tar.gz do not match!"
-    except AssertionError as e:
-        logging.error(f"Assertion Error: {e}")
-        exit(1)
+    file_count_t = 0
+    file_count_z = 0
+    if not args.tar_only:
+        logging.info("Creating zip archive...")
+        file_count_z = create_zip_archive(SOURCE_DIR, zip_path, ARCHIVE_DIR)
+    if not args.zip_only:
+        logging.info("Creating tar.gz archive...")
+        file_count_t = create_tar_gz_archive(SOURCE_DIR, tar_path, ARCHIVE_DIR)
+    # If both archives were created, ensure file counts match
+    # Verify file counts match
+    if not args.tar_only and not args.zip_only:
+        try:
+            assert file_count_z == file_count_t, "File counts in zip and tar.gz do not match!"
+        except AssertionError as e:
+            logging.error(f"Assertion Error: {e}")
+            exit(1)
     
     metadata = {
         "creation_timestamp_utc": datetime.datetime.now(datetime.UTC).isoformat(),
         "note": args.note,
-        "file_count": file_count_z
+        "file_count": max(file_count_t, file_count_z)
     }
     metadata_path = os.path.join(SOURCE_DIR, "metadata.json")
     with open(metadata_path, 'w') as f:
@@ -170,8 +188,12 @@ def main():
         bucket_name = args.bucket_name
     else:
         bucket_name = S3_BUCKET_NAME
-    upload_to_s3(zip_path, bucket_name)
-    upload_to_s3(tar_path, bucket_name)
+    if not args.zip_only:
+        logging.info("Uploading tar.gz archive to S3...")
+        upload_to_s3(tar_path, bucket_name)
+    if not args.tar_only:
+        logging.info("Uploading zip archive to S3...")
+        upload_to_s3(zip_path, bucket_name)
     upload_to_s3(metadata_path, bucket_name)
 
     logging.info("Script finished.")

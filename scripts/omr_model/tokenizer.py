@@ -44,9 +44,12 @@ class StTokenizer:
 
     def build_vocab(self, dataset, num_cores=1):
         """
-        Builds the vocabulary from a ScoreDataset object using parallel processing.
+        Builds or updates the vocabulary from a ScoreDataset object.
+        If the tokenizer's vocab is already populated, it will only add new tokens.
         """
-        self.vocab = self.special_tokens[:]
+        # If the vocab is empty or only has special tokens, start it fresh.
+        if len(self.vocab) <= len(self.special_tokens):
+            self.vocab = self.special_tokens[:]
         
         # Count all tokens in the dataset in parallel
         token_counts = Counter()

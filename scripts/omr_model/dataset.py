@@ -40,6 +40,16 @@ class ScoreDataset(Dataset):
         return len(self.manifest)
 
     def __getitem__(self, idx):
+        if isinstance(idx, slice):
+            new_manifest = self.manifest[idx]
+            new_dataset = self.__class__(
+                manifest_path=self.manifest_path,
+                tokenizer=self.tokenizer,
+                transform=self.transform
+            )
+            new_dataset.manifest = new_manifest
+            return new_dataset
+
         if torch.is_tensor(idx):
             idx = idx.tolist()
 

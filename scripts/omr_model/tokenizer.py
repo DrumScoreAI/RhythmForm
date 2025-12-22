@@ -61,8 +61,11 @@ class StTokenizer:
         chunk_size = len(dataset) // num_cores
         if chunk_size == 0:
             chunk_size = 1 # Ensure at least one item per chunk
+        print('here')
         
         chunks = [dataset[i:i + chunk_size] for i in range(0, len(dataset), chunk_size)]
+
+        print('now here')
         
         with ProcessPoolExecutor(max_workers=num_cores) as executor:
             # Submit each chunk for processing
@@ -120,13 +123,30 @@ class StTokenizer:
         return " ".join(tokens)
 
     def save(self, filepath):
-        """Saves the tokenizer's ordered vocabulary list to a JSON file."""
+        """Saves the tokenizer's ordered vocabulary list to a JSON file with enhanced debugging."""
+        try:
+            # --- Systematic Debugging: Step 1: Resolve and print the absolute path ---
+            abs_path = Path(filepath).resolve()
+            print(f"--> Attempting to save tokenizer to absolute path: {abs_path}")
 
-        # Save the ordered vocabulary list, not the dictionary.
-        # This is the single source of truth for vocab size and token order.
-        with open(filepath, 'w') as f:
-            json.dump(self.vocab, f, indent=2)
-        print(f"Tokenizer vocabulary saved to {filepath}")
+            # --- Systematic Debugging: Step 2: Check if parent directory exists ---
+            parent_dir = abs_path.parent
+            if not parent_dir.exists():
+                print(f"--> ERROR: Parent directory does not exist: {parent_dir}")
+                return # Stop if the directory isn't there
+
+            # --- Systematic Debugging: Step 3: Attempt to write the file ---
+            print(f"--> Writing {len(self.vocab)} tokens to the vocabulary file...")
+            with open(abs_path, 'w') as f:
+                json.dump(self.vocab, f, indent=2)
+            
+            print(f"--> SUCCESS: Tokenizer vocabulary saved to {abs_path}")
+
+        except (IOError, OSError) as e:
+            # --- Systematic Debugging: Step 4: Catch and report any errors ---
+            print(f"--> ERROR: Failed to save tokenizer file. An I/O error occurred: {e}")
+        except Exception as e:
+            print(f"--> ERROR: An unexpected error occurred during save: {e}")
 
     def load(self, filepath):
         """Loads the tokenizer's vocabulary from a JSON file."""
@@ -150,6 +170,17 @@ class StTokenizer:
 
 # This block allows you to test the tokenizer by running `python omr_model/tokenizer.py`
 if __name__ == '__main__':
+    import multiprocessing
+    # Set the start method to 'fork' to avoid potential issues
+    # with how child processes are created, especially when a script is
+    # called from another script.
+    try:
+        multiprocessing.set_start_method('fork', force=True)
+    except RuntimeError:
+        # This will happen if the start method has already been set.
+        # It's safe to ignore in that case.
+        pass
+
     parser = argparse.ArgumentParser(description="Build and test the tokenizer.")
     parser.add_argument(
         "--cores",

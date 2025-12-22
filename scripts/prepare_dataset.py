@@ -261,7 +261,7 @@ def create_repeat_modified_xml(original_xml_path, repeated_measures):
         return original_xml_path
 
 
-def process_file(xml_path, current_dataset):
+def process_file(xml_path):
     """
     Processes a single MusicXML file:
     1. Checks for a companion .json for repeat info.
@@ -271,13 +271,9 @@ def process_file(xml_path, current_dataset):
     5. Cleans up temporary files.
     Returns a dictionary for the dataset.json or None on failure.
     """
-    print(f"Processing: {xml_path.name}")
-    # Note: Temporary PDFs are created during rendering, but the final image is a PNG.
+    # The check for existing files is now handled efficiently in main() before this function is called.
     pdf_path = PDF_OUTPUT_DIR / xml_path.with_suffix('.pdf').name
     png_path = OUTPUT_IMAGE_DIR / xml_path.with_suffix('.png').name
-    if png_path.exists() and pdf_path.exists() and any(entry['image_path'] == str(png_path.relative_to(TRAINING_DATA_DIR)) for entry in current_dataset):
-        print(f"  -> Skipping {xml_path.name}, already processed.")
-        return None
 
     # --- 1. Handle repeats and ST generation ---
     json_path = xml_path.with_suffix('.json')
@@ -287,9 +283,9 @@ def process_file(xml_path, current_dataset):
             with open(json_path, 'r') as f:
                 data = json.load(f)
                 repeated_measures = data.get("repeated_measures", [])
-                print(f"  -> Found repeat info: measures {repeated_measures}")
         except Exception as e:
-            print(f"  -> Warning: Could not read JSON {json_path.name}: {e}")
+            # This is not a critical error, so we just print a warning.
+            print(f"  -> Warning: Could not read or parse JSON {json_path.name}: {e}")
 
     st = musicxml_to_st(xml_path, repeated_measures)
     if not st:
@@ -297,10 +293,9 @@ def process_file(xml_path, current_dataset):
 
     # --- 2. Render Image (with repeats if necessary) ---
     xml_to_render = xml_path
-    altered_xml_path = None
     if repeated_measures:
-        altered_xml_path = create_repeat_modified_xml(xml_path, repeated_measures)
-        xml_to_render = altered_xml_path
+        # This function returns the path to the new _altered.xml file
+        xml_to_render = create_repeat_modified_xml(xml_path, repeated_measures)
 
     try:
         # Render the (potentially temporary) XML to PDF
@@ -326,7 +321,6 @@ def process_file(xml_path, current_dataset):
              print(f"  -> Error: PNG not created for {xml_path.name}")
              return None
 
-        print(f"  -> Successfully rendered to {png_path.name}")
         return {"image_path": str(png_path.relative_to(TRAINING_DATA_DIR)), "st": st}
 
     except subprocess.CalledProcessError as e:
@@ -334,12 +328,22 @@ def process_file(xml_path, current_dataset):
         print(e.stderr)
         return None
     finally:
-        pass
         # --- 3. Cleanup ---
-        # --- CHANGE: Keep the altered XML for debugging, only delete the temp PDF ---
-        # if pdf_path.exists():
-        #     pdf_path.unlink()
-        # The altered_xml_path is intentionally NOT deleted.
+        # Keep the altered XML for debugging, but remove the intermediate PDF.
+        if pdf_path.exists():
+            pdf_path.unlink()
+
+def process_chunk(xml_paths_chunk):
+    """
+    Worker function to process a chunk of XML files.
+    This runs in a separate process.
+    """
+    results = []
+    for xml_path in xml_paths_chunk:
+        result = process_file(xml_path)
+        if result:
+            results.append(result)
+    return results
 
 def main():
     """
@@ -356,6 +360,7 @@ def main():
         help="Number of CPU cores to use for parallel processing (default: use all available cores)."
     )
     args = parser.parse_args()
+    num_cores = args.cores or os.cpu_count() or 1
 
     # Ensure output directories exist
     OUTPUT_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
@@ -378,7 +383,7 @@ def main():
                 else:
                     print(f"  [WARNING] File '{row['musicxml']}' listed in manifest but not found in {XML_DIR}. Skipping.")
             elif row.get('n_or_p') == 'p':
-                print(f"  [INFO] Skipping already processed file '{row.get('musicxml', 'N/A')}'.")
+                pass # We no longer need to print this for every processed file.
             elif row.get('do_or_mi') == 'do':
                 print(f"  [WARNING] 'musicxml' field missing for drums-only entry in manifest. Skipping.")
             elif row.get('do_or_mi') == 'mi':
@@ -386,8 +391,28 @@ def main():
 
     print(f"Found {len(xml_paths_to_process)} 'drums-only' files to process from manifest.")
 
-    # extra check to skip already processed files
-    xml_paths_to_process = [p for p in xml_paths_to_process if Path(p).stem + '.png' not in glob.glob(str(OUTPUT_IMAGE_DIR / '*.png'))]
+    # --- OPTIMIZATION ---
+    # The original check was very slow because it performed a list lookup for every file.
+    # By creating a set of existing PNG filenames first, we can do a much faster O(1) lookup.
+    print("Checking for already processed files to skip...")
+    existing_png_files = {Path(f).name for f in glob.glob(str(OUTPUT_IMAGE_DIR / '*.png'))}
+    print(f"Found {len(existing_png_files)} existing PNG files in the image directory.")
+
+    original_count = len(xml_paths_to_process)
+    # Now, filter the list using the fast set lookup
+    xml_paths_to_process = [
+        p for p in xml_paths_to_process 
+        if p.with_suffix('.png').name not in existing_png_files
+    ]
+    
+    filtered_count = original_count - len(xml_paths_to_process)
+    print(f"Skipping {filtered_count} files that have already been rendered to PNG.")
+    print(f"Number of new files to process: {len(xml_paths_to_process)}")
+    # --- END OPTIMIZATION ---
+
+    if not xml_paths_to_process:
+        print("No new files to process. Exiting.")
+        return
 
     if os.path.exists(DATASET_JSON_PATH):
         with open(DATASET_JSON_PATH, 'r') as f:
@@ -401,13 +426,22 @@ def main():
     
     dataset = current_dataset[:] # Start with a copy of the existing dataset
 
+    # --- CHUNKING OPTIMIZATION ---
+    # Split the work into chunks for more efficient parallel processing.
+    chunk_size = max(1, len(xml_paths_to_process) // num_cores)
+    chunks = [xml_paths_to_process[i:i + chunk_size] for i in range(0, len(xml_paths_to_process), chunk_size)]
+    print(f"Splitting {len(xml_paths_to_process)} files into {len(chunks)} chunks for {num_cores} cores.")
+
     # Use ProcessPoolExecutor for parallel processing
-    with ProcessPoolExecutor(max_workers=args.cores) as executor:
-        future_to_xml = {executor.submit(process_file, xml_file, current_dataset): xml_file for xml_file in xml_paths_to_process}
-        for future in tqdm(as_completed(future_to_xml), total=len(future_to_xml), desc="Processing files"):
-            result = future.result()
-            if result:
-                dataset.append(result)
+    with ProcessPoolExecutor(max_workers=num_cores) as executor:
+        # Submit each chunk to a worker
+        future_to_chunk = {executor.submit(process_chunk, chunk): chunk for chunk in chunks}
+        
+        for future in tqdm(as_completed(future_to_chunk), total=len(chunks), desc="Processing chunks"):
+            chunk_results = future.result()
+            if chunk_results:
+                dataset.extend(chunk_results)
+    # --- END CHUNKING OPTIMIZATION ---
 
     # Sort dataset by image path for consistency
     dataset.sort(key=lambda x: x['image_path'])

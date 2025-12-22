@@ -7,6 +7,7 @@ import logging
 import argparse
 import json
 from tqdm import tqdm
+import sys
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -36,7 +37,7 @@ def create_zip_archive(source_dir, archive_path, exclude_dir):
 
     with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
         # Iterate over the list of files with a tqdm progress bar
-        for file_path in tqdm(file_paths, desc="Zipping files", unit="file"):
+        for file_path in tqdm(file_paths, desc="Zipping files", unit="file", leave=False, file=sys.stdout):
             arcname = os.path.relpath(file_path, source_dir)
             zipf.write(file_path, arcname)
             
@@ -57,7 +58,7 @@ def create_tar_gz_archive(source_dir, archive_path, exclude_dir):
 
     with tarfile.open(archive_path, "w:gz") as tar:
         # Iterate over the list of files with a tqdm progress bar
-        for file_path in tqdm(file_paths, desc="Taring files", unit="file"):
+        for file_path in tqdm(file_paths, desc="Taring files", unit="file", leave=False, file=sys.stdout):
             arcname = os.path.relpath(file_path, source_dir)
             tar.add(file_path, arcname=arcname)
             

@@ -1,4 +1,9 @@
 import torch
+import torch.multiprocessing
+# Set the multiprocessing sharing strategy to 'file_system' to avoid
+# shared memory (shm) issues in some environments (like Docker containers
+# with limited shm size). This can prevent "no space left on device" errors.
+torch.multiprocessing.set_sharing_strategy('file_system')
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, random_split, SubsetRandomSampler

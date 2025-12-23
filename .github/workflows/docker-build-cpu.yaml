@@ -1,4 +1,4 @@
-name: Build and Push Core Image
+name: Build and Push CPU Image
 
 on:
   # push:
@@ -8,8 +8,9 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  ORGANIZATION: drumscoreai
+  # Docker image names must be lowercase
   IMAGE_NAME: rhythmform
+  ORGANIZATION: drumscoreai
 
 jobs:
   build-and-push:
@@ -19,17 +20,17 @@ jobs:
       packages: write
     
     steps:
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          # Removes pre-installed tools to free up ~10-20GB
-          tool-cache: false
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: true
+      # - name: Free Disk Space (Ubuntu)
+      #   uses: jlumbroso/free-disk-space@main
+      #   with:
+      #     # Removes pre-installed tools to free up ~10-20GB
+      #     tool-cache: false
+      #     android: true
+      #     dotnet: true
+      #     haskell: true
+      #     large-packages: true
+      #     docker-images: true
+      #     swap-storage: true
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -45,7 +46,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.ORGANIZATION }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.ORGANIZATION }}/${{ env.IMAGE_NAME }}-cpu
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,format=short
@@ -54,7 +55,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: containers/core/Dockerfile
+          file: containers/core-cpu/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

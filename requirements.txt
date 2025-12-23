@@ -1,7 +1,10 @@
 # Core ML/AI dependencies
 torch>=2.0.0
+torchvision>=0.24.1
 transformers>=4.30.0
 Pillow>=10.0.0
+tqdm>=4.67.1
+numpy>=2.2.6
 
 # Data handling
 pandas>=2.0.0

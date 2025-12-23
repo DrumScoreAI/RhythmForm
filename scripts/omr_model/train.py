@@ -1,9 +1,21 @@
 import torch
 import torch.multiprocessing
-# Set the multiprocessing sharing strategy to 'file_system' to avoid
-# shared memory (shm) issues in some environments (like Docker containers
-# with limited shm size). This can prevent "no space left on device" errors.
+import os
+from . import config
+
+# --- Fix for "No space left on device" ---
+# 1. Set the multiprocessing sharing strategy to 'file_system'.
+# This avoids using /dev/shm, which is often too small in containerized environments.
 torch.multiprocessing.set_sharing_strategy('file_system')
+
+# 2. Explicitly set the temporary directory for multiprocessing.
+# The 'file_system' strategy writes temporary files. By default, this might be
+# a small root partition. We redirect it to a 'tmp' folder within our
+# large, mounted training data directory to ensure there's enough space.
+temp_dir = config.TRAINING_DATA_DIR / 'tmp'
+os.makedirs(temp_dir, exist_ok=True)
+os.environ['TMPDIR'] = str(temp_dir)
+
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, random_split, SubsetRandomSampler

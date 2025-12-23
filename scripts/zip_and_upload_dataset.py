@@ -162,10 +162,10 @@ def main():
     file_count_z = 0
     if not args.tar_only:
         logging.info("Creating zip archive...")
-        file_count_z = create_zip_archive(SOURCE_DIR, zip_path, ARCHIVE_DIR, exclude_dirs=exclude_dirs)
+        file_count_z = create_zip_archive(SOURCE_DIR, zip_path, exclude_dirs)
     if not args.zip_only:
         logging.info("Creating tar.gz archive...")
-        file_count_t = create_tar_gz_archive(SOURCE_DIR, tar_path, ARCHIVE_DIR, exclude_dirs=exclude_dirs)
+        file_count_t = create_tar_gz_archive(SOURCE_DIR, tar_path, exclude_dirs)
     # If both archives were created, ensure file counts match
     # Verify file counts match
     if not args.tar_only and not args.zip_only:

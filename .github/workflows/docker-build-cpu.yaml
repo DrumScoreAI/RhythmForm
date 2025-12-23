@@ -3,7 +3,7 @@ name: Build and Push CPU Image
 on:
   # push:
   #   branches: [ "main" ]
-    # You can also add 'pull_request' here if you want to build on PRs
+  # You can also add 'pull_request' here if you want to build on PRs
   workflow_dispatch: # Allows you to run this workflow manually from the Actions tab
 
 env:

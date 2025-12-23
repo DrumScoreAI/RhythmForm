@@ -1,8 +1,8 @@
-name: Push Image to EIDF
+name: Push GPU Image to EIDF
 
 on:
   workflow_run:
-    workflows: ["Build and Push Image"]
+    workflows: ["Build and Push GPU Image"]
     types:
       - completed
     branches:

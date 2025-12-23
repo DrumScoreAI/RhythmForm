@@ -23,14 +23,14 @@ S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 
-def create_zip_archive(source_dir, archive_path, exclude_dir):
+def create_zip_archive(source_dir, archive_path, exclude_dirs):
     """Creates a zip archive of a directory, excluding a specific subdirectory."""
     logging.info(f"Creating zip archive: {archive_path}")
     
     # First, gather a list of all files to be archived for an accurate total
     file_paths = []
     for root, _, files in os.walk(source_dir):
-        if root == exclude_dir:
+        if os.path.abspath(root) in exclude_dirs:
             continue
         for file in files:
             file_paths.append(os.path.join(root, file))
@@ -48,14 +48,14 @@ def create_zip_archive(source_dir, archive_path, exclude_dir):
     logging.info("Zip archive created successfully.")
     return(len(file_paths))
 
-def create_tar_gz_archive(source_dir, archive_path, exclude_dir):
+def create_tar_gz_archive(source_dir, archive_path, exclude_dirs):
     """Creates a .tar.gz archive of a directory, excluding a specific subdirectory."""
     logging.info(f"Creating tar.gz archive: {archive_path}")
     
     # First, gather a list of all files to be archived for an accurate total
     file_paths = []
     for root, _, files in os.walk(source_dir):
-        if root == exclude_dir:
+        if os.path.abspath(root) in exclude_dirs:
             continue
         for file in files:
             file_paths.append(os.path.join(root, file))
@@ -128,6 +128,13 @@ def main():
         action='store_true',
         help="If set, only create and upload the zip archive."
     )
+    parser.add_argument(
+        "--exclude-dirs",
+        type=str,
+        nargs='*',
+        default=[],
+        help="List of directories to exclude from the archive."
+    )
     args = parser.parse_args()
 
     # Validate environment variables
@@ -148,15 +155,17 @@ def main():
     zip_path = os.path.join(ARCHIVE_DIR, f"{base_filename}.zip")
     tar_path = os.path.join(ARCHIVE_DIR, f"{base_filename}.tar.gz")
 
+    exclude_dirs = [os.path.abspath(os.path.join(SOURCE_DIR, d)) for d in args.exclude_dirs]
+
     # Create archives (which will now include metadata.json)
     file_count_t = 0
     file_count_z = 0
     if not args.tar_only:
         logging.info("Creating zip archive...")
-        file_count_z = create_zip_archive(SOURCE_DIR, zip_path, ARCHIVE_DIR)
+        file_count_z = create_zip_archive(SOURCE_DIR, zip_path, ARCHIVE_DIR, exclude_dirs=exclude_dirs)
     if not args.zip_only:
         logging.info("Creating tar.gz archive...")
-        file_count_t = create_tar_gz_archive(SOURCE_DIR, tar_path, ARCHIVE_DIR)
+        file_count_t = create_tar_gz_archive(SOURCE_DIR, tar_path, ARCHIVE_DIR, exclude_dirs=exclude_dirs)
     # If both archives were created, ensure file counts match
     # Verify file counts match
     if not args.tar_only and not args.zip_only:
@@ -175,13 +184,6 @@ def main():
     with open(metadata_path, 'w') as f:
         json.dump(metadata, f, indent=2)
     logging.info(f"Created metadata file at {metadata_path}")
-
-    # --- Cleanup metadata file ---
-    # try:
-    #     os.remove(metadata_path)
-    #     logging.info(f"Cleaned up temporary metadata file: {metadata_path}")
-    # except OSError as e:
-    #     logging.error(f"Error removing metadata file: {e}")
 
     # Upload archives
     if args.bucket_name:

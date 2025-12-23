@@ -1,8 +1,8 @@
-name: Push Core Image to EIDF
+name: Push Image to EIDF
 
 on:
   workflow_run:
-    workflows: ["Build and Push Core Image"]
+    workflows: ["Build and Push Image"]
     types:
       - completed
     branches:
@@ -12,7 +12,7 @@ on:
 env:
   GHCR_REGISTRY: ghcr.io
   EIDF_REGISTRY: registry.eidf.ac.uk
-  IMAGE_NAME1: rhythmform-core
+  IMAGE_NAME1: rhythmform
   # IMAGE_NAME2: rhythmform-trainer  # deprecated
   GH_ORGANIZATION: drumscoreai
   EIDF_ORGANIZATION: eidf235

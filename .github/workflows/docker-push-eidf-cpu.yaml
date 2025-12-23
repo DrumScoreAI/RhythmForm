@@ -1,8 +1,8 @@
-name: Push Core-CPU Image to EIDF
+name: Push CPU Image to EIDF
 
 on:
   workflow_run:
-    workflows: ["Build and Push Core-CPU Image"]
+    workflows: ["Build and Push CPU Image"]
     types:
       - completed
     branches:
@@ -12,7 +12,7 @@ on:
 env:
   GHCR_REGISTRY: ghcr.io
   EIDF_REGISTRY: registry.eidf.ac.uk
-  IMAGE_NAME1: rhythmform-core-cpu
+  IMAGE_NAME1: rhythmform-cpu
   # IMAGE_NAME2: rhythmform-synthesizer  # deprecated
   GH_ORGANIZATION: drumscoreai
   EIDF_ORGANIZATION: eidf235

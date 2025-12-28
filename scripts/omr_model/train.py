@@ -1,22 +1,7 @@
 import torch
 import torch.multiprocessing
 import os
-# --- Fix for "No space left on device" ---
-# 1. Set the multiprocessing sharing strategy to 'file_system'.
-# This avoids using /dev/shm, which is often too small in containerized environments.
-torch.multiprocessing.set_sharing_strategy('file_system')
-
 from . import config
-
-# 2. Explicitly set the temporary directory for multiprocessing.
-# The 'file_system' strategy writes temporary files. By default, this might be
-# a small root partition. We redirect it to a 'tmp' folder within our
-# large, mounted training data directory to ensure there's enough space.
-temp_dir = config.TRAINING_DATA_DIR / 'tmp'
-os.makedirs(temp_dir, exist_ok=True)
-os.environ['TMPDIR'] = str(temp_dir)
-print(f"Multiprocessing sharing strategy set to: {torch.multiprocessing.get_sharing_strategy()}")
-print(f"Temporary directory set to: {os.environ['TMPDIR']}")
 
 import torch.nn as nn
 import torch.optim as optim
@@ -102,18 +87,19 @@ def main():
     validation_sampler = SubsetRandomSampler(val_indices)
 
     # 3. Update the DataLoader to use a lambda function for the collate_fn
+    print(f"Creating DataLoaders with {args.num_workers} workers")
     train_loader = DataLoader(
         full_dataset,
         batch_size=args.batch_size,
         sampler=train_sampler,
-        num_workers=config.NUM_WORKERS,
+        num_workers=args.num_workers,
         collate_fn=lambda b: collate_fn(b, pad_token_id)
     )
     val_loader = DataLoader(
         full_dataset,
         batch_size=args.batch_size, 
         sampler=validation_sampler,
-        num_workers=config.NUM_WORKERS,
+        num_workers=args.num_workers,
         collate_fn=lambda b: collate_fn(b, pad_token_id)
     )
 

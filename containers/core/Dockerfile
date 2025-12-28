@@ -1,5 +1,6 @@
 # Use an official NVIDIA CUDA image as a base.
-FROM nvidia/cuda:13.0.2-cudnn-devel-ubuntu24.04
+# Downgrading to CUDA 12.6 to ensure better compatibility with PyTorch and MIG.
+FROM nvidia/cuda:12.6.0-cudnn-devel-ubuntu24.04
 
 # Set environment variables to ensure non-interactive installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -14,6 +15,13 @@ ENV PYTHONPATH=/app:$PYTHONPATH
 ENV MUSESCORE_PATH=/app/musescore-extracted
 ENV PATH="/app:/home/appuser/.local/bin:${PATH}"
 ENV PATH="/app:/home/appuser/.local/bin:/app/venv/bin:${PATH}"
+
+# --- PyTorch/CUDA Optimizations for MIG ---
+# 1. expandable_segments:True helps with memory fragmentation and avoids some NVML asserts on MIG.
+ENV PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+# 2. Disable NCCL P2P and IB as they often fail on MIG slices.
+ENV NCCL_P2P_DISABLE=1
+ENV NCCL_IB_DISABLE=1
 
 # Install system dependencies, including wget to download MuseScore and fuse which is required by AppImages.
 RUN apt-get update && apt-get install -y \

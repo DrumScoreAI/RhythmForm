@@ -1,5 +1,5 @@
 # Use the official PyTorch runtime image which is lighter and verified to work with MIG.
-FROM pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
@@ -13,11 +13,9 @@ ENV RHYTHMFORMHOME=/app
 ENV PYTHONPATH=/app:$PYTHONPATH
 ENV MUSESCORE_PATH=/app/musescore-extracted
 ENV PATH="/app:/home/appuser/.local/bin:${PATH}"
-# Note: The base image already has python in path, but we might create a venv if needed.
-# For simplicity, we will use the system python provided by the image.
 
 # --- PyTorch/CUDA Optimizations for MIG ---
-ENV PYTORCH_ALLOC_CONF=expandable_segments:True,max_split_size_mb:128
+ENV PYTORCH_ALLOC_CONF=expandable_segments:True
 ENV NCCL_P2P_DISABLE=1
 ENV NCCL_IB_DISABLE=1
 
@@ -83,8 +81,7 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install python dependencies.
-# We use the system python (likely 3.10 or 3.11) which comes with torch pre-installed.
-# We only install the REST of the requirements.
+# We use the system python provided by the base image (which has the optimized torch installed).
 # We filter out torch/torchvision from requirements.txt to avoid overwriting the optimized version.
 RUN grep -vE "torch|torchvision" requirements.txt > requirements_no_torch.txt && \
     pip install --no-cache-dir -r requirements_no_torch.txt && \

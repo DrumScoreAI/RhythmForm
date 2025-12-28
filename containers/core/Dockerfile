@@ -18,7 +18,8 @@ ENV PATH="/app:/home/appuser/.local/bin:/app/venv/bin:${PATH}"
 
 # --- PyTorch/CUDA Optimizations for MIG ---
 # 1. expandable_segments:True helps with memory fragmentation and avoids some NVML asserts on MIG.
-ENV PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+# Updated to use PYTORCH_ALLOC_CONF as PYTORCH_CUDA_ALLOC_CONF is deprecated.
+ENV PYTORCH_ALLOC_CONF=expandable_segments:True
 # 2. Disable NCCL P2P and IB as they often fail on MIG slices.
 ENV NCCL_P2P_DISABLE=1
 ENV NCCL_IB_DISABLE=1

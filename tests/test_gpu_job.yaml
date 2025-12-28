@@ -1,0 +1,63 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: gpu-sanity-check-
+  labels:
+    kueue.x-k8s.io/queue-name: eidf235ns-user-queue
+spec:
+  completions: 1
+  template:
+    metadata:
+      name: gpu-test-pod
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: tester
+        # Using the official PyTorch runtime image which is much lighter than the dev image
+        image: pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+        command: 
+          - python
+          - -c
+          - |
+            import torch
+            import os
+            print(f"PyTorch Version: {torch.__version__}")
+            print(f"Alloc Conf: {os.environ.get('PYTORCH_ALLOC_CONF', 'Not Set')}")
+            
+            if not torch.cuda.is_available():
+                print("CUDA NOT AVAILABLE")
+                exit(1)
+            
+            print(f"CUDA Device: {torch.cuda.get_device_name(0)}")
+            
+            try:
+                # Try a small allocation first
+                x = torch.ones(1024, 1024, device='cuda')
+                print("Small allocation successful")
+                
+                # Try a larger allocation to trigger the allocator
+                y = torch.randn(10000, 10000, device='cuda')
+                print("Large allocation successful")
+                
+                # Do a computation
+                z = torch.matmul(x, x)
+                print("Computation successful")
+                
+            except Exception as e:
+                print(f"ERROR: {e}")
+                exit(1)
+                
+        resources:
+          requests:
+            cpu: 2
+            memory: "8Gi"
+          limits:
+            cpu: 4
+            memory: "16Gi"
+            nvidia.com/gpu: 1
+        env:
+          # Testing the new env var name
+          - name: PYTORCH_ALLOC_CONF
+            value: "expandable_segments:True"
+      nodeSelector:
+        nvidia.com/gpu.product: NVIDIA-A100-SXM4-40GB-MIG-1g.5gb

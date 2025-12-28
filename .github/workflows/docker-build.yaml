@@ -1,9 +1,9 @@
 name: Build and Push GPU Image
 
 on:
-  # push:
-  #   branches: [ "main" ]
-    # You can also add 'pull_request' here if you want to build on PRs
+  push:
+    branches: [ "main" ]
+    You can also add 'pull_request' here if you want to build on PRs
   workflow_dispatch: # Allows you to run this workflow manually from the Actions tab
 
 env:

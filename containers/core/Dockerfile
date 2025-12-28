@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -y \
     wget \
     poppler-utils \
     # MuseScore dependencies
-    libpipewire-0.3-0t64 \
+    libpipewire-0.3-0 \
     libx11-6 \
     libxext6 \
     libxrender1 \
@@ -54,9 +54,9 @@ RUN apt-get update && apt-get install -y \
     libdbus-1-3 \
     libfontconfig1 \
     libfreetype6 \
-    libasound2t64 \
+    libasound2 \
     libnss3 \
-    libssl3t64 \
+    libssl3 \
     libpulse0 \
     libsndfile1 \
     libxcomposite1 \
@@ -69,11 +69,11 @@ RUN apt-get update && apt-get install -y \
     libxss1 \
     libxv1 \
     libxxf86vm1 \
-    libcups2t64 \
+    libcups2 \
     libwayland-client0 \
     libwayland-cursor0 \
     libwayland-egl1 \
-    libglib2.0-0t64 \
+    libglib2.0-0 \
     libxcb-cursor0 \
     libxcb-util1 \
     xvfb \

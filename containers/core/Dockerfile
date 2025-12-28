@@ -1,5 +1,5 @@
 # Use the official PyTorch runtime image which is lighter and verified to work with MIG.
-FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+FROM pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive

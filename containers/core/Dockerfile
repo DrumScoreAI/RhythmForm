@@ -1,8 +1,7 @@
-# Use an official NVIDIA CUDA image as a base.
-# Downgrading to CUDA 12.6 to ensure better compatibility with PyTorch and MIG.
-FROM nvidia/cuda:12.6.0-cudnn-devel-ubuntu24.04
+# Use the official PyTorch runtime image which is lighter and verified to work with MIG.
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
 
-# Set environment variables to ensure non-interactive installation
+# Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 ENV LANG=en_GB.UTF-8
@@ -14,28 +13,24 @@ ENV RHYTHMFORMHOME=/app
 ENV PYTHONPATH=/app:$PYTHONPATH
 ENV MUSESCORE_PATH=/app/musescore-extracted
 ENV PATH="/app:/home/appuser/.local/bin:${PATH}"
-ENV PATH="/app:/home/appuser/.local/bin:/app/venv/bin:${PATH}"
+# Note: The base image already has python in path, but we might create a venv if needed.
+# For simplicity, we will use the system python provided by the image.
 
 # --- PyTorch/CUDA Optimizations for MIG ---
-# 1. expandable_segments:True helps with memory fragmentation and avoids some NVML asserts on MIG.
-# Updated to use PYTORCH_ALLOC_CONF as PYTORCH_CUDA_ALLOC_CONF is deprecated.
-ENV PYTORCH_ALLOC_CONF=expandable_segments:True
-# 2. Disable NCCL P2P and IB as they often fail on MIG slices.
+ENV PYTORCH_ALLOC_CONF=expandable_segments:True,max_split_size_mb:128
 ENV NCCL_P2P_DISABLE=1
 ENV NCCL_IB_DISABLE=1
 
-# Install system dependencies, including wget to download MuseScore and fuse which is required by AppImages.
+# Install system dependencies.
+# The base image is Ubuntu-based, so apt-get works.
 RUN apt-get update && apt-get install -y \
     locales \
     locales-all \
-    # en_GB.UTF-8 \
-    python3.12 \
-    python3.12-venv \
-    python3-pip \
-    poppler-utils \
     git \
     wget \
-    libpipewire-0.3.0t64 \
+    poppler-utils \
+    # MuseScore dependencies
+    libpipewire-0.3-0t64 \
     libx11-6 \
     libxext6 \
     libxrender1 \
@@ -87,11 +82,13 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 COPY requirements.txt .
 
-# Create and activate a virtual environment, then install requirements
-RUN python3.12 -m venv /app/venv
-
-RUN pip install --upgrade pip
-RUN pip install --no-cache-dir -r /app/requirements.txt && pip install --no-cache-dir awscli
+# Install python dependencies.
+# We use the system python (likely 3.10 or 3.11) which comes with torch pre-installed.
+# We only install the REST of the requirements.
+# We filter out torch/torchvision from requirements.txt to avoid overwriting the optimized version.
+RUN grep -vE "torch|torchvision" requirements.txt > requirements_no_torch.txt && \
+    pip install --no-cache-dir -r requirements_no_torch.txt && \
+    pip install --no-cache-dir awscli
 
 # Download and extract MuseScore AppImage
 ARG MUSESCORE_VERSION=4.6.3

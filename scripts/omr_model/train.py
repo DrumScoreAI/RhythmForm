@@ -63,7 +63,10 @@ def main():
     # Define a transform to convert PIL images to PyTorch Tensors.
     # ToTensor() converts a PIL Image (H x W x C) in the range [0, 255]
     # to a torch.FloatTensor of shape (C x H x W) in the range [0.0, 1.0].
+    # We also need to resize the images to a fixed size to ensure they can be batched
+    # and to fit in GPU memory.
     transform = transforms.Compose([
+        transforms.Resize((config.IMG_HEIGHT, config.IMG_WIDTH)),
         transforms.ToTensor()
     ])
 

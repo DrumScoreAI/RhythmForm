@@ -16,7 +16,7 @@ PDF_OUTPUT_DIR = TRAINING_DATA_DIR / 'pdfs'
 MANIFEST_FILE = TRAINING_DATA_DIR / 'training_data.csv'
 DATASET_JSON_PATH = TRAINING_DATA_DIR / 'dataset.json'
 TOKENIZER_VOCAB_PATH = TRAINING_DATA_DIR / 'tokenizer_vocab.json'
-CHECKPOINT_DIR = PROJECT_ROOT / 'checkpoints'
+CHECKPOINT_DIR = TRAINING_DATA_DIR / 'checkpoints'
 
 pretrained_models = glob(str(CHECKPOINT_DIR / 'model_epoch_*.pth'))
 if pretrained_models:

@@ -78,6 +78,10 @@ def main():
     setup_logging(args.log_file, args.log_stdout)
     logging.info(f"Logging initialized. Writing to {args.log_file}")
 
+    # Ensure checkpoint directory exists
+    os.makedirs(config.CHECKPOINT_DIR, exist_ok=True)
+    logging.info(f"Checkpoints will be saved to: {config.CHECKPOINT_DIR}")
+
     """
     Main training function.
     """

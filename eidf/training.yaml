@@ -1,0 +1,55 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: rhythmform-training
+  labels:
+    kueue.x-k8s.io/queue-name: eidf235ns-user-queue
+spec:
+  completions: 1
+  template:
+    metadata:
+      name: synthesis-pod
+    spec:
+      restartPolicy: Never
+      imagePullSecrets:
+        - name: eidfreg
+      containers:
+      - name: trainer
+        image: registry.eidf.ac.uk/eidf235/rhythmform:latest
+        env:
+          - name: PYTORCH_ALLOC_CONF
+            value: "expandable_segments:True"
+        args: [
+          "python",
+          "-m",
+          "scripts.omr_model.train",
+          "--batch-size", "32",
+          "--learning-rate", "0.0001",
+          "--num-epochs", "5",
+          "--num-workers", "8",
+          "--validation-split", "0.1",
+          "--log-stdout"
+        ]
+        volumeMounts:
+          - mountPath: /app/training_data
+            name: training-data-volume
+          - mountPath: /dev/shm
+            name: dshm
+        resources:
+          requests:
+            cpu: 32
+            memory: "128Gi"
+          limits:
+            cpu: 32
+            memory: "256Gi"
+            nvidia.com/gpu: 1
+      nodeSelector:
+        nvidia.com/gpu.product: NVIDIA-A100-SXM4-40GB
+      volumes:
+        - name: training-data-volume
+          persistentVolumeClaim:
+            claimName: training-data
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Gi

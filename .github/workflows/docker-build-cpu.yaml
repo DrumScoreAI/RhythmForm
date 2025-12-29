@@ -57,5 +57,5 @@ jobs:
       
       - name: Pull, Tag, and Push image to EIDF
         run: |
-          docker tag ${{ env.GHCR_REGISTRY }}/${{ env.GH_ORGANIZATION }}/${{ env.IMAGE_NAME }}:latest ${{ env.EIDF_REGISTRY }}/${{ env.EIDF_ORGANIZATION }}/${{ env.IMAGE_NAME }}:latest
-          docker push ${{ env.EIDF_REGISTRY }}/${{ env.EIDF_ORGANIZATION }}/${{ env.IMAGE_NAME }}:latest
+          docker tag ${{ env.GHCR_REGISTRY }}/${{ env.GH_ORGANIZATION }}/${{ env.IMAGE_NAME }}-cpu:latest ${{ env.EIDF_REGISTRY }}/${{ env.EIDF_ORGANIZATION }}/${{ env.IMAGE_NAME }}-cpu:latest
+          docker push ${{ env.EIDF_REGISTRY }}/${{ env.EIDF_ORGANIZATION }}/${{ env.IMAGE_NAME }}-cpu:latest

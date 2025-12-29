@@ -163,10 +163,8 @@ def main():
         # --- Training Phase ---
         model.train()
         train_loss = 0.0
-        # Tqdm writes to stderr by default, which is fine. 
-        # We can't easily redirect tqdm to logging without a custom wrapper, 
-        # but we can log the summary at the end of the epoch.
-        train_pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{args.num_epochs} [Train]")
+        # Tqdm writes to stderr by default. Changing to stdout.
+        train_pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{args.num_epochs} [Train]", file=sys.stdout)
         
         for batch in train_pbar:
             images = batch['image'].to(config.DEVICE)

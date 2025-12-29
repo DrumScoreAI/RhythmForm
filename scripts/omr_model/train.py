@@ -10,12 +10,29 @@ from torchvision import transforms # Import transforms
 from tqdm import tqdm
 import numpy as np
 import argparse
+import logging
+import sys
+from datetime import datetime
 
 # Import all our custom modules
 from . import config
 from .dataset import ScoreDataset
 from .tokenizer import StTokenizer
 from .model import ImageToStModel
+
+def setup_logging(log_file, log_to_stdout=False):
+    """
+    Sets up logging to file and optionally to stdout.
+    """
+    handlers = [logging.FileHandler(log_file)]
+    if log_to_stdout:
+        handlers.append(logging.StreamHandler(sys.stdout))
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=handlers
+    )
 
 def collate_fn(batch, pad_token_id):
     """
@@ -43,16 +60,29 @@ def parse_args():
     parser.add_argument('--num-epochs', type=int, default=config.NUM_EPOCHS, help='Number of epochs')
     parser.add_argument('--num-workers', type=int, default=config.NUM_WORKERS, help='Number of data loader workers')
     parser.add_argument('--validation-split', type=float, default=config.VALIDATION_SPLIT, help='Validation data split ratio')
+    parser.add_argument('--log-file', type=str, default=None, help='Path to log file')
+    parser.add_argument('--log-stdout', action='store_true', help='Log to stdout as well')
     return parser.parse_args()
 
 def main():
     args = parse_args()
 
+    # --- Logging Setup ---
+    if args.log_file is None:
+        # Default log file in the logs directory
+        log_dir = config.TRAINING_DATA_DIR / 'logs'
+        os.makedirs(log_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        args.log_file = log_dir / f"train_log_{timestamp}.log"
+    
+    setup_logging(args.log_file, args.log_stdout)
+    logging.info(f"Logging initialized. Writing to {args.log_file}")
+
     """
     Main training function.
     """
     # --- 1. Setup ---
-    print(f"Using device: {config.DEVICE}")
+    logging.info(f"Using device: {config.DEVICE}")
 
     # Load tokenizer
     tokenizer = StTokenizer()
@@ -90,7 +120,7 @@ def main():
     validation_sampler = SubsetRandomSampler(val_indices)
 
     # 3. Update the DataLoader to use a lambda function for the collate_fn
-    print(f"Creating DataLoaders with {args.num_workers} workers")
+    logging.info(f"Creating DataLoaders with {args.num_workers} workers")
     train_loader = DataLoader(
         full_dataset,
         batch_size=args.batch_size,
@@ -128,11 +158,14 @@ def main():
     scaler = torch.amp.GradScaler('cuda')
 
     # --- 3. Training Loop ---
-    print("\n--- Starting Training ---")
+    logging.info("--- Starting Training ---")
     for epoch in range(args.num_epochs):
         # --- Training Phase ---
         model.train()
         train_loss = 0.0
+        # Tqdm writes to stderr by default, which is fine. 
+        # We can't easily redirect tqdm to logging without a custom wrapper, 
+        # but we can log the summary at the end of the epoch.
         train_pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{args.num_epochs} [Train]")
         
         for batch in train_pbar:
@@ -182,13 +215,14 @@ def main():
 
         avg_val_loss = val_loss / len(val_loader)
         
-        print(f"Epoch {epoch+1}/{args.num_epochs} -> Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
+        logging.info(f"Epoch {epoch+1}/{args.num_epochs} -> Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
 
         # --- Save Checkpoint ---
         checkpoint_path = config.CHECKPOINT_DIR / f"model_epoch_{epoch+1}.pth"
         torch.save(model.state_dict(), checkpoint_path)
+        logging.info(f"Checkpoint saved: {checkpoint_path}")
 
-    print("\n--- Training Complete ---")
+    logging.info("--- Training Complete ---")
 
 
 if __name__ == '__main__':

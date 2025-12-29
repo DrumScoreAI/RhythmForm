@@ -37,10 +37,18 @@ def upload_to_s3(file_path, bucket, object_name=None):
         s3_path = f"{bucket}/{object_name}"
 
         logging.info(f"Uploading {file_path} to {s3_path}...")
-        # Use s3.put to upload the file with a progress bar
-        with open(file_path, 'rb') as f:
-            with tqdm.wrapattr(f, "write", total=os.path.getsize(file_path), desc=f"Uploading {os.path.basename(file_path)}", leave=False) as f_wrapped:
-                s3.put_file(f_wrapped, s3_path)
+        
+        # Upload with progress bar using manual read/write to avoid s3.put path issues
+        file_size = os.path.getsize(file_path)
+        with open(file_path, 'rb') as f_src, s3.open(s3_path, 'wb') as f_dst:
+            with tqdm(total=file_size, unit='B', unit_scale=True, desc=f"Uploading {os.path.basename(file_path)}", leave=False) as pbar:
+                while True:
+                    chunk = f_src.read(8 * 1024 * 1024)  # 8MB chunks
+                    if not chunk:
+                        break
+                    f_dst.write(chunk)
+                    pbar.update(len(chunk))
+
         logging.info(f"Successfully uploaded {os.path.basename(file_path)}.")
     except FileNotFoundError:
         logging.error(f"The file was not found: {file_path}")

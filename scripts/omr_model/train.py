@@ -158,11 +158,19 @@ def main():
     criterion = nn.CrossEntropyLoss(ignore_index=pad_token_id)
     optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
     
+    # Learning Rate Scheduler
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode='min', factor=0.5, patience=3, verbose=True
+    )
+    
     # Initialize GradScaler for Mixed Precision Training
     scaler = torch.amp.GradScaler('cuda')
 
     # --- 3. Training Loop ---
     logging.info("--- Starting Training ---")
+    
+    best_val_loss = float('inf')
+    
     for epoch in range(args.num_epochs):
         # --- Training Phase ---
         model.train()
@@ -219,10 +227,26 @@ def main():
         
         logging.info(f"Epoch {epoch+1}/{args.num_epochs} -> Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
 
-        # --- Save Checkpoint ---
-        checkpoint_path = config.CHECKPOINT_DIR / f"model_epoch_{epoch+1}.pth"
-        torch.save(model.state_dict(), checkpoint_path)
-        logging.info(f"Checkpoint saved: {checkpoint_path}")
+        # Step the scheduler
+        scheduler.step(avg_val_loss)
+
+        # --- Save Checkpoints ---
+        # 1. Save Latest (overwrite every epoch)
+        last_path = config.CHECKPOINT_DIR / "model_last.pth"
+        torch.save(model.state_dict(), last_path)
+        
+        # 2. Save Best
+        if avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
+            best_path = config.CHECKPOINT_DIR / "model_best.pth"
+            torch.save(model.state_dict(), best_path)
+            logging.info(f"New best model saved with val loss {best_val_loss:.4f}")
+
+        # 3. Save Periodic (every 5 epochs)
+        if (epoch + 1) % 5 == 0:
+            checkpoint_path = config.CHECKPOINT_DIR / f"model_epoch_{epoch+1}.pth"
+            torch.save(model.state_dict(), checkpoint_path)
+            logging.info(f"Periodic checkpoint saved: {checkpoint_path}")
 
     logging.info("--- Training Complete ---")
 

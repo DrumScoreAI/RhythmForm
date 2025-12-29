@@ -95,7 +95,6 @@ def main():
     # --- Find Model Files ---
     logging.info(f"Searching for .pth model files in {args.source_dir}...")
     model_files = glob(os.path.join(args.source_dir, "*.pth"))
-
     if not model_files:
         logging.warning(f"No .pth files found in {args.source_dir}. Nothing to upload.")
         return

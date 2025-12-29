@@ -20,7 +20,7 @@ S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 
-def upload_to_s3(file_path, bucket, object_name=None):
+def upload_to_s3(s3, file_path, bucket, object_name=None):
     """Upload a file to an S3-compatible bucket using s3fs."""
     if object_name is None:
         object_name = os.path.basename(file_path)
@@ -31,13 +31,6 @@ def upload_to_s3(file_path, bucket, object_name=None):
         return False
 
     try:
-        # Create S3 filesystem object
-        s3 = s3fs.S3FileSystem(
-            key=AWS_ACCESS_KEY_ID,
-            secret=AWS_SECRET_ACCESS_KEY,
-            client_kwargs={'endpoint_url': S3_ENDPOINT_URL}
-        )
-
         # Define the full S3 path
         s3_path = f"{bucket}/{object_name}"
 
@@ -98,6 +91,22 @@ def main():
         logging.error("Please set: S3_ENDPOINT_URL, --bucket-name <bucket_name> or S3_BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY")
         return
 
+    # --- Initialize S3 ---
+    try:
+        s3 = s3fs.S3FileSystem(
+            key=AWS_ACCESS_KEY_ID,
+            secret=AWS_SECRET_ACCESS_KEY,
+            client_kwargs={'endpoint_url': S3_ENDPOINT_URL}
+        )
+        
+        if not s3.exists(bucket_name):
+            logging.info(f"Bucket '{bucket_name}' does not exist. Creating it...")
+            s3.mkdir(bucket_name)
+            logging.info(f"Created bucket '{bucket_name}'.")
+    except Exception as e:
+        logging.error(f"Failed to initialize S3 or create bucket: {e}")
+        return
+
     # --- Find Model Files ---
     logging.info(f"Searching for .pth model files in {args.source_dir}...")
     model_files = glob(os.path.join(args.source_dir, "*.pth"))
@@ -133,10 +142,10 @@ def main():
 
     # --- Upload Models and Metadata ---
     for model_path in tqdm(model_files, desc="Uploading all models", unit="file"):
-        upload_to_s3(model_path, bucket_name)
+        upload_to_s3(s3, model_path, bucket_name)
     
     logging.info("Uploading metadata file...")
-    upload_to_s3(local_metadata_path, bucket_name, object_name=metadata_filename)
+    upload_to_s3(s3, local_metadata_path, bucket_name, object_name=metadata_filename)
     
     # Clean up local metadata file
     os.remove(local_metadata_path)

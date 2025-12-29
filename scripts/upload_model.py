@@ -25,6 +25,11 @@ def upload_to_s3(file_path, bucket, object_name=None):
     if object_name is None:
         object_name = os.path.basename(file_path)
 
+    # Verify local file exists
+    if not os.path.exists(file_path):
+        logging.error(f"Local file not found: {file_path}")
+        return False
+
     try:
         # Create S3 filesystem object
         s3 = s3fs.S3FileSystem(
@@ -40,23 +45,24 @@ def upload_to_s3(file_path, bucket, object_name=None):
         
         # Upload with progress bar using manual read/write to avoid s3.put path issues
         file_size = os.path.getsize(file_path)
-        with open(file_path, 'rb') as f_src, s3.open(s3_path, 'wb') as f_dst:
-            with tqdm(total=file_size, unit='B', unit_scale=True, desc=f"Uploading {os.path.basename(file_path)}", leave=False) as pbar:
-                while True:
-                    chunk = f_src.read(8 * 1024 * 1024)  # 8MB chunks
-                    if not chunk:
-                        break
-                    f_dst.write(chunk)
-                    pbar.update(len(chunk))
+        with open(file_path, 'rb') as f_src:
+            with s3.open(s3_path, 'wb') as f_dst:
+                with tqdm(total=file_size, unit='B', unit_scale=True, desc=f"Uploading {os.path.basename(file_path)}", leave=False) as pbar:
+                    while True:
+                        chunk = f_src.read(8 * 1024 * 1024)  # 8MB chunks
+                        if not chunk:
+                            break
+                        f_dst.write(chunk)
+                        pbar.update(len(chunk))
 
         logging.info(f"Successfully uploaded {os.path.basename(file_path)}.")
-    except FileNotFoundError:
-        logging.error(f"The file was not found: {file_path}")
-        return False
+        return True
+
     except Exception as e:
         logging.error(f"An error occurred during S3 upload for {file_path}: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
         return False
-    return True
 
 def main():
     """Main function to find and upload model checkpoints."""

@@ -96,14 +96,18 @@ def main():
         batch_size=args.batch_size,
         sampler=train_sampler,
         num_workers=args.num_workers,
-        collate_fn=lambda b: collate_fn(b, pad_token_id)
+        collate_fn=lambda b: collate_fn(b, pad_token_id),
+        pin_memory=True,
+        persistent_workers=(args.num_workers > 0)
     )
     val_loader = DataLoader(
         full_dataset,
         batch_size=args.batch_size, 
         sampler=validation_sampler,
         num_workers=args.num_workers,
-        collate_fn=lambda b: collate_fn(b, pad_token_id)
+        collate_fn=lambda b: collate_fn(b, pad_token_id),
+        pin_memory=True,
+        persistent_workers=(args.num_workers > 0)
     )
 
     # --- 2. Model, Loss, and Optimizer ---
@@ -119,6 +123,9 @@ def main():
 
     criterion = nn.CrossEntropyLoss(ignore_index=pad_token_id)
     optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
+    
+    # Initialize GradScaler for Mixed Precision Training
+    scaler = torch.amp.GradScaler('cuda')
 
     # --- 3. Training Loop ---
     print("\n--- Starting Training ---")
@@ -137,18 +144,21 @@ def main():
             decoder_input = targets[:, :-1]
             ground_truth = targets[:, 1:]
             
-            # Forward pass
+            # Forward pass with Mixed Precision
             optimizer.zero_grad()
-            output = model(images, decoder_input)
             
-            # Reshape for loss calculation
-            # Output: (batch, seq_len, vocab_size) -> (batch * seq_len, vocab_size)
-            # Ground Truth: (batch, seq_len) -> (batch * seq_len)
-            loss = criterion(output.reshape(-1, config.VOCAB_SIZE), ground_truth.reshape(-1))
+            with torch.amp.autocast('cuda'):
+                output = model(images, decoder_input)
+                
+                # Reshape for loss calculation
+                # Output: (batch, seq_len, vocab_size) -> (batch * seq_len, vocab_size)
+                # Ground Truth: (batch, seq_len) -> (batch * seq_len)
+                loss = criterion(output.reshape(-1, config.VOCAB_SIZE), ground_truth.reshape(-1))
             
-            # Backward pass and optimization
-            loss.backward()
-            optimizer.step()
+            # Backward pass and optimization with Scaler
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
             
             train_loss += loss.item()
             train_pbar.set_postfix({'loss': f"{loss.item():.4f}"})

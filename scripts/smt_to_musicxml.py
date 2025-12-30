@@ -1,6 +1,6 @@
 import argparse
 import re
-from music21 import stream, note, chord, meter, duration, layout, clef, repeat
+from music21 import stream, note, chord, meter, duration, layout, clef, repeat, percussion
 
 # --- SMT to music21 Mappings ---
 # Maps SMT instrument abbreviations to MIDI pitches and display properties for a standard drum map.
@@ -139,7 +139,7 @@ def main():
             
             if len(note_objects) > 1:
                 # Use a PercussionChord for multiple instruments at once
-                c = chord.PercussionChord(note_objects)
+                c = percussion.PercussionChord(note_objects)
                 current_measure.append(c)
             elif len(note_objects) == 1:
                 # Use a single Note

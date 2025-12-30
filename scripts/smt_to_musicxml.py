@@ -75,7 +75,8 @@ def main():
     # --- Build music21 Score ---
     score = stream.Score()
     part = stream.Part()
-    current_measure = stream.Measure()
+    measure_number = 1
+    current_measure = stream.Measure(number=measure_number)
 
     # Set up a default time signature and clef
     current_measure.append(meter.TimeSignature('4/4'))
@@ -91,7 +92,11 @@ def main():
             # Only append the measure if it has notes/rests in it
             if len(current_measure.notesAndRests) > 0:
                 part.append(current_measure)
-                current_measure = stream.Measure()
+                if current_measure.number % 4 == 0:
+                    part.append(layout.SystemLayout(isNew=True))
+                
+                measure_number += 1
+                current_measure = stream.Measure(number=measure_number)
         
         elif token["type"] == "timeSignature":
             current_measure.append(meter.TimeSignature(token["value"]))
@@ -100,12 +105,20 @@ def main():
             # If the current measure has content, append it first.
             if len(current_measure.notesAndRests) > 0:
                 part.append(current_measure)
+                if current_measure.number % 4 == 0:
+                    part.append(layout.SystemLayout(isNew=True))
+                measure_number += 1
+
             # Create a new measure specifically for the repeat mark
-            repeat_measure = stream.Measure()
+            repeat_measure = stream.Measure(number=measure_number)
             repeat_measure.append(repeat.RepeatMark())
             part.append(repeat_measure)
+            if repeat_measure.number % 4 == 0:
+                part.append(layout.SystemLayout(isNew=True))
+            
+            measure_number += 1
             # Start a new measure for subsequent notes
-            current_measure = stream.Measure()
+            current_measure = stream.Measure(number=measure_number)
 
         elif token["type"] == "rest":
             d = duration.Duration(DURATION_MAP.get(token["duration"], "quarter"))

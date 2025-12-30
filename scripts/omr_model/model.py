@@ -71,6 +71,33 @@ class ImageToStModel(nn.Module):
         mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
         return mask
 
+    def encode(self, src_image):
+        """Encodes the source image."""
+        # Process Image: Create patches, embed, and add positional encoding
+        src_embedded = self.patch_embedding(src_image)
+        src_embedded = src_embedded.flatten(2)
+        src_embedded = src_embedded.permute(0, 2, 1)
+        src_embedded = src_embedded.permute(1, 0, 2)
+        src_embedded = self.encoder_pos_encoder(src_embedded)
+        src_embedded = src_embedded.permute(1, 0, 2)
+        
+        # Pass through the transformer's encoder
+        return self.transformer.encoder(src_embedded)
+
+    def decode(self, tgt_sequence, memory):
+        """Decodes the target sequence using the encoder's memory."""
+        # Process Text: Embed and add positional encoding
+        tgt_embedded = self.decoder_embedding(tgt_sequence) * math.sqrt(self.d_model)
+        tgt_embedded = tgt_embedded.permute(1, 0, 2)
+        tgt_embedded = self.decoder_pos_encoder(tgt_embedded)
+        tgt_embedded = tgt_embedded.permute(1, 0, 2)
+
+        # Generate mask and pass through the transformer's decoder
+        tgt_mask = self.generate_square_subsequent_mask(tgt_sequence.size(1)).to(memory.device)
+        output = self.transformer.decoder(tgt_embedded, memory, tgt_mask=tgt_mask)
+        
+        return self.output_layer(output)
+
     def forward(self, src_image, tgt_sequence):
         """
         Forward pass of the model.
@@ -79,43 +106,11 @@ class ImageToStModel(nn.Module):
             src_image (Tensor): The input image tensor. Shape: (batch_size, channels, height, width)
             tgt_sequence (Tensor): The target ST token sequence. Shape: (batch_size, seq_len)
         """
-        # --- Process Image (Encoder) ---
-        # 1. Create patches and embed them
-        # Shape: (batch_size, d_model, num_patches_h, num_patches_w)
-        src_embedded = self.patch_embedding(src_image)
+        # Encode the source image
+        memory = self.encode(src_image)
         
-        # 2. Flatten patches into a sequence
-        # Shape: (batch_size, d_model, num_patches)
-        src_embedded = src_embedded.flatten(2)
-        
-        # 3. Transpose for Transformer: (batch_size, num_patches, d_model)
-        src_embedded = src_embedded.permute(0, 2, 1)
-        
-        # 4. Add positional encoding
-        # Note: PyTorch's PositionalEncoding expects (seq_len, batch_size, d_model)
-        # so we permute, apply, and permute back.
-        src_embedded = src_embedded.permute(1, 0, 2)
-        src_embedded = self.encoder_pos_encoder(src_embedded)
-        src_embedded = src_embedded.permute(1, 0, 2)
-        
-        # --- Process Text (Decoder) ---
-        # 1. Embed the target sequence
-        tgt_embedded = self.decoder_embedding(tgt_sequence) * math.sqrt(self.d_model)
-        
-        # 2. Add positional encoding
-        tgt_embedded = tgt_embedded.permute(1, 0, 2)
-        tgt_embedded = self.decoder_pos_encoder(tgt_embedded)
-        tgt_embedded = tgt_embedded.permute(1, 0, 2)
-
-        # --- Generate Masks ---
-        # Decoder needs a mask to not cheat and see future tokens
-        tgt_mask = self.generate_square_subsequent_mask(tgt_sequence.size(1)).to(src_image.device)
-        
-        # --- Pass through Transformer ---
-        output = self.transformer(src_embedded, tgt_embedded, tgt_mask=tgt_mask)
-        
-        # --- Final Output ---
-        output = self.output_layer(output)
+        # Decode the target sequence using the encoder's output
+        output = self.decode(tgt_sequence, memory)
         
         return output
 

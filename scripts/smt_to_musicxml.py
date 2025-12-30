@@ -32,10 +32,12 @@ def parse_token(token):
     if not token:
         return None
     
+    # Handle different types of barline tokens
+    if token in ["barline", "measure_break"]:
+        return {"type": "barline"}
+
     match = re.match(r"(\w+)\[(.*?)\]", token)
     if not match:
-        if token == "barline":
-            return {"type": "barline"}
         return None
 
     token_type, value = match.groups()
@@ -83,8 +85,10 @@ def main():
             continue
 
         if token["type"] == "barline":
-            part.append(current_measure)
-            current_measure = stream.Measure()
+            # Only append the measure if it has notes/rests in it
+            if len(current_measure.notesAndRests) > 0:
+                part.append(current_measure)
+                current_measure = stream.Measure()
         
         elif token["type"] == "timeSignature":
             current_measure.append(meter.TimeSignature(token["value"]))
@@ -98,12 +102,13 @@ def main():
             d = duration.Duration(DURATION_MAP.get(token["duration"], "quarter"))
             
             note_objects = []
-            for inst_abbr in token["instruments"]:
+            # FIX: Remove duplicate instruments before creating notes
+            unique_instruments = list(set(token["instruments"]))
+            
+            for inst_abbr in unique_instruments:
                 midi_pitch = INSTRUMENT_MAP.get(inst_abbr)
                 if midi_pitch:
                     n = note.Note(midi_pitch, duration=d)
-                    # You can add instrument information here if needed
-                    # n.stemDirection = 'up' # or 'down'
                     note_objects.append(n)
             
             if len(note_objects) > 1:

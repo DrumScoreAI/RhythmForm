@@ -1,6 +1,6 @@
 import argparse
 import re
-from music21 import stream, note, chord, meter, duration, layout
+from music21 import stream, note, chord, meter, duration, layout, clef
 
 # --- SMT to music21 Mappings ---
 # Maps SMT instrument abbreviations to MIDI pitches for a standard drum map.
@@ -75,8 +75,9 @@ def main():
     part = stream.Part()
     current_measure = stream.Measure()
 
-    # Set up a default time signature
+    # Set up a default time signature and clef
     current_measure.append(meter.TimeSignature('4/4'))
+    current_measure.append(clef.PercussionClef())
 
     print("Parsing tokens and building score...")
     for token_str in tokens:

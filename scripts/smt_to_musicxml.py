@@ -1,20 +1,20 @@
 import argparse
 import re
-from music21 import stream, note, chord, meter, duration, layout, clef
+from music21 import stream, note, chord, meter, duration, layout, clef, repeat
 
 # --- SMT to music21 Mappings ---
-# Maps SMT instrument abbreviations to MIDI pitches for a standard drum map.
+# Maps SMT instrument abbreviations to MIDI pitches and display properties for a standard drum map.
 INSTRUMENT_MAP = {
-    "BD": 36,  # Bass Drum
-    "SD": 38,  # Snare Drum
-    "HH": 42,  # Hi-Hat Closed
-    "HHO": 46, # Hi-Hat Open
-    "CY": 49,  # Crash Cymbal
-    "RD": 51,  # Ride Cymbal
-    "LT": 45,  # Low Tom
-    "MT": 47,  # Mid Tom
-    "HT": 50,  # High Tom
-    "FT": 41,  # Floor Tom
+    "BD":  {'midi': 36, 'display_step': "F", 'display_octave': 4, 'notehead': 'normal'},
+    "SD":  {'midi': 38, 'display_step': "C", 'display_octave': 5, 'notehead': 'normal'},
+    "HH":  {'midi': 42, 'display_step': "G", 'display_octave': 5, 'notehead': 'x'},
+    "HHO": {'midi': 46, 'display_step': "G", 'display_octave': 5, 'notehead': 'circle-x'},
+    "CY":  {'midi': 49, 'display_step': "A", 'display_octave': 5, 'notehead': 'x'},
+    "RD":  {'midi': 51, 'display_step': "B", 'display_octave': 5, 'notehead': 'x'},
+    "LT":  {'midi': 45, 'display_step': "A", 'display_octave': 4, 'notehead': 'normal'},
+    "MT":  {'midi': 47, 'display_step': "D", 'display_octave': 5, 'notehead': 'normal'},
+    "HT":  {'midi': 50, 'display_step': "E", 'display_octave': 5, 'notehead': 'normal'},
+    "FT":  {'midi': 41, 'display_step': "E", 'display_octave': 4, 'notehead': 'normal'},
 }
 
 # Maps SMT duration strings to music21 duration type strings.
@@ -44,6 +44,8 @@ def parse_token(token):
     
     if token_type == "timeSignature":
         return {"type": "timeSignature", "value": value}
+    elif token_type == "repeat" and value == "measure":
+        return {"type": "repeat"}
     elif token_type == "rest":
         return {"type": "rest", "duration": value}
     elif token_type == "note":
@@ -94,6 +96,17 @@ def main():
         elif token["type"] == "timeSignature":
             current_measure.append(meter.TimeSignature(token["value"]))
 
+        elif token["type"] == "repeat":
+            # If the current measure has content, append it first.
+            if len(current_measure.notesAndRests) > 0:
+                part.append(current_measure)
+            # Create a new measure specifically for the repeat mark
+            repeat_measure = stream.Measure()
+            repeat_measure.append(repeat.RepeatMark())
+            part.append(repeat_measure)
+            # Start a new measure for subsequent notes
+            current_measure = stream.Measure()
+
         elif token["type"] == "rest":
             d = duration.Duration(DURATION_MAP.get(token["duration"], "quarter"))
             r = note.Rest(duration=d)
@@ -107,9 +120,21 @@ def main():
             unique_instruments = list(set(token["instruments"]))
             
             for inst_abbr in unique_instruments:
-                midi_pitch = INSTRUMENT_MAP.get(inst_abbr)
-                if midi_pitch:
-                    n = note.Note(midi_pitch, duration=d)
+                inst_info = INSTRUMENT_MAP.get(inst_abbr)
+                if inst_info:
+                    # Use Unpitched for percussion notation
+                    n = note.Unpitched()
+                    n.duration = d
+                    n.display_step = inst_info['display_step']
+                    n.display_octave = inst_info['display_octave']
+                    n.notehead = inst_info['notehead']
+                    
+                    # Add a stem direction hint for clarity
+                    if n.display_step in ['F', 'G', 'A', 'B'] and n.display_octave == 4:
+                        n.stemDirection = 'down'
+                    else:
+                        n.stemDirection = 'up'
+
                     note_objects.append(n)
             
             if len(note_objects) > 1:

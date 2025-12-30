@@ -27,7 +27,10 @@ else:
     FINETUNE_PRETRAINED_MODEL_PATH = CHECKPOINT_DIR / 'best_model.pth'
 
 # --- Training Configuration ---
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+# Allow forcing CPU for inference/testing
+FORCE_CPU = os.environ.get("FORCE_CPU", "false").lower() == "true"
+DEVICE = "cpu" if FORCE_CPU else ("cuda" if torch.cuda.is_available() else "cpu")
+
 BATCH_SIZE = 1 # Adjust based on your GPU memory ( use 1 if running a CPU-based test )
 NUM_EPOCHS = 50
 FINE_NUM_EPOCHS = 10

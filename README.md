@@ -98,6 +98,14 @@ A transformer-based sequence-to-sequence model is trained on the dataset to lear
 - It runs the trained model on the PDF images to generate an ST string.
 - A separate script parses this ST string and uses the `music21` library to programmatically construct a MusicXML score, which is then saved to a file.
 
+#### Latest models
+The latest models can be found at:
+
+| S3 URI | Training strategy | Size |
+|--------|-------------------|------|
+| https://s3.eidf.ac.uk/rhythmform-models-sd/models_best.pth | Synthetic | 0 |
+| https://s3.eidf.ac.uk/rhythmform-models-ft/models_best.pth | Fine-tuned | 0 |
+
 ## Project Structure
 
 ```

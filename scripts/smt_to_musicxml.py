@@ -138,8 +138,8 @@ def main():
                     note_objects.append(n)
             
             if len(note_objects) > 1:
-                # Use a Chord for multiple instruments at once
-                c = chord.Chord(note_objects)
+                # Use a PercussionChord for multiple instruments at once
+                c = chord.PercussionChord(note_objects)
                 current_measure.append(c)
             elif len(note_objects) == 1:
                 # Use a single Note

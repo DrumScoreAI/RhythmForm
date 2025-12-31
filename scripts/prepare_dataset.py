@@ -11,7 +11,7 @@ from tqdm import tqdm
 import argparse
 import glob
 from scripts.omr_model import config
-from scripts.omr_model.utils import musicxml_to_st
+from scripts.omr_model.utils import musicxml_to_smt
 
 # --- Configuration ---
 IMAGE_DPI = config.IMAGE_DPI

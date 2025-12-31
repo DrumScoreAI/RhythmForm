@@ -7,8 +7,8 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from fractions import Fraction
 from tqdm import tqdm
 import argparse
-from omr_model import config
-from omr_model.utils import musicxml_to_smt
+from scripts.omr_model import config
+from scripts.omr_model.utils import musicxml_to_smt
 
 # --- Configuration ---
 IMAGE_DPI = config.IMAGE_DPI

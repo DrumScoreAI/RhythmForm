@@ -10,8 +10,8 @@ from fractions import Fraction
 from tqdm import tqdm
 import argparse
 import glob
-from omr_model import config
-from omr_model.utils import musicxml_to_st
+from scripts.omr_model import config
+from scripts.omr_model.utils import musicxml_to_st
 
 # --- Configuration ---
 IMAGE_DPI = config.IMAGE_DPI

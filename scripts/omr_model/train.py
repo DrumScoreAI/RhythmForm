@@ -211,8 +211,10 @@ def main():
         # --- Validation Phase ---
         model.eval()
         val_loss = 0.0
+        val_pbar = tqdm(val_loader, desc=f"Epoch {epoch+1}/{args.num_epochs} [Val]", file=sys.stdout)
+        
         with torch.no_grad():
-            for batch in val_loader:
+            for batch in val_pbar:
                 images = batch['image'].to(config.DEVICE)
                 targets = batch['target'].to(config.DEVICE)
                 

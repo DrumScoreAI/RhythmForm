@@ -20,6 +20,7 @@ FINE_TUNE_DIR = TRAINING_DATA_DIR / 'fine_tuning'
 PDF_INPUT_DIR = FINE_TUNE_DIR / 'pdfs'
 XML_INPUT_DIR = FINE_TUNE_DIR / 'musicxml'
 IMAGE_OUTPUT_DIR = FINE_TUNE_DIR / 'images'
+SMT_OUTPUT_DIR = FINE_TUNE_DIR / 'smt' # Added for clarity
 DATASET_JSON_PATH = FINE_TUNE_DIR / 'finetune_dataset.json'
 
 def process_pdf(pdf_path):
@@ -33,6 +34,7 @@ def process_pdf(pdf_path):
     print(f"Processing {pdf_path.name}...")
     xml_path = XML_INPUT_DIR / pdf_path.with_suffix('.musicxml').name
     png_path = IMAGE_OUTPUT_DIR / pdf_path.with_suffix('.png').name
+    smt_path = SMT_OUTPUT_DIR / pdf_path.with_suffix('.smt').name
 
     if not xml_path.exists():
         print(f"  -> Skipping: No corresponding MusicXML file found at {xml_path}")
@@ -43,6 +45,17 @@ def process_pdf(pdf_path):
     if not smt_string:
         print(f"  -> Skipping: Failed to generate SMT from {xml_path.name}")
         return None
+
+    # --- New: Save the generated SMT to a file for inspection ---
+    try:
+        SMT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        with open(smt_path, 'w') as f:
+            f.write(smt_string)
+        print(f"  -> Ground-truth SMT saved to {smt_path.name}")
+    except IOError as e:
+        print(f"  -> Error writing SMT file: {e}")
+        return None
+    # --- End new section ---
 
     # 2. Convert the PDF to a PNG image
     try:

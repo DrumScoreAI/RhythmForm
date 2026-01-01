@@ -20,11 +20,14 @@ DRUM_MIDI_TO_SMT = {
     49: 'CY', 57: 'CY', 51: 'RD', 59: 'RD', 55: 'CY', 52: 'CY', # Crash, Splash, Chinese
 }
 
-def _convert_note_to_smt(element):
+def _convert_note_to_smt(element, id_to_midi_map=None):
     """
     Converts a single music21 element (Note, Rest, Chord) to its SMT string representation.
     Internal helper function for musicxml_to_smt.
     """
+    if id_to_midi_map is None:
+        id_to_midi_map = {}
+
     if isinstance(element, music21.note.Rest):
         duration = Fraction(element.duration.quarterLength).limit_denominator()
         return f"rest[{duration}]"
@@ -39,9 +42,23 @@ def _convert_note_to_smt(element):
 
     instrument_names = set()
     for n in all_notes:
-        # In music21, percussion notes are often regular notes with MIDI pitches.
+        # In music21, percussion notes can be defined in multiple ways.
+        # This logic attempts to find the correct instrument sound.
+        inst = n.getInstrument(returnDefault=False)
+        midi_pitch = None
+
         if hasattr(n, 'pitch') and hasattr(n.pitch, 'midi'):
-            smt_name = DRUM_MIDI_TO_SMT.get(n.pitch.midi)
+            # Standard case: note with a MIDI pitch
+            midi_pitch = n.pitch.midi
+        elif inst and hasattr(inst, 'midiChannel') and inst.midiChannel == 10 and hasattr(inst, 'midiUnpitched'):
+            # Case for unpitched notes linked to a specific MIDI instrument definition
+            midi_pitch = inst.midiUnpitched
+        elif inst and hasattr(inst, 'id') and inst.id in id_to_midi_map:
+            # Case for unpitched notes where the instrument ID maps to a MIDI number
+            midi_pitch = id_to_midi_map[inst.id]
+        
+        if midi_pitch:
+            smt_name = DRUM_MIDI_TO_SMT.get(midi_pitch)
             if smt_name:
                 instrument_names.add(smt_name)
     
@@ -52,11 +69,14 @@ def _convert_note_to_smt(element):
     return f"note[{'&'.join(sorted_names)},{duration}]"
 
 
-def _measure_to_smt(measure, is_repeated=False):
+def _measure_to_smt(measure, is_repeated=False, id_to_midi_map=None):
     """
     Converts a single music21 measure to its SMT representation.
     If is_repeated is True, it returns a special repeat token.
     """
+    if id_to_midi_map is None:
+        id_to_midi_map = {}
+
     if is_repeated:
         return "repeat[measure]"
 
@@ -78,7 +98,7 @@ def _measure_to_smt(measure, is_repeated=False):
             # Create a chord from all notes at this offset for easier processing
             combined_element = music21.chord.Chord(elements)
 
-        token = _convert_note_to_smt(combined_element)
+        token = _convert_note_to_smt(combined_element, id_to_midi_map)
         if token:
             smt_tokens.append(token)
             
@@ -110,6 +130,12 @@ def musicxml_to_smt(score_path, repeated_measures=None):
         if not drum_part:
             drum_part = score.parts[0] # Fallback to the first part
 
+        # For unpitched percussion, create a map from instrument ID to MIDI number
+        id_to_midi_map = {}
+        for inst in drum_part.getElementsByClass('Instrument'):
+            if hasattr(inst, 'id') and hasattr(inst, 'midiUnpitched'):
+                id_to_midi_map[inst.id] = inst.midiUnpitched
+
         full_smt = []
         
         # Add initial time signature from the first measure
@@ -120,7 +146,7 @@ def musicxml_to_smt(score_path, repeated_measures=None):
 
         for measure in drum_part.getElementsByClass('Measure'):
             is_repeat = measure.number in repeated_measures
-            smt_measure_tokens = _measure_to_smt(measure, is_repeated=is_repeat)
+            smt_measure_tokens = _measure_to_smt(measure, is_repeated=is_repeat, id_to_midi_map=id_to_midi_map)
             if smt_measure_tokens: # Only add if the measure wasn't empty
                 full_smt.append(smt_measure_tokens)
         

@@ -101,6 +101,8 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
             repeated_measure_numbers.append(i + 1)
             # The new measure's elements become the basis for the next potential repeat
             previous_measure_elements = current_measure_elements
+            # The new measure's elements become the basis for the next potential repeat
+            previous_measure_elements = current_measure_elements
         else:
             # Generate a new, unique measure
             current_offset = 0.0

@@ -100,8 +100,10 @@ def musicxml_to_smt(score_path, repeated_measures=None):
         score = music21.converter.parse(score_path)
         drum_part = None
         for part in score.parts:
-            # Find the first part that is a percussion instrument
-            if part.getInstrument() and part.getInstrument().percussion:
+            # A more version-agnostic way to find the percussion part.
+            # We check the instrument's sound name.
+            instrument = part.getInstrument()
+            if instrument and ('percussion' in instrument.instrumentSound or 'drum' in instrument.instrumentSound):
                 drum_part = part
                 break
         

@@ -97,7 +97,7 @@ def main():
         dropout=config.DROPOUT
     )
     
-    checkpoint_path = config.CHECKPOINT_DIR / args.model_name
+    checkpoint_path = args.checkpoint_path
     print(f"Loading model from: {checkpoint_path}")
     try:
         model.load_state_dict(torch.load(checkpoint_path, map_location=config.DEVICE))

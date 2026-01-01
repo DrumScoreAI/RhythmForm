@@ -111,19 +111,22 @@ def main():
         avg_train_loss = train_loss / len(train_loader)
 
         # Validation
-        model.eval()
-        val_loss = 0.0
-        with torch.no_grad():
-            for batch in val_loader:
-                images = batch['image'].to(device)
-                targets = batch['target'].to(device)
-                decoder_input = targets[:, :-1]
-                ground_truth = targets[:, 1:]
-                output = model(images, decoder_input)
-                loss = criterion(output.reshape(-1, tokenizer.vocab_size), ground_truth.reshape(-1))
-                val_loss += loss.item()
-        avg_val_loss = val_loss / len(val_loader)
-        print(f"Epoch {epoch+1}/{args.num_epochs} -> Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
+        if len(val_loader) > 0:
+            model.eval()
+            val_loss = 0.0
+            with torch.no_grad():
+                for batch in val_loader:
+                    images = batch['image'].to(device)
+                    targets = batch['target'].to(device)
+                    decoder_input = targets[:, :-1]
+                    ground_truth = targets[:, 1:]
+                    output = model(images, decoder_input)
+                    loss = criterion(output.reshape(-1, tokenizer.vocab_size), ground_truth.reshape(-1))
+                    val_loss += loss.item()
+            avg_val_loss = val_loss / len(val_loader)
+            print(f"Epoch {epoch+1}/{args.num_epochs} -> Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
+        else:
+            print(f"Epoch {epoch+1}/{args.num_epochs} -> Train Loss: {avg_train_loss:.4f} (No validation)")
 
         # Save checkpoint
         output_dir = Path(args.output_dir)

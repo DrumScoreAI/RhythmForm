@@ -71,7 +71,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run inference on a PDF file to generate an SMT string.")
     parser.add_argument('--pdf-path', type=str, required=True, help='Path to the input PDF file.')
     parser.add_argument('--output-path', type=str, required=True, help='Path to save the generated SMT text file.')
-    parser.add_argument('--model-name', type=str, default='model_best.pth', help='Name of the model checkpoint file to use (e.g., model_best.pth).')
+    parser.add_argument('--checkpoint-path', type=str, required=True, help='Full path to the model checkpoint file to use.')
     parser.add_argument('--beam-width', type=int, default=5, help='Beam width for beam search decoding.')
     args = parser.parse_args()
 

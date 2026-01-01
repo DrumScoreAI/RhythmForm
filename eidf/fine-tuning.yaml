@@ -24,7 +24,7 @@ spec:
           "-m",
           "scripts.omr_model.fine_tune",
           "--batch-size", "1",
-          "--learning-rate", "0.00005",
+          "--learning-rate", "0.000001",
           "--num-epochs", "20",
           "--num-workers", "4",
           "--validation-split", "0",

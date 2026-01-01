@@ -1,0 +1,57 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: rhythmform-finetuning
+  labels:
+    kueue.x-k8s.io/queue-name: eidf235ns-user-queue
+spec:
+  completions: 1
+  template:
+    metadata:
+      name: finetuning-pod
+    spec:
+      restartPolicy: Never
+      imagePullSecrets:
+        - name: eidfreg
+      containers:
+      - name: trainer
+        image: registry.eidf.ac.uk/eidf235/rhythmform:latest
+        env:
+          - name: PYTORCH_ALLOC_CONF
+            value: "expandable_segments:True"
+        args: [
+          "python",
+          "-m",
+          "scripts.omr_model.fine_tune",
+          "--batch-size", "1",
+          "--learning-rate", "0.00005",
+          "--num-epochs", "20",
+          "--num-workers", "4",
+          "--validation-split", "0",
+          "--pretrained-checkpoint", "/app/training_data/checkpoints/model_epoch_50.pth",
+          "--finetune-dataset", "/app/training_data/fine_tuning/finetune_dataset.json",
+          "--output-dir", "/app/training_data/checkpoints/fine_tuned"
+        ]
+        volumeMounts:
+          - mountPath: /app/training_data
+            name: training-data-volume
+          - mountPath: /dev/shm
+            name: dshm
+        resources:
+          requests:
+            cpu: 8
+            memory: "64Gi"
+          limits:
+            cpu: 8
+            memory: "128Gi"
+            nvidia.com/gpu: 1
+      nodeSelector:
+        nvidia.com/gpu.product: NVIDIA-A100-SXM4-40GB
+      volumes:
+        - name: training-data-volume
+          persistentVolumeClaim:
+            claimName: training-data
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Gi

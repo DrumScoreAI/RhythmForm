@@ -174,10 +174,9 @@ def _convert_note_to_smt(element, duration, id_to_midi_map=None):
     return f"note[{note_str},{duration}]"
 
 
-def _measure_to_smt(measure, duration_map, is_repeated=False, id_to_midi_map=None):
+def _measure_to_smt_bs(measure_elem, duration_map, is_repeated=False, id_to_midi_map=None):
     """
-    Converts a single music21 measure to its SMT representation.
-    If is_repeated is True, it returns a special repeat token.
+    Converts a single BeautifulSoup measure element to its SMT representation.
     """
     if id_to_midi_map is None:
         id_to_midi_map = {}
@@ -186,56 +185,118 @@ def _measure_to_smt(measure, duration_map, is_repeated=False, id_to_midi_map=Non
         return "repeat[measure]"
 
     smt_tokens = []
-    if measure:
-        element_idx = 0
-        for element in measure.notesAndRests:
-            # Retrieve the correct duration from our pre-parsed map
-            duration = duration_map.get((measure.number, element_idx), Fraction(element.duration.quarterLength).limit_denominator())
-            
-            token = _convert_note_to_smt(element, duration, id_to_midi_map)
-            if token:
-                smt_tokens.append(token)
-            
-            # Only increment for non-chord elements
-            if not (isinstance(element, music21.note.Note) and element.isChord):
-                element_idx += 1
+    measure_number = int(measure_elem.get('number', 0))
+    
+    element_idx = 0
+    for element in measure_elem.find_all(['note', 'forward', 'backup'], recursive=False):
+        if element.name == 'note' and element.find('chord'):
+            continue
+
+        duration = duration_map.get((measure_number, element_idx), Fraction(0))
+        
+        token = _convert_note_to_smt_bs(element, duration, id_to_midi_map)
+        if token:
+            smt_tokens.append(token)
+        
+        element_idx += 1
             
     return " ".join(smt_tokens)
 
 
+def _convert_note_to_smt_bs(element, duration, id_to_midi_map=None):
+    """
+    Converts a single BeautifulSoup element (note, rest) to its SMT string representation.
+    """
+    if id_to_midi_map is None:
+        id_to_midi_map = {}
+
+    if element.name == 'note' and element.find('rest'):
+        return f"rest[{duration}]"
+
+    all_notes = []
+    if element.name == 'note':
+        all_notes.append(element)
+    
+    # Chords are handled by processing subsequent <note> tags with a <chord/> element
+    # This logic is simplified by skipping chord notes in the calling function.
+
+    smt_notes = []
+    for note_elem in all_notes:
+        # Unpitched notes
+        unpitched = note_elem.find('unpitched')
+        if unpitched:
+            display_step = unpitched.find('display-step').string
+            display_octave = int(unpitched.find('display-octave').string)
+            notehead = note_elem.find('notehead')
+            notehead_text = notehead.string if notehead else 'normal'
+            
+            display_key = (display_step, display_octave, notehead_text)
+            if display_key in DRUM_DISPLAY_TO_SMT:
+                smt_notes.append(DRUM_DISPLAY_TO_SMT[display_key])
+                continue
+
+    if not smt_notes:
+        return None
+
+    note_str = ".".join(sorted(list(set(smt_notes))))
+    return f"note[{note_str},{duration}]"
+
+
+
 def musicxml_to_smt(xml_path):
     """
-    Converts a MusicXML file to its SMT representation.
+    Converts a MusicXML file to its SMT representation using BeautifulSoup.
     This is the main entry point for MusicXML to SMT conversion.
     """
     try:
-        # Use music21 to parse the score. It's good at handling the overall structure.
-        score = music21.converter.parse(xml_path)
+        with open(xml_path, 'r', encoding='utf-8') as f:
+            soup = BeautifulSoup(f, 'xml')
     except Exception as e:
-        print(f"Error parsing MusicXML file with music21: {e}")
+        print(f"Error reading MusicXML file: {e}")
         return ""
 
-    # Directly parse the XML to get accurate duration and instrument info,
-    # bypassing potential music21 parsing bugs.
-    duration_map = _get_duration_map_from_xml(xml_path)
     id_to_midi_map = _extract_instrument_map_from_xml(xml_path)
+    duration_map = _get_duration_map_from_xml(xml_path)
 
-    # Get the first instrument part (assuming single-instrument scores for now)
-    part = score.parts[0] if score.parts else None
-    if not part:
-        return ""
+    header_tokens = []
+    first_measure = soup.find('measure')
+    if first_measure:
+        # Get Clef
+        clef_sign = first_measure.find('sign')
+        if clef_sign and clef_sign.string == 'percussion':
+            header_tokens.append("clef[percussion]")
+
+        # Get Time Signature
+        time_sig = first_measure.find('time')
+        if time_sig and time_sig.find('beats') and time_sig.find('beat-type'):
+            beats = time_sig.find('beats').string
+            beat_type = time_sig.find('beat-type').string
+            header_tokens.append(f"time[{beats}/{beat_type}]")
 
     smt_measures = []
-    for measure in part.getElementsByClass('Measure'):
-        # Check for repeat signs. music21 can identify repeats.
-        is_repeated = False
-        if measure.leftBarline and isinstance(measure.leftBarline, music21.bar.Repeat) and measure.leftBarline.direction == 'end':
-            is_repeated = True
+    all_measures = soup.find_all('measure')
+    for measure_elem in all_measures:
+        measure_number = int(measure_elem.get('number', 0))
         
-        measure_smt = _measure_to_smt(measure, duration_map, is_repeated=is_repeated, id_to_midi_map=id_to_midi_map)
+        # Check for repeats
+        is_repeated = False
+        barline = measure_elem.find('barline')
+        if barline and barline.find('repeat') and barline.find('repeat').get('direction') == 'backward':
+            is_repeated = True
+
+        measure_smt = _measure_to_smt_bs(measure_elem, duration_map, is_repeated=is_repeated, id_to_midi_map=id_to_midi_map)
         if measure_smt:
             smt_measures.append(measure_smt)
 
-    return " | ".join(smt_measures)
+    header_str = " ".join(header_tokens)
+    body_str = " | ".join(smt_measures)
+
+    if header_str and body_str:
+        return f"{header_str} | {body_str}"
+    elif body_str:
+        return body_str
+    else:
+        return ""
+
 
 

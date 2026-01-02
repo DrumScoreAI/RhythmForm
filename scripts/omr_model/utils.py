@@ -232,3 +232,4 @@ def musicxml_to_smt(score_path, repeated_measures=None):
         import traceback
         traceback.print_exc()
         return None
+    

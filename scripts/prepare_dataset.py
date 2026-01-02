@@ -139,6 +139,14 @@ def process_file(xml_path, write_smt=False):
     st = musicxml_to_smt(xml_path, repeated_measures)
     if not st:
         return None
+    
+    if write_smt:
+        smt_output_path = SMT_OUTPUT_DIR / xml_path.with_suffix('.smt').name
+        try:
+            with open(smt_output_path, 'w') as f:
+                f.write(st)
+        except Exception as e:
+            print(f"  -> Warning: Could not write SMT file {smt_output_path.name}: {e}")
 
     # --- 2. Render Image (with repeats if necessary) ---
     xml_to_render = xml_path
@@ -217,7 +225,10 @@ def main():
     )
     args = parser.parse_args()
     num_cores = args.cores or os.cpu_count() or 1
-    write_smt_files = args.write_smt
+    if args.write_smt:
+        write_smt_files = args.write_smt
+    else:
+        write_smt_files = False
 
     # Ensure output directories exist
     OUTPUT_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
@@ -294,7 +305,7 @@ def main():
     # Use ProcessPoolExecutor for parallel processing
     with ProcessPoolExecutor(max_workers=num_cores) as executor:
         # Submit each chunk to a worker
-        future_to_chunk = {executor.submit(process_chunk, chunk): chunk for chunk in chunks}
+        future_to_chunk = {executor.submit(process_chunk, chunk, write_smt_files): chunk for chunk in chunks}
         
         for future in tqdm(as_completed(future_to_chunk), total=len(chunks), desc="Processing chunks"):
             chunk_results = future.result()

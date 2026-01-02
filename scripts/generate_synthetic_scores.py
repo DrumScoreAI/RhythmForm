@@ -67,8 +67,22 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
     part_name = random.choice(PART_NAMES)
     drum_part.partName = part_name
     drum_part.partAbbreviation = part_name[:3] + '.'
-    
-    drum_part.insert(0, music21.instrument.Percussion())
+
+    # --- THIS IS THE FIX: Define all instruments and add them to the part's instrument list ---
+    instrument_definitions = {}
+    # Clear any default instruments music21 might have added
+    drum_part.instruments = [] 
+    for name, (midi_num, _, _) in active_instruments.items():
+        inst = music21.instrument.Percussion()
+        inst.midiChannel = 10
+        inst.midiUnpitched = midi_num
+        inst_id = f"P{midi_num}"
+        inst.instrumentId = inst_id
+        instrument_definitions[midi_num] = inst
+        # Add the instrument to the part's list of instruments.
+        # This is the correct way to ensure they appear in the <part-list>.
+        drum_part.instruments.append(inst)
+
     drum_part.insert(0, music21.clef.PercussionClef())
     drum_part.insert(0, music21.meter.TimeSignature('4/4'))
 
@@ -99,8 +113,6 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
             
             # Mark this measure number for later modification in prepare_dataset.py
             repeated_measure_numbers.append(i + 1)
-            # The new measure's elements become the basis for the next potential repeat
-            previous_measure_elements = current_measure_elements
             # The new measure's elements become the basis for the next potential repeat
             previous_measure_elements = current_measure_elements
         else:
@@ -135,6 +147,11 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
                         unpitched_note.displayStep = p.step
                         unpitched_note.displayOctave = p.octave + 2
                         unpitched_note.notehead = notehead_style
+                        
+                        # --- THIS IS THE FIX ---
+                        # Refer to the predefined instrument object by its ID.
+                        # music21 will create the correct <instrument id="..."> tag.
+                        unpitched_note.instrument = instrument_definitions[midi_num]
                         
                         if is_chord:
                             note_event.add(unpitched_note)

@@ -4,9 +4,7 @@ from fractions import Fraction
 # This file contains shared utility functions for the OMR model,
 # primarily for converting between MusicXML and Symbolic Music Text (SMT) formats.
 
-# --- Drum MIDI to SMT Mapping ---
-# This dictionary maps MIDI numbers to the SMT representation.
-# It's consolidated here to be the single source of truth.
+# --- Drum MIDI to SMT and Display-Step to SMT Mappings ---
 DRUM_MIDI_TO_SMT = {
     # Bass Drums
     35: 'BD', 36: 'BD',
@@ -19,6 +17,33 @@ DRUM_MIDI_TO_SMT = {
     # Cymbals
     49: 'CY', 57: 'CY', 51: 'RD', 59: 'RD', 55: 'CY', 52: 'CY', # Crash, Splash, Chinese
 }
+
+# This maps the visual representation (staff line, octave, and notehead) back to an SMT token.
+# This is crucial for parsing generated scores that use <unpitched>.
+# The key is a tuple: (displayStep, displayOctave, notehead)
+DRUM_DISPLAY_TO_SMT = {
+    # Bass Drum on F, octave 4
+    ('F', 4, 'normal'): 'BD',
+    # Snare on C, octave 5
+    ('C', 5, 'normal'): 'SD',
+    # Side Stick on C, octave 5 with x notehead
+    ('C', 5, 'x'): 'SD',
+    # Closed Hi-Hat on G, octave 5 with x notehead
+    ('G', 5, 'x'): 'HH',
+    # Open Hi-Hat on G, octave 5 with circle-x notehead
+    ('G', 5, 'circle-x'): 'HHO',
+    # Pedal Hi-Hat on E, octave 4 with x notehead
+    ('E', 4, 'x'): 'HH',
+    # Crash Cymbal on A, octave 5 with cross notehead
+    ('A', 5, 'cross'): 'CY',
+    # Ride Cymbal on B, octave 5 with cross notehead
+    ('B', 5, 'cross'): 'RD',
+    # Low Tom on A, octave 4
+    ('A', 4, 'normal'): 'FT',
+    # High Tom on E, octave 5
+    ('E', 5, 'normal'): 'HT',
+}
+
 
 def _convert_note_to_smt(element, id_to_midi_map=None):
     """
@@ -38,31 +63,54 @@ def _convert_note_to_smt(element, id_to_midi_map=None):
     if isinstance(element, music21.note.Note):
         all_notes.append(element)
     elif isinstance(element, music21.chord.ChordBase):
-        all_notes.extend(element.notes)
+        # For PercussionChord, notes are in the notes attribute
+        all_notes.extend(element.notes if hasattr(element, 'notes') else element)
+
 
     instrument_names = set()
     for n in all_notes:
-        # In music21, percussion notes can be defined in multiple ways.
-        # This logic attempts to find the correct instrument sound.
-        inst = n.getInstrument(returnDefault=False)
+        smt_name = None
         midi_pitch = None
-
-        if hasattr(n, 'pitch') and hasattr(n.pitch, 'midi'):
-            # Standard case: note with a MIDI pitch
-            midi_pitch = n.pitch.midi
-        elif inst and hasattr(inst, 'midiChannel') and inst.midiChannel == 10 and hasattr(inst, 'midiUnpitched'):
-            # Case for unpitched notes linked to a specific MIDI instrument definition
-            midi_pitch = inst.midiUnpitched
-        elif inst and hasattr(inst, 'id') and inst.id in id_to_midi_map:
-            # Case for unpitched notes where the instrument ID maps to a MIDI number
-            midi_pitch = id_to_midi_map[inst.id]
         
-        if midi_pitch:
+        # --- THIS IS THE FIX ---
+        # The logic is reordered to be more robust.
+        # 1. Prioritize the instrument ID link, which is the most reliable method.
+        # 2. Fallback to other methods for compatibility.
+        inst = n.getInstrument() # FIX: Use the getInstrument() method to retrieve the assigned instrument.
+        if inst and hasattr(inst, 'instrumentId') and inst.instrumentId in id_to_midi_map:
+            # Preferred method: The note is explicitly linked to an instrument definition
+            # via an ID. This works with the new, correct MusicXML generation.
+            midi_pitch = id_to_midi_map.get(inst.instrumentId)
+            if midi_pitch:
+                smt_name = DRUM_MIDI_TO_SMT.get(midi_pitch)
+        
+        if not smt_name and hasattr(n, 'pitch') and hasattr(n.pitch, 'midi'):
+            # Fallback 1: Standard case for a note with a MIDI pitch.
+            midi_pitch = n.pitch.midi
             smt_name = DRUM_MIDI_TO_SMT.get(midi_pitch)
-            if smt_name:
-                instrument_names.add(smt_name)
+
+        if not smt_name and isinstance(n, music21.note.Unpitched):
+            # Fallback 2: Case for <unpitched> notes where we guess from visual properties.
+            # This is less reliable but useful for some generated scores.
+            notehead = n.notehead if n.notehead else 'normal'
+            display_step = n.displayStep if hasattr(n, 'displayStep') else None
+            if display_step:
+                # Create a more specific key to avoid collisions
+                display_key = (display_step, n.displayOctave, notehead)
+                smt_name = DRUM_DISPLAY_TO_SMT.get(display_key)
+
+        if not smt_name and inst and hasattr(inst, 'midiChannel') and inst.midiChannel == 10 and hasattr(inst, 'midiUnpitched'):
+            # Fallback 3: Case for old-style files where the instrument was embedded in the note.
+            midi_pitch = inst.midiUnpitched
+            smt_name = DRUM_MIDI_TO_SMT.get(midi_pitch)
+        
+        if smt_name:
+            instrument_names.add(smt_name)
     
     if not instrument_names:
+        # If after all checks, we still have nothing, log it for debugging.
+        # Return None so it doesn't create an empty 'note[]' token.
+        # print(f"DEBUG: Could not determine instrument for element: {element} with notes {all_notes}")
         return None
 
     sorted_names = sorted(list(instrument_names))
@@ -80,27 +128,12 @@ def _measure_to_smt(measure, is_repeated=False, id_to_midi_map=None):
     if is_repeated:
         return "repeat[measure]"
 
-    # Group elements by offset to correctly handle chords
-    elements_by_offset = {}
-    for el in measure.notesAndRests:
-        if el.offset not in elements_by_offset:
-            elements_by_offset[el.offset] = []
-        elements_by_offset[el.offset].append(el)
-
     smt_tokens = []
-    for offset in sorted(elements_by_offset.keys()):
-        elements = elements_by_offset[offset]
-        
-        # For chords, music21 might represent them as multiple notes at the same offset
-        # or as a Chord object. We'll treat them as a single event.
-        combined_element = elements[0]
-        if len(elements) > 1:
-            # Create a chord from all notes at this offset for easier processing
-            combined_element = music21.chord.Chord(elements)
-
-        token = _convert_note_to_smt(combined_element, id_to_midi_map)
-        if token:
-            smt_tokens.append(token)
+    if measure:
+        for element in measure.notesAndRests:
+            token = _convert_note_to_smt(element, id_to_midi_map)
+            if token:
+                smt_tokens.append(token)
             
     return " ".join(smt_tokens)
 
@@ -110,8 +143,8 @@ def musicxml_to_smt(score_path, repeated_measures=None):
     Converts a full MusicXML file to a single-line SMT string.
     - Parses a MusicXML file into a music21 stream.
     - Extracts the drum part.
-    - Converts each measure to SMT, handling repeats if specified.
-    - Joins measures with 'measure_break'.
+    - Iterates through all elements of the flattened part stream to ensure order.
+    - Joins measure-related tokens with 'measure_break'.
     """
     if repeated_measures is None:
         repeated_measures = []
@@ -119,40 +152,57 @@ def musicxml_to_smt(score_path, repeated_measures=None):
     try:
         score = music21.converter.parse(score_path)
         drum_part = None
+        
+        # Find the drum part (same logic as before)
         for part in score.parts:
-            # A more version-agnostic way to find the percussion part.
-            # We check the instrument's sound name.
-            instrument = part.getInstrument()
-            if instrument and ('percussion' in instrument.instrumentSound or 'drum' in instrument.instrumentSound):
+            if part.getElementsByClass('PercussionClef'):
                 drum_part = part
                 break
-        
         if not drum_part:
-            drum_part = score.parts[0] # Fallback to the first part
+            for part in score.parts:
+                instrument = part.getInstrument()
+                if instrument and any(s in (instrument.instrumentSound or '').lower() for s in ['percussion', 'drum']) or any(s in (instrument.instrumentName or '').lower() for s in ['batterie', 'schlagzeug']):
+                    drum_part = part
+                    break
+        if not drum_part:
+            drum_part = score.parts[0] if score.parts else None
 
-        # For unpitched percussion, create a map from instrument ID to MIDI number
+        if not drum_part:
+            print(f"Error: No parts found in {score_path}")
+            return None
+
+        # --- THIS IS THE FIX ---
+        # Create the instrument ID to MIDI map by iterating through the score's part list,
+        # which is where music21 stores the <score-instrument> definitions after parsing.
         id_to_midi_map = {}
-        for inst in drum_part.getElementsByClass('Instrument'):
-            if hasattr(inst, 'id') and hasattr(inst, 'midiUnpitched'):
-                id_to_midi_map[inst.id] = inst.midiUnpitched
-
-        full_smt = []
+        for p in score.parts:
+            for inst in p.getElementsByClass('Instrument'):
+                 if hasattr(inst, 'instrumentId') and hasattr(inst, 'midiUnpitched'):
+                    id_to_midi_map[inst.instrumentId] = inst.midiUnpitched
         
-        # Add initial time signature from the first measure
-        first_measure = drum_part.measure(1)
-        if first_measure and first_measure.timeSignature:
-            ts = first_measure.timeSignature
-            full_smt.append(f"timeSignature[{ts.numerator}/{ts.denominator}]")
+        smt_components = []
+        
+        # Process metadata that appears before the first measure
+        clef = drum_part.getElementsByClass('Clef').first()
+        if clef and isinstance(clef, music21.clef.PercussionClef):
+            smt_components.append("clef[percussion]")
+            
+        ts = drum_part.getElementsByClass('TimeSignature').first()
+        if ts:
+            smt_components.append(f"timeSignature[{ts.numerator}/{ts.denominator}]")
 
+        # Process measures
         for measure in drum_part.getElementsByClass('Measure'):
             is_repeat = measure.number in repeated_measures
-            smt_measure_tokens = _measure_to_smt(measure, is_repeated=is_repeat, id_to_midi_map=id_to_midi_map)
-            if smt_measure_tokens: # Only add if the measure wasn't empty
-                full_smt.append(smt_measure_tokens)
+            measure_smt = _measure_to_smt(measure, is_repeated=is_repeat, id_to_midi_map=id_to_midi_map)
+            if measure_smt:
+                smt_components.append(measure_smt)
         
-        final_smt = " measure_break ".join(full_smt)
+        final_smt = " measure_break ".join(smt_components)
         return " ".join(final_smt.strip().split())
 
     except Exception as e:
         print(f"Error parsing {score_path} with music21: {e}")
+        import traceback
+        traceback.print_exc()
         return None

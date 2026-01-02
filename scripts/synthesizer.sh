@@ -118,7 +118,7 @@ clean_training_data() {
     echo "Cleaning files from $TRAINING_DATA_DIR..."
 
     # Find and delete the specified file types, excluding the fine_tuning directory
-    find "$TRAINING_DATA_DIR" -path "$TRAINING_DATA_DIR/fine_tuning" -prune -o -type f \( -name "*.xml" -o -name "*.pdf" -o -name "*.png" -o -name "*.csv" \) -exec rm -vf {} +
+    find "$TRAINING_DATA_DIR" -path "$TRAINING_DATA_DIR/fine_tuning" -prune -o -type f \( -name "*.xml" -o -name "*.pdf" -o -name "*.png" -o -name "*.csv" -o -name "*.json" -o -name "*.smt" \) -exec rm -vf {} +
 
     echo "Cleanup complete."
 }
@@ -167,7 +167,7 @@ start_count=$(find $TRAINING_DATA_DIR/pdfs -name "*.pdf" 2>/dev/null | wc -l)
 echo "Converting MusicXML files to PDF using $num_cores cores..."
 # Use xvfb-run -a to start a single Xvfb instance for all parallel conversions
 # Filter out "Invalid QML element name" messages from mscore
-xvfb-run -a bash -c "cat $temp3 | xargs -P $half_cores -I {} bash -c '$RHYTHMFORMHOME/scripts/mscore_convert.sh \"\$0\" 2> >(grep -v \"Invalid QML element name\" >&2)' {}" &
+xvfb-run -a bash -c "cat $temp3 | xargs -P $half_cores -I {} bash -c '$RHYTHMFORMHOME/scripts/mscore_convert.sh \"\$0\" &> >(grep -v \"Invalid QML element name\" >&2)' {}" &
 pid=$!
 
 # Monitor progress

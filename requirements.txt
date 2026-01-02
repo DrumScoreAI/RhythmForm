@@ -12,6 +12,7 @@ pandas>=2.0.0
 # Music format handling
 music21>=9.1.0
 lxml>=4.9.0
+beautifulsoup4>=4.12.3
 
 # PDF and Image handling
 PyPDF2>=3.0.0

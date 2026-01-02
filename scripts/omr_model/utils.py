@@ -145,19 +145,20 @@ def _convert_note_to_smt(element, duration, id_to_midi_map=None):
 
     smt_notes = []
     for note_obj in all_notes:
-        # Try to get SMT from instrument MIDI mapping first
-        if note_obj.instrument and note_obj.instrument.instrumentId in id_to_midi_map:
-            midi_num = id_to_midi_map[note_obj.instrument.instrumentId]
-            if midi_num in DRUM_MIDI_TO_SMT:
-                smt_notes.append(DRUM_MIDI_TO_SMT[midi_num])
-                continue
-
         # Fallback for unpitched notes using display properties
         if isinstance(note_obj, music21.note.Unpitched):
             notehead = note_obj.notehead if note_obj.notehead else 'normal'
             display_key = (note_obj.displayStep, note_obj.displayOctave, notehead)
             if display_key in DRUM_DISPLAY_TO_SMT:
                 smt_notes.append(DRUM_DISPLAY_TO_SMT[display_key])
+                continue
+
+        # Try to get SMT from instrument MIDI mapping first
+        instrument = note_obj.getInstrument()
+        if instrument and instrument.instrumentId in id_to_midi_map:
+            midi_num = id_to_midi_map[instrument.instrumentId]
+            if midi_num in DRUM_MIDI_TO_SMT:
+                smt_notes.append(DRUM_MIDI_TO_SMT[midi_num])
                 continue
 
         # Fallback to MIDI pitch number for pitched notes
@@ -200,5 +201,41 @@ def _measure_to_smt(measure, duration_map, is_repeated=False, id_to_midi_map=Non
                 element_idx += 1
             
     return " ".join(smt_tokens)
+
+
+def musicxml_to_smt(xml_path):
+    """
+    Converts a MusicXML file to its SMT representation.
+    This is the main entry point for MusicXML to SMT conversion.
+    """
+    try:
+        # Use music21 to parse the score. It's good at handling the overall structure.
+        score = music21.converter.parse(xml_path)
+    except Exception as e:
+        print(f"Error parsing MusicXML file with music21: {e}")
+        return ""
+
+    # Directly parse the XML to get accurate duration and instrument info,
+    # bypassing potential music21 parsing bugs.
+    duration_map = _get_duration_map_from_xml(xml_path)
+    id_to_midi_map = _extract_instrument_map_from_xml(xml_path)
+
+    # Get the first instrument part (assuming single-instrument scores for now)
+    part = score.parts[0] if score.parts else None
+    if not part:
+        return ""
+
+    smt_measures = []
+    for measure in part.getElementsByClass('Measure'):
+        # Check for repeat signs. music21 can identify repeats.
+        is_repeated = False
+        if measure.leftBarline and isinstance(measure.leftBarline, music21.bar.Repeat) and measure.leftBarline.direction == 'end':
+            is_repeated = True
+        
+        measure_smt = _measure_to_smt(measure, duration_map, is_repeated=is_repeated, id_to_midi_map=id_to_midi_map)
+        if measure_smt:
+            smt_measures.append(measure_smt)
+
+    return " | ".join(smt_measures)
 
 

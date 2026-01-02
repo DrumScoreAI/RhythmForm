@@ -136,7 +136,7 @@ def process_file(xml_path, write_smt=False):
             # This is not a critical error, so we just print a warning.
             print(f"  -> Warning: Could not read or parse JSON {json_path.name}: {e}")
 
-    st = musicxml_to_st(xml_path, repeated_measures)
+    st = musicxml_to_smt(xml_path, repeated_measures)
     if not st:
         return None
 

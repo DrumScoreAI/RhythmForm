@@ -207,7 +207,7 @@ echo "Manifest file created at $TRAINING_DATA_DIR/training_data.csv."
 echo "Preparing data for training using $num_cores cores..."
 if [ "$write_smt" == "true" ]; then
     echo "SMT writing enabled. SMT files will be written to training_data/smt directory."
-    python $RHYTHMFORMHOME/scripts/prepare_dataset.py --cores $num_cores --write_smt
+    python $RHYTHMFORMHOME/scripts/prepare_dataset.py --cores $num_cores --write-smt
 else
     python $RHYTHMFORMHOME/scripts/prepare_dataset.py --cores $num_cores
 fi

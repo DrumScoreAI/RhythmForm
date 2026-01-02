@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -e
 # Default values
 num_scores=30
 num_cores=1
@@ -12,6 +12,7 @@ usage() {
     echo "  -n, --num-cores NUM      Number of cores to use (default: 1)"
     echo "  -S, --use_stdout         Log to stdout instead of file"
     echo "  -c, --continuation       Continue previous synthesis run"
+    echo "  -w, --write_smt          Write SMT files to training_data/smt directory"
     echo "  -h, --help               Show this help message"
 }
 
@@ -31,6 +32,9 @@ while [ "$1" != "" ]; do
             ;;
         -c | --continuation)
             continuation=true
+            ;;
+        -w | --write_smt)
+            write_smt=true
             ;;
         -h | --help)
             usage
@@ -113,8 +117,8 @@ clean_training_data() {
     # training_data directory, while preserving the directory structure.
     echo "Cleaning files from $TRAINING_DATA_DIR..."
 
-    # Find and delete the specified file types
-    find "$TRAINING_DATA_DIR" -type f \( -name "*.xml" -o -name "*.pdf" -o -name "*.png" -o -name "*.csv" \) -exec rm -vf {} \;
+    # Find and delete the specified file types, excluding the fine_tuning directory
+    find "$TRAINING_DATA_DIR" -path "$TRAINING_DATA_DIR/fine_tuning" -prune -o -type f \( -name "*.xml" -o -name "*.pdf" -o -name "*.png" -o -name "*.csv" \) -exec rm -vf {} +
 
     echo "Cleanup complete."
 }
@@ -201,7 +205,12 @@ echo "Manifest file created at $TRAINING_DATA_DIR/training_data.csv."
 
 # Prepare data for training
 echo "Preparing data for training using $num_cores cores..."
-python $RHYTHMFORMHOME/scripts/prepare_dataset.py --cores $num_cores
+if [ "$write_smt" == "true" ]; then
+    echo "SMT writing enabled. SMT files will be written to training_data/smt directory."
+    python $RHYTHMFORMHOME/scripts/prepare_dataset.py --cores $num_cores --write_smt
+else
+    python $RHYTHMFORMHOME/scripts/prepare_dataset.py --cores $num_cores
+fi
 echo "Data preparation complete."
 
 # Run tokenizer

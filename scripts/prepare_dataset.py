@@ -1,3 +1,4 @@
+import sys
 import os
 from pathlib import Path
 import csv
@@ -20,9 +21,15 @@ TRAINING_DATA_DIR = config.TRAINING_DATA_DIR
 XML_DIR = config.XML_DIR
 OUTPUT_IMAGE_DIR = config.DATA_IMAGES_DIR
 PDF_OUTPUT_DIR = config.PDF_OUTPUT_DIR
+SMT_OUTPUT_DIR = TRAINING_DATA_DIR / 'smt'
 MANIFEST_FILE = config.MANIFEST_FILE
 DATASET_JSON_PATH = config.DATASET_JSON_PATH
 MUSESCORE_PATH = os.environ.get("MUSESCORE_PATH", "mscore4portable") # Use environment variable or default
+
+# Add project root to sys.path to allow running from anywhere
+project_root = Path(__file__).resolve().parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 def create_repeat_modified_xml(original_xml_path, repeated_measures):
     """
@@ -102,11 +109,11 @@ def create_repeat_modified_xml(original_xml_path, repeated_measures):
         return original_xml_path
 
 
-def process_file(xml_path):
+def process_file(xml_path, write_smt=False):
     """
     Processes a single MusicXML file:
     1. Checks for a companion .json for repeat info.
-    2. Generates ST, using 'repeat[bar,1]' token if needed.
+    2. Generates ST, using 'repeat[bar,1]' token if needed (optionally writing to disk with `write_smt`).
     3. Creates a temporary, modified XML if repeats exist.
     4. Renders the appropriate XML to PDF and then to PNG.
     5. Cleans up temporary files.
@@ -176,14 +183,14 @@ def process_file(xml_path):
         #     pdf_path.unlink()
 
 
-def process_chunk(xml_paths_chunk):
+def process_chunk(xml_paths_chunk, write_smt=False):
     """
     Worker function to process a chunk of XML files.
     This runs in a separate process.
     """
     results = []
     for xml_path in xml_paths_chunk:
-        result = process_file(xml_path)
+        result = process_file(xml_path, write_smt)
         if result:
             results.append(result)
     return results
@@ -202,12 +209,20 @@ def main():
         default=None,
         help="Number of CPU cores to use for parallel processing (default: use all available cores)."
     )
+    parser.add_argument(
+        "--write-smt",
+        action="store_true",
+        help="Write SMT files to training_data/smt directory."
+    )
     args = parser.parse_args()
     num_cores = args.cores or os.cpu_count() or 1
+    write_smt_files = args.write_smt
 
     # Ensure output directories exist
     OUTPUT_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
     PDF_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    if write_smt_files:
+        SMT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     if not MANIFEST_FILE.exists():
         print(f"Error: Manifest file not found at {MANIFEST_FILE}")

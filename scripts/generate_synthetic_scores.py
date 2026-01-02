@@ -16,18 +16,18 @@ XML_OUTPUT_DIR = TRAINING_DATA_DIR / 'musicxml'
 
 
 # --- Expanded drum instrument definition with notehead styles ---
-# The tuple is (midi_number, staff_line_position, notehead_style)
+# The tuple is (midi_number, display_step, display_octave, notehead_style)
 DRUM_INSTRUMENTS = {
-    'Bass Drum':    (36, -1, 'normal'),
-    'Acoustic Snare':(38, 2, 'normal'),
-    'Side Stick':   (37, 2, 'x'),
-    'Closed Hi-Hat':(42, 4, 'x'),
-    'Open Hi-Hat':  (46, 4, 'circle-x'),
-    'Pedal Hi-Hat': (44, -2, 'x'),
-    'Crash Cymbal': (49, 5, 'cross'),
-    'Ride Cymbal':  (51, 6, 'cross'),
-    'Low Tom':      (45, 1, 'normal'),
-    'High Tom':     (50, 3, 'normal'),
+    'Bass Drum':    (36, 'F', 4, 'normal'),
+    'Acoustic Snare':(38, 'C', 5, 'normal'),
+    'Side Stick':   (37, 'C', 5, 'x'),
+    'Closed Hi-Hat':(42, 'G', 5, 'x'),
+    'Open Hi-Hat':  (46, 'G', 5, 'circle-x'),
+    'Pedal Hi-Hat': (44, 'E', 4, 'x'),
+    'Crash Cymbal': (49, 'A', 5, 'cross'),
+    'Ride Cymbal':  (51, 'B', 5, 'cross'),
+    'Low Tom':      (45, 'A', 4, 'normal'),
+    'High Tom':     (50, 'E', 5, 'normal'),
 }
 
 # Possible note/rest durations (in quarter lengths)
@@ -72,7 +72,7 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
     instrument_definitions = {}
     # Clear any default instruments music21 might have added
     drum_part.instruments = [] 
-    for name, (midi_num, _, _) in active_instruments.items():
+    for name, (midi_num, _, _, _) in active_instruments.items():
         inst = music21.instrument.Percussion()
         inst.midiChannel = 10
         inst.midiUnpitched = midi_num
@@ -140,12 +140,11 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
                     instruments_in_chord = random.sample(list(active_instruments.keys()), num_notes_in_event)
 
                     for instrument_name in instruments_in_chord:
-                        midi_num, staff_pos, notehead_style = active_instruments[instrument_name]
+                        midi_num, d_step, d_octave, notehead_style = active_instruments[instrument_name]
                         
                         unpitched_note = music21.note.Unpitched()
-                        p = music21.pitch.Pitch(midi=midi_num)
-                        unpitched_note.displayStep = p.step
-                        unpitched_note.displayOctave = p.octave + 2
+                        unpitched_note.displayStep = d_step
+                        unpitched_note.displayOctave = d_octave
                         unpitched_note.notehead = notehead_style
                         
                         # --- THIS IS THE FIX ---

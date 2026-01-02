@@ -46,6 +46,56 @@ DRUM_DISPLAY_TO_SMT = {
 }
 
 
+def _get_duration_map_from_xml(xml_path):
+    """
+    Parses the MusicXML to create a mapping from measure and element index
+    to its correct fractional duration. This avoids music21's parsing bugs.
+    The key is a tuple (measure_number, element_index_in_measure), and the
+    value is the duration as a Fraction.
+    """
+    duration_map = {}
+    try:
+        with open(xml_path, 'r', encoding='utf-8') as f:
+            soup = BeautifulSoup(f, 'xml')
+
+        # MusicXML can define divisions in <part-wise><part><measure><attributes><divisions>
+        # We will assume the first one found is the one to use for the whole score.
+        first_divisions_tag = soup.find('divisions')
+        divisions = int(first_divisions_tag.string) if first_divisions_tag and first_divisions_tag.string else 1
+
+        all_measures = soup.find_all('measure')
+        for measure_elem in all_measures:
+            measure_number = int(measure_elem.get('number', 0))
+            
+            # A measure can override the default divisions
+            attributes = measure_elem.find('attributes')
+            if attributes:
+                measure_divisions_tag = attributes.find('divisions')
+                if measure_divisions_tag and measure_divisions_tag.string:
+                    divisions = int(measure_divisions_tag.string)
+            
+            element_idx = 0
+            # Find all direct children 'note' of the measure
+            for element in measure_elem.find_all(['note', 'forward', 'backup'], recursive=False):
+                # Skip chord elements as they don't advance time in the same way
+                if element.name == 'note' and element.find('chord'):
+                    continue
+
+                duration_tag = element.find('duration')
+                if duration_tag and duration_tag.string:
+                    raw_duration = int(duration_tag.string)
+                    if divisions > 0:
+                        duration = Fraction(raw_duration, divisions).limit_denominator()
+                        duration_map[(measure_number, element_idx)] = duration
+                
+                element_idx += 1
+                    
+    except Exception as e:
+        print(f"Warning: Could not build duration map from {xml_path}: {e}")
+        
+    return duration_map
+
+
 def _extract_instrument_map_from_xml(xml_path):
     """
     Directly parses the MusicXML file using BeautifulSoup to find <score-instrument>
@@ -74,7 +124,7 @@ def _extract_instrument_map_from_xml(xml_path):
     return id_to_midi_map
 
 
-def _convert_note_to_smt(element, id_to_midi_map=None):
+def _convert_note_to_smt(element, duration, id_to_midi_map=None):
     """
     Converts a single music21 element (Note, Rest, Chord) to its SMT string representation.
     Internal helper function for musicxml_to_smt.
@@ -83,10 +133,8 @@ def _convert_note_to_smt(element, id_to_midi_map=None):
         id_to_midi_map = {}
 
     if isinstance(element, music21.note.Rest):
-        duration = Fraction(element.duration.quarterLength).limit_denominator()
         return f"rest[{duration}]"
 
-    duration = Fraction(element.duration.quarterLength).limit_denominator()
     
     all_notes = []
     if isinstance(element, music21.note.Note):
@@ -146,7 +194,7 @@ def _convert_note_to_smt(element, id_to_midi_map=None):
     return f"note[{'&'.join(sorted_names)},{duration}]"
 
 
-def _measure_to_smt(measure, is_repeated=False, id_to_midi_map=None):
+def _measure_to_smt(measure, duration_map, is_repeated=False, id_to_midi_map=None):
     """
     Converts a single music21 measure to its SMT representation.
     If is_repeated is True, it returns a special repeat token.
@@ -159,10 +207,18 @@ def _measure_to_smt(measure, is_repeated=False, id_to_midi_map=None):
 
     smt_tokens = []
     if measure:
+        element_idx = 0
         for element in measure.notesAndRests:
-            token = _convert_note_to_smt(element, id_to_midi_map)
+            # Retrieve the correct duration from our pre-parsed map
+            duration = duration_map.get((measure.number, element_idx), Fraction(element.duration.quarterLength).limit_denominator())
+            
+            token = _convert_note_to_smt(element, duration, id_to_midi_map)
             if token:
                 smt_tokens.append(token)
+            
+            # Only increment for non-chord elements
+            if not (isinstance(element, music21.note.Note) and element.isChord):
+                element_idx += 1
             
     return " ".join(smt_tokens)
 
@@ -180,12 +236,14 @@ def musicxml_to_smt(score_path, repeated_measures=None):
         repeated_measures = []
 
     # --- THIS IS THE DEFINITIVE FIX ---
-    # 1. Manually parse the XML to build the instrument map.
+    # 1. Manually parse the XML to build the instrument and duration maps.
     id_to_midi_map = _extract_instrument_map_from_xml(score_path)
+    duration_map = _get_duration_map_from_xml(score_path)
 
     try:
         # 2. Now, parse the score with music21 to get the structure.
         score = music21.converter.parse(score_path)
+        
         drum_part = None
         
         # Find the drum part (same logic as before)
@@ -220,7 +278,7 @@ def musicxml_to_smt(score_path, repeated_measures=None):
         # Process measures
         for measure in drum_part.getElementsByClass('Measure'):
             is_repeat = measure.number in repeated_measures
-            measure_smt = _measure_to_smt(measure, is_repeated=is_repeat, id_to_midi_map=id_to_midi_map)
+            measure_smt = _measure_to_smt(measure, duration_map, is_repeated=is_repeat, id_to_midi_map=id_to_midi_map)
             if measure_smt:
                 smt_components.append(measure_smt)
         
@@ -232,4 +290,3 @@ def musicxml_to_smt(score_path, repeated_measures=None):
         import traceback
         traceback.print_exc()
         return None
-    

@@ -211,6 +211,10 @@ if [ "$write_smt" == "true" ]; then
 else
     python $RHYTHMFORMHOME/scripts/prepare_dataset.py --cores $num_cores
 fi
+if [ $? -ne 0 ]; then
+    echo "Error during data preparation."
+    exit 1
+fi
 echo "Data preparation complete."
 
 # Run tokenizer

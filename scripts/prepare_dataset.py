@@ -1,6 +1,12 @@
 import sys
-import os
 from pathlib import Path
+import os
+
+# Add project root to sys.path to allow running from anywhere
+project_root = Path(__file__).resolve().parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 import csv
 import music21
 import subprocess
@@ -25,11 +31,6 @@ SMT_OUTPUT_DIR = TRAINING_DATA_DIR / 'smt'
 MANIFEST_FILE = config.MANIFEST_FILE
 DATASET_JSON_PATH = config.DATASET_JSON_PATH
 MUSESCORE_PATH = os.environ.get("MUSESCORE_PATH", "mscore4portable") # Use environment variable or default
-
-# Add project root to sys.path to allow running from anywhere
-project_root = Path(__file__).resolve().parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
 
 def create_repeat_modified_xml(original_xml_path, repeated_measures):
     """

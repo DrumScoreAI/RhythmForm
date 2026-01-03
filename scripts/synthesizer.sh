@@ -167,26 +167,14 @@ start_count=$(find $TRAINING_DATA_DIR/pdfs -name "*.pdf" 2>/dev/null | wc -l)
 echo "Converting MusicXML files to PDF using $num_cores cores..."
 # Use xvfb-run -a to start a single Xvfb instance for all parallel conversions
 # Filter out "Invalid QML element name" messages from mscore
-xvfb-run -a bash -c "cat $temp3 | xargs -P $half_cores -I {} bash -c '$RHYTHMFORMHOME/scripts/mscore_convert.sh \"\$0\" &> >(grep -v \"Invalid QML element name\" >&2)' {}" &
-pid=$!
+if ! xvfb-run -a bash -c "cat $temp3 | xargs -P $half_cores -I {} bash -c '$RHYTHMFORMHOME/scripts/mscore_convert.sh \"\$0\" &> >(grep -v \"Invalid QML element name\" >&2)' {}"; then
+    echo "Error: PDF conversion failed. One or more mscore_convert.sh processes may have been terminated."
+    echo "This can happen due to high memory usage. Check the logs of the failed pod for more details."
+    exit 1
+fi
+# The process is now run in the foreground, so we don't need to monitor it with a while loop.
+# The script will wait here until all conversions are complete.
 
-# Monitor progress
-echo "Monitoring PDF conversion progress (PID: $pid)..."
-while ps -p $pid > /dev/null; do
-    current_count=$(find $TRAINING_DATA_DIR/pdfs -name "*.pdf" 2>/dev/null | wc -l)
-    # Calculate how many new PDFs have been created by this run
-    newly_created=$((current_count - start_count))
-    echo -ne "  -> Generated $newly_created / $this_total PDFs...\r"
-    if [ "$newly_created" -ge "$this_total" ]; then
-        break
-    fi
-    sleep 2
-done
-
-# Final count and newline
-current_count=$(find $TRAINING_DATA_DIR/pdfs -name "*.pdf" 2>/dev/null | wc -l)
-newly_created=$((current_count - start_count))
-echo -e "\n  -> Generated $newly_created / $this_total PDFs."
 
 echo "Conversion to PDF complete."
 

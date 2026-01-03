@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  generateName: rhythmform-training
+  name: rhythmform-training
   labels:
     kueue.x-k8s.io/queue-name: eidf235ns-user-queue
 spec:

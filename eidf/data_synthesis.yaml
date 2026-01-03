@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  generateName: synthesis-continuation
+  name: synthesis-continuation
   labels:
     kueue.x-k8s.io/queue-name: eidf235ns-user-queue
 spec:

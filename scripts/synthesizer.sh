@@ -205,6 +205,11 @@ if [ $? -ne 0 ]; then
 fi
 echo "Data preparation complete."
 
+# Clean up
+echo "Cleaning up any orphaned files..."
+bash $RHYTHMFORMHOME/scripts/clean_up_synth.sh $TRAINING_DATA_DIR $RHYTHMFORMHOME/scripts $num_cores
+echo "Cleanup complete."
+
 # Run tokenizer
 echo "Running tokenizer (serial)..."
 python $RHYTHMFORMHOME/scripts/omr_model/tokenizer.py --cores $num_cores

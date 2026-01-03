@@ -16,7 +16,7 @@ spec:
       containers:
       - name: synthesizer
         image: registry.eidf.ac.uk/eidf235/rhythmform-cpu:latest
-        args: ["/app/scripts/synthesizer.sh", "-s", "600", "-n", "60", "-c"]
+        args: ["/app/scripts/synthesizer.sh", "-s", "600", "-n", "60", "-c", "-w"]
         volumeMounts:
           - mountPath: /app/training_data
             name: training-data-volume

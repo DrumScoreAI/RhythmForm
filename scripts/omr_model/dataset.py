@@ -29,7 +29,6 @@ class ScoreDataset(Dataset):
         self.tokenizer = tokenizer
         self.transform = transform
 
-        print(f"Loading dataset manifest from: {self.manifest_path}")
         if not self.manifest_path.exists():
             raise FileNotFoundError(f"Manifest file not found at {self.manifest_path}")
 

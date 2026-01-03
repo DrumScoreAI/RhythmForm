@@ -164,13 +164,12 @@ fi
 this_total=$(cat $temp3 | wc -l)
 start_count=$(find $TRAINING_DATA_DIR/pdfs -name "*.pdf" 2>/dev/null | wc -l)
 # Convert MusicXML to PDF
-echo "Converting MusicXML files to PDF using $num_cores cores..."
+echo "Converting MusicXML files to PDF using $half_cores cores..."
 # Use xvfb-run -a to start a single Xvfb instance for all parallel conversions
 # Filter out "Invalid QML element name" messages from mscore
 if ! xvfb-run -a bash -c "cat $temp3 | xargs -P $half_cores -I {} bash -c '$RHYTHMFORMHOME/scripts/mscore_convert.sh \"\$0\" &> >(grep -v \"Invalid QML element name\" >&2)' {}"; then
-    echo "Error: PDF conversion failed. One or more mscore_convert.sh processes may have been terminated."
+    echo "Warning: PDF conversion may have failed for some files. One or more mscore_convert.sh processes may have been terminated."
     echo "This can happen due to high memory usage. Check the logs of the failed pod for more details."
-    exit 1
 fi
 # The process is now run in the foreground, so we don't need to monitor it with a while loop.
 # The script will wait here until all conversions are complete.

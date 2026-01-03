@@ -8,7 +8,7 @@ continuation=false
 
 usage() {
     echo "Usage: $0 [-s|--scores NUM] [-n|--num-cores NUM] [-S|--use_stdout] [-c|--continuation]"
-    echo "  -s, --scores NUM         Number of scores to generate (default: 30)"
+    echo "  -s, --scores NUM         Target number of scores, s (default: 30). If continuation is set, will generate s - c scores, where c is the current number of scores."
     echo "  -n, --num-cores NUM      Number of cores to use (default: 1)"
     echo "  -S, --use_stdout         Log to stdout instead of file"
     echo "  -c, --continuation       Continue previous synthesis run"

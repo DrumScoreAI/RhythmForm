@@ -12,7 +12,7 @@ pid=$!
 
 # Monitor progress
 if [ "$DRYRUN" == "dryrun" ]; then
-    echo "Dry run mode - not monitoring deletion of unpaired files."
+    echo "Dry run mode - listing, not monitoring deletion of unpaired files."
     wait $pid
     exit 0
 fi
@@ -24,7 +24,7 @@ while ps -p $pid > /dev/null; do
     current_count_xml=$(find musicxml -type f 2>/dev/null | wc -l)
     current_count_pdf=$(find pdfs -type f 2>/dev/null | wc -l)
     current_count_image=$(find images -type f 2>/dev/null | wc -l)
-    # Calculate how many new PDFs have been created by this run
+
     deleted_xml=$((start_count_xml - current_count_xml))
     deleted_pdf=$((start_count_pdf - current_count_pdf))
     deleted_image=$((start_count_image - current_count_image))
@@ -33,5 +33,5 @@ while ps -p $pid > /dev/null; do
 done
 
 
-
+echo "Manually remove the following missing image files from dataset.json:"
 for i in `grep image_path dataset.json | awk -F\" '{print $4}'`; do exists=`ls $i`; if [ -z $exists ]; then echo $i does not exist; fi; done

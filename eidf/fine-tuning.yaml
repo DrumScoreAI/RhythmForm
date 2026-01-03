@@ -8,7 +8,7 @@ spec:
   completions: 1
   template:
     metadata:
-      name: finetuning-pod
+      generateName: finetuning-pod
     spec:
       restartPolicy: Never
       imagePullSecrets:

@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: synthesis-continuation
+  labels:
+    kueue.x-k8s.io/queue-name: eidf235ns-user-queue
+spec:
+  completions: 1
+  template:
+    metadata:
+      name: synthesis-pod
+    spec:
+      restartPolicy: Never
+      imagePullSecrets:
+        - name: eidfreg
+      containers:
+      - name: synthesizer
+        image: registry.eidf.ac.uk/eidf235/rhythmform-cpu:latest
+        args: ["/app/scripts/synthesizer.sh", "-s", "600", "-n", "60", "-c"]
+        volumeMounts:
+          - mountPath: /app/training_data
+            name: training-data-volume
+        resources:
+          requests:
+            cpu: 64
+            memory: "128Gi"
+          limits:
+            cpu: 64
+            memory: "256Gi"
+            nvidia.com/gpu: 0
+        env:
+          - name: "S3_ENDPOINT_URL"
+            value: "https://s3.eidf.ac.uk"
+          - name: "AWS_ACCESS_KEY_ID"
+            valueFrom:
+              secretKeyRef:
+                name: s3-credentials
+                key: access-key
+          - name: "AWS_SECRET_ACCESS_KEY"
+            valueFrom:
+              secretKeyRef:
+                name: s3-credentials
+                key: secret-key
+          - name: "S3_BUCKET_NAME"
+            value: "rhythmformdatasets"
+      volumes:
+        - name: training-data-volume
+          persistentVolumeClaim:
+            claimName: training-data

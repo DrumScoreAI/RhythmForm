@@ -1,14 +1,14 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: rhythmform-training
+  generateName: rhythmform-training
   labels:
     kueue.x-k8s.io/queue-name: eidf235ns-user-queue
 spec:
   completions: 1
   template:
     metadata:
-      generateName: training-pod
+      name: training-pod
     spec:
       restartPolicy: Never
       imagePullSecrets:

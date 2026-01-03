@@ -1,14 +1,14 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: rhythmform-finetuning
+  generateName: rhythmform-finetuning
   labels:
     kueue.x-k8s.io/queue-name: eidf235ns-user-queue
 spec:
   completions: 1
   template:
     metadata:
-      generateName: finetuning-pod
+      name: finetuning-pod
     spec:
       restartPolicy: Never
       imagePullSecrets:

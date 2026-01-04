@@ -28,7 +28,8 @@ spec:
           "--num-epochs", "50",
           "--num-workers", "16",
           "--validation-split", "0.1",
-          "--log-stdout"
+          "--log-stdout",
+          "--resume-from", "/app/training_data/checkpoints/model_last.pth"
         ]
         volumeMounts:
           - mountPath: /app/training_data

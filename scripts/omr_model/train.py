@@ -62,6 +62,7 @@ def parse_args():
     parser.add_argument('--validation-split', type=float, default=config.VALIDATION_SPLIT, help='Validation data split ratio')
     parser.add_argument('--log-file', type=str, default=None, help='Path to log file')
     parser.add_argument('--log-stdout', action='store_true', help='Log to stdout as well')
+    parser.add_argument('--resume-from', type=str, default=None, help='Path to a checkpoint file to resume training from.')
     return parser.parse_args()
 
 def main():
@@ -154,6 +155,16 @@ def main():
         dim_feedforward=config.DIM_FEEDFORWARD,
         dropout=config.DROPOUT
     ).to(config.DEVICE)
+
+    # --- Resume from Checkpoint ---
+    if args.resume_from:
+        if os.path.exists(args.resume_from):
+            logging.info(f"Resuming training from checkpoint: {args.resume_from}")
+            # Load the state dict, making sure it's on the correct device
+            model.load_state_dict(torch.load(args.resume_from, map_location=config.DEVICE))
+        else:
+            logging.warning(f"Checkpoint file not found at {args.resume_from}. Starting training from scratch.")
+
 
     criterion = nn.CrossEntropyLoss(ignore_index=pad_token_id)
     optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)

@@ -122,7 +122,7 @@ def main():
         # More severe geometric transformations
         transforms.RandomAffine(degrees=10, translate=(0.1, 0.1), scale=(0.85, 1.15), shear=5),
         # Paper-like distortions
-        transforms.RandomElasticTransform(alpha=75.0, sigma=5.0, p=0.5),
+        transforms.RandomApply([transforms.ElasticTransform(alpha=75.0, sigma=5.0)], p=0.5),
         transforms.RandomPerspective(distortion_scale=0.2, p=0.5),
         # More severe color jitter
         transforms.ColorJitter(brightness=0.4, contrast=0.4),

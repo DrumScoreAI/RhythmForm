@@ -194,7 +194,7 @@ def main():
     
     # Learning Rate Scheduler
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode='min', factor=0.5, patience=3, verbose=True
+        optimizer, mode='min', factor=0.5, patience=3
     )
     
     # Initialize GradScaler for Mixed Precision Training
@@ -265,6 +265,10 @@ def main():
 
         # Step the scheduler
         scheduler.step(avg_val_loss)
+
+        # Log the new learning rate
+        new_lr = optimizer.param_groups[0]['lr']
+        logging.info(f"Current learning rate: {new_lr}")
 
         # --- Save Checkpoints ---
         # 1. Save Latest (overwrite every epoch)

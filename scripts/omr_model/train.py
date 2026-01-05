@@ -156,12 +156,35 @@ def main():
         dropout=config.DROPOUT
     ).to(config.DEVICE)
 
+    # --- DataParallel for Multi-GPU ---
+    if torch.cuda.device_count() > 1:
+        logging.info(f"Using {torch.cuda.device_count()} GPUs!")
+        model = nn.DataParallel(model)
+
     # --- Resume from Checkpoint ---
     if args.resume_from:
         if os.path.exists(args.resume_from):
             logging.info(f"Resuming training from checkpoint: {args.resume_from}")
-            # Load the state dict, making sure it's on the correct device
-            model.load_state_dict(torch.load(args.resume_from, map_location=config.DEVICE))
+            checkpoint = torch.load(args.resume_from, map_location=config.DEVICE)
+            
+            # Handle the case where the checkpoint was saved from a DataParallel model
+            # and we are now running on a single GPU, or vice-versa.
+            is_dataparallel = isinstance(model, nn.DataParallel)
+            checkpoint_is_dataparallel = all(k.startswith('module.') for k in checkpoint.keys())
+
+            if is_dataparallel and not checkpoint_is_dataparallel:
+                # Add 'module.' prefix to state_dict keys for DataParallel model
+                logging.info("Loading single-GPU checkpoint into DataParallel model.")
+                new_state_dict = {'module.' + k: v for k, v in checkpoint.items()}
+                model.load_state_dict(new_state_dict)
+            elif not is_dataparallel and checkpoint_is_dataparallel:
+                # Remove 'module.' prefix for single-GPU model
+                logging.info("Loading DataParallel checkpoint into single-GPU model.")
+                new_state_dict = {k.replace('module.', ''): v for k, v in checkpoint.items()}
+                model.load_state_dict(new_state_dict)
+            else:
+                # Keys match, load directly
+                model.load_state_dict(checkpoint)
         else:
             logging.warning(f"Checkpoint file not found at {args.resume_from}. Starting training from scratch.")
 
@@ -246,19 +269,28 @@ def main():
         # --- Save Checkpoints ---
         # 1. Save Latest (overwrite every epoch)
         last_path = config.CHECKPOINT_DIR / "model_last.pth"
-        torch.save(model.state_dict(), last_path)
+        if isinstance(model, nn.DataParallel):
+            torch.save(model.module.state_dict(), last_path)
+        else:
+            torch.save(model.state_dict(), last_path)
         
         # 2. Save Best
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
             best_path = config.CHECKPOINT_DIR / "model_best.pth"
-            torch.save(model.state_dict(), best_path)
+            if isinstance(model, nn.DataParallel):
+                torch.save(model.module.state_dict(), best_path)
+            else:
+                torch.save(model.state_dict(), best_path)
             logging.info(f"New best model saved with val loss {best_val_loss:.4f}")
 
         # 3. Save Periodic (every 5 epochs)
         if (epoch + 1) % 5 == 0:
             checkpoint_path = config.CHECKPOINT_DIR / f"model_epoch_{epoch+1}.pth"
-            torch.save(model.state_dict(), checkpoint_path)
+            if isinstance(model, nn.DataParallel):
+                torch.save(model.module.state_dict(), checkpoint_path)
+            else:
+                torch.save(model.state_dict(), checkpoint_path)
             logging.info(f"Periodic checkpoint saved: {checkpoint_path}")
 
     logging.info("--- Training Complete ---")

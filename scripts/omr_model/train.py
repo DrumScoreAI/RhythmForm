@@ -20,6 +20,22 @@ from .dataset import ScoreDataset
 from .tokenizer import StTokenizer
 from .model import ImageToStModel
 
+# Custom Transform for adding Gaussian Noise
+class AddGaussianNoise(object):
+    def __init__(self, mean=0., std=0.1, p=0.5):
+        self.mean = mean
+        self.std = std
+        self.p = p
+
+    def __call__(self, tensor):
+        if torch.rand(1) < self.p:
+            return tensor + torch.randn(tensor.size()) * self.std + self.mean
+        return tensor
+
+    def __repr__(self):
+        return self.__class__.__name__ + f'(mean={self.mean}, std={self.std}, p={self.p})'
+
+
 def setup_logging(log_file, log_to_stdout=False):
     """
     Sets up logging to file and optionally to stdout.
@@ -101,7 +117,21 @@ def main():
     # to a torch.FloatTensor of shape (C x H x W) in the range [0.0, 1.0].
     # We also need to resize the images to a fixed size to ensure they can be batched
     # and to fit in GPU memory.
-    transform = transforms.Compose([
+    train_transform = transforms.Compose([
+        transforms.Resize((config.IMG_HEIGHT, config.IMG_WIDTH)),
+        # More severe geometric transformations
+        transforms.RandomAffine(degrees=10, translate=(0.1, 0.1), scale=(0.85, 1.15), shear=5),
+        # Paper-like distortions
+        transforms.RandomElasticTransform(alpha=75.0, sigma=5.0, p=0.5),
+        transforms.RandomPerspective(distortion_scale=0.2, p=0.5),
+        # More severe color jitter
+        transforms.ColorJitter(brightness=0.4, contrast=0.4),
+        transforms.ToTensor(),
+        # Add noise
+        AddGaussianNoise(0., 0.05, p=0.7)
+    ])
+
+    val_transform = transforms.Compose([
         transforms.Resize((config.IMG_HEIGHT, config.IMG_WIDTH)),
         transforms.ToTensor()
     ])
@@ -111,7 +141,6 @@ def main():
     full_dataset = ScoreDataset(
         manifest_path=config.DATASET_JSON_PATH,
         tokenizer=tokenizer,
-        transform=transform
     )
     
     # --- Data Splitting ---
@@ -122,13 +151,26 @@ def main():
     np.random.shuffle(indices)
     train_indices, val_indices = indices[split:], indices[:split]
 
+    # Assign transforms to the dataset for each split
+    full_dataset.set_transform(train_transform)
+    train_dataset = torch.utils.data.Subset(full_dataset, train_indices)
+    
+    # Create a new dataset instance for validation with its own transform
+    val_dataset = ScoreDataset(
+        manifest_path=config.DATASET_JSON_PATH,
+        tokenizer=tokenizer,
+        transform=val_transform
+    )
+    val_dataset = torch.utils.data.Subset(val_dataset, val_indices)
+
+
     train_sampler = SubsetRandomSampler(train_indices)
     validation_sampler = SubsetRandomSampler(val_indices)
 
     # 3. Update the DataLoader to use a lambda function for the collate_fn
     logging.info(f"Creating DataLoaders with {args.num_workers} workers")
     train_loader = DataLoader(
-        full_dataset,
+        train_dataset,
         batch_size=args.batch_size,
         sampler=train_sampler,
         num_workers=args.num_workers,
@@ -137,7 +179,7 @@ def main():
         persistent_workers=(args.num_workers > 0)
     )
     val_loader = DataLoader(
-        full_dataset,
+        val_dataset,
         batch_size=args.batch_size, 
         sampler=validation_sampler,
         num_workers=args.num_workers,

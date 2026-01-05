@@ -35,6 +35,12 @@ class ScoreDataset(Dataset):
         with open(self.manifest_path, 'r') as f:
             self.manifest = json.load(f)
 
+    def set_transform(self, transform):
+        """
+        Set the transform for the dataset.
+        """
+        self.transform = transform
+
     def __len__(self):
         return len(self.manifest)
 

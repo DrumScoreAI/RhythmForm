@@ -136,52 +136,46 @@ def main():
         transforms.ToTensor()
     ])
 
-    # Pass the tokenizer and the new transform to the dataset.
-    # The dataset will apply ToTensor() to each image as it's loaded.
-    full_dataset = ScoreDataset(
+    # Create two separate dataset instances for training and validation
+    # each with its own transform.
+    train_dataset = ScoreDataset(
         manifest_path=config.DATASET_JSON_PATH,
         tokenizer=tokenizer,
+        transform=train_transform
+    )
+    val_dataset = ScoreDataset(
+        manifest_path=config.DATASET_JSON_PATH,
+        tokenizer=tokenizer,
+        transform=val_transform
     )
     
     # --- Data Splitting ---
-    dataset_size = len(full_dataset)
+    dataset_size = len(train_dataset) # Both datasets have the same size initially
     indices = list(range(dataset_size))
     split = int(np.floor(config.VALIDATION_SPLIT * dataset_size))
     
     np.random.shuffle(indices)
     train_indices, val_indices = indices[split:], indices[:split]
 
-    # Assign transforms to the dataset for each split
-    full_dataset.set_transform(train_transform)
-    train_dataset = torch.utils.data.Subset(full_dataset, train_indices)
-    
-    # Create a new dataset instance for validation with its own transform
-    val_dataset = ScoreDataset(
-        manifest_path=config.DATASET_JSON_PATH,
-        tokenizer=tokenizer,
-        transform=val_transform
-    )
-    val_dataset = torch.utils.data.Subset(val_dataset, val_indices)
-
-
+    # Create samplers that will draw indices from the correct splits
     train_sampler = SubsetRandomSampler(train_indices)
     validation_sampler = SubsetRandomSampler(val_indices)
 
-    # 3. Update the DataLoader to use a lambda function for the collate_fn
+    # 3. Update the DataLoader to use the correct dataset and sampler
     logging.info(f"Creating DataLoaders with {args.num_workers} workers")
     train_loader = DataLoader(
-        train_dataset,
+        train_dataset, # Use the training dataset
         batch_size=args.batch_size,
-        sampler=train_sampler,
+        sampler=train_sampler, # The sampler will select from the correct indices
         num_workers=args.num_workers,
         collate_fn=lambda b: collate_fn(b, pad_token_id),
         pin_memory=True,
         persistent_workers=(args.num_workers > 0)
     )
     val_loader = DataLoader(
-        val_dataset,
+        val_dataset, # Use the validation dataset
         batch_size=args.batch_size, 
-        sampler=validation_sampler,
+        sampler=validation_sampler, # The sampler will select from the correct indices
         num_workers=args.num_workers,
         collate_fn=lambda b: collate_fn(b, pad_token_id),
         pin_memory=True,

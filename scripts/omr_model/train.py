@@ -30,7 +30,7 @@ def setup_logging(log_file, log_to_stdout=False):
 
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
+        format='%(asctime)s.%(msecs)03d - %(levelname)s - %(message)s',
         handlers=handlers
     )
 

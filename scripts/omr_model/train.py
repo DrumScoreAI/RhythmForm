@@ -166,7 +166,7 @@ def main():
     if args.resume_from:
         if os.path.exists(args.resume_from):
             logging.info(f"Resuming training from checkpoint: {args.resume_from}")
-            checkpoint = torch.load(args.resume_from, map_location=config.DEVICE)
+            checkpoint = torch.load(args.resume_from, map_location=config.DEVICE, weights_only=True)
             
             # Handle the case where the checkpoint was saved from a DataParallel model
             # and we are now running on a single GPU, or vice-versa.

@@ -158,7 +158,7 @@ def main():
 
     # --- DataParallel for Multi-GPU ---
     if torch.cuda.device_count() > 1:
-        logging.info(f"Using {torch.cuda.device_count()} GPUs!")
+        logging.info(f"Using {torch.cuda.device_count()} GPU(s)")
         model = nn.DataParallel(model)
 
     # --- Resume from Checkpoint ---

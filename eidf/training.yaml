@@ -24,7 +24,7 @@ spec:
           "-m",
           "scripts.omr_model.train",
           "--batch-size", "512",
-          "--learning-rate", "0.00001",
+          "--learning-rate", "0.00004",
           "--num-epochs", "200",
           "--num-workers", "60",
           "--validation-split", "0.1",

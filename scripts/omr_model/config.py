@@ -77,5 +77,6 @@ NHEAD = 8         # Number of attention heads
 NUM_ENCODER_LAYERS = 6
 NUM_DECODER_LAYERS = 6
 DIM_FEEDFORWARD = 1024
-DROPOUT = 0.1
+DROPOUT = 0.2
+WEIGHT_DECAY = 1e-5
 PATCH_SIZE = 32    # Size of image patches

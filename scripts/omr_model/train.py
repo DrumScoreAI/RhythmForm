@@ -227,11 +227,11 @@ def main():
 
 
     criterion = nn.CrossEntropyLoss(ignore_index=pad_token_id)
-    optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
+    optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=config.WEIGHT_DECAY)
     
     # Learning Rate Scheduler
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode='min', factor=0.5, patience=3
+        optimizer, mode='min', factor=0.5, patience=2
     )
     
     # Initialize GradScaler for Mixed Precision Training

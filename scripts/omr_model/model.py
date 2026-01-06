@@ -44,6 +44,7 @@ class ImageToStModel(nn.Module):
         
         # Layer to convert image into patches and embed them
         self.patch_embedding = nn.Conv2d(1, d_model, kernel_size=patch_size, stride=patch_size)
+        self.patch_dropout = nn.Dropout(dropout)
         
         # The PositionalEncoding with default max_len of 10000.
         self.encoder_pos_encoder = PositionalEncoding(d_model, dropout)
@@ -61,7 +62,7 @@ class ImageToStModel(nn.Module):
             num_encoder_layers=num_encoder_layers,
             num_decoder_layers=num_decoder_layers,
             dim_feedforward=dim_feedforward,
-            dropout=dropout,
+            dropout=0.2, # Increased dropout
             batch_first=True # Important for our data shape
         )
 
@@ -80,6 +81,7 @@ class ImageToStModel(nn.Module):
         src_embedded = self.patch_embedding(src_image)
         src_embedded = src_embedded.flatten(2)
         src_embedded = src_embedded.permute(0, 2, 1) # (B, Num_Patches, d_model)
+        src_embedded = self.patch_dropout(src_embedded) # Apply dropout to patches
         src_embedded = self.encoder_pos_encoder(src_embedded)
         
         # Pass through the transformer's encoder

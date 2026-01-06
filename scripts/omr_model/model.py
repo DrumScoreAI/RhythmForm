@@ -6,9 +6,8 @@ from . import config
 class PositionalEncoding(nn.Module):
     """
     Injects positional information into the input embeddings.
-    From the PyTorch tutorial: https://pytorch.org/tutorials/beginner/transformer_tutorial.html
+    This version is modified to be batch-first.
     """
-    # Increase the default max_len to a larger value to handle bigger images.
     def __init__(self, d_model, dropout=0.1, max_len=10000):
         super(PositionalEncoding, self).__init__()
         self.dropout = nn.Dropout(p=dropout)
@@ -18,11 +17,15 @@ class PositionalEncoding(nn.Module):
         div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0).transpose(0, 1)
+        pe = pe.unsqueeze(0) # Shape: (1, max_len, d_model)
         self.register_buffer('pe', pe)
 
     def forward(self, x):
-        x = x + self.pe[:x.size(0), :]
+        """
+        Args:
+            x: Tensor, shape [batch_size, seq_len, embedding_dim]
+        """
+        x = x + self.pe[:, :x.size(1), :]
         return self.dropout(x)
 
 class ImageToStModel(nn.Module):
@@ -76,10 +79,8 @@ class ImageToStModel(nn.Module):
         # Process Image: Create patches, embed, and add positional encoding
         src_embedded = self.patch_embedding(src_image)
         src_embedded = src_embedded.flatten(2)
-        src_embedded = src_embedded.permute(0, 2, 1)
-        src_embedded = src_embedded.permute(1, 0, 2)
+        src_embedded = src_embedded.permute(0, 2, 1) # (B, Num_Patches, d_model)
         src_embedded = self.encoder_pos_encoder(src_embedded)
-        src_embedded = src_embedded.permute(1, 0, 2)
         
         # Pass through the transformer's encoder
         return self.transformer.encoder(src_embedded)
@@ -88,9 +89,7 @@ class ImageToStModel(nn.Module):
         """Decodes the target sequence using the encoder's memory."""
         # Process Text: Embed and add positional encoding
         tgt_embedded = self.decoder_embedding(tgt_sequence) * math.sqrt(self.d_model)
-        tgt_embedded = tgt_embedded.permute(1, 0, 2)
         tgt_embedded = self.decoder_pos_encoder(tgt_embedded)
-        tgt_embedded = tgt_embedded.permute(1, 0, 2)
 
         # Generate mask and pass through the transformer's decoder
         tgt_mask = self.generate_square_subsequent_mask(tgt_sequence.size(1)).to(memory.device)

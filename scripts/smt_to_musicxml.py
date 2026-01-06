@@ -1,6 +1,6 @@
 import argparse
 import re
-from music21 import stream, note, chord, meter, duration, layout, clef, repeat, percussion
+from music21 import stream, note, chord, meter, duration, layout, clef, repeat, percussion, metadata
 
 # --- SMT to music21 Mappings ---
 # Maps SMT instrument abbreviations to MIDI pitches and display properties for a standard drum map.
@@ -53,6 +53,8 @@ def parse_token(token):
         instruments = parts[0].split('&')
         duration_str = parts[1]
         return {"type": "note", "instruments": instruments, "duration": duration_str}
+    elif token_type in ["title", "creator"]:
+        return {"type": token_type, "value": value}
     return None
 
 def main():
@@ -74,6 +76,9 @@ def main():
     
     # --- Build music21 Score ---
     score = stream.Score()
+    md = metadata.Metadata()
+    score.insert(0, md)
+
     part = stream.Part()
     measure_number = 1
     current_measure = stream.Measure(number=measure_number)
@@ -86,6 +91,13 @@ def main():
     for token_str in tokens:
         token = parse_token(token_str)
         if not token:
+            continue
+
+        if token["type"] == "title":
+            md.title = token["value"]
+            continue
+        elif token["type"] == "creator":
+            md.composer = token["value"]
             continue
 
         if token["type"] == "barline":

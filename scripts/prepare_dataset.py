@@ -136,12 +136,30 @@ def process_file(xml_path, write_smt=False):
             # This is not a critical error, so we just print a warning.
             print(f"  -> Warning: Could not read or parse JSON {json_path.name}: {e}")
 
+    # Extract title and creator from XML
+    try:
+        tree = ET.parse(xml_path)
+        root = tree.getroot()
+        
+        title_element = root.find('.//movement-title')
+        title = title_element.text.strip() if title_element is not None and title_element.text else "Music21 Fragment"
+
+        creator_element = root.find('.//creator[@type="composer"]')
+        if creator_element is None:
+            creator_element = root.find('.//creator') # Fallback
+        creator = creator_element.text.strip() if creator_element is not None and creator_element.text else "Music21"
+
+    except ET.ParseError as e:
+        print(f"  -> XML parsing error for {xml_path.name}: {e}")
+        title = "Music21 Fragment"
+        creator = "Music21"
+
     st = musicxml_to_smt(xml_path)
     if not st:
         return None
 
-    # Prepend static metadata to the sequence
-    st = "title[Music21 Fragment] composer[Music21] " + st
+    # Prepend dynamic metadata to the sequence
+    st = f"title[{title}] creator[{creator}] " + st
     
     if write_smt:
         smt_output_path = SMT_OUTPUT_DIR / xml_path.with_suffix('.smt').name

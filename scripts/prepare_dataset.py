@@ -139,6 +139,9 @@ def process_file(xml_path, write_smt=False):
     st = musicxml_to_smt(xml_path)
     if not st:
         return None
+
+    # Prepend static metadata to the sequence
+    st = "title[Music21 Fragment] composer[Music21] " + st
     
     if write_smt:
         smt_output_path = SMT_OUTPUT_DIR / xml_path.with_suffix('.smt').name

@@ -25,7 +25,7 @@ def beam_search_predict(model, image_tensor, tokenizer, beam_width=5, max_len=50
     
     # --- Encoder Step ---
     # The image is processed by the encoder only once.
-    with torch.no_grad():
+    with torch.no_grad(), torch.amp.autocast('cuda'):
         memory = model.encode(src_image)
 
     # --- Decoder (Beam Search) Step ---
@@ -41,7 +41,7 @@ def beam_search_predict(model, image_tensor, tokenizer, beam_width=5, max_len=50
                 all_candidates.append((log_prob, seq))
                 continue
 
-            with torch.no_grad():
+            with torch.no_grad(), torch.amp.autocast('cuda'):
                 tgt_sequence = torch.tensor([seq], dtype=torch.long).to(config.DEVICE)
                 output = model.decode(tgt_sequence, memory)
 

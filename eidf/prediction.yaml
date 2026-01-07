@@ -36,10 +36,10 @@ spec:
             name: dshm
         resources:
           requests:
-            cpu: 1
+            cpu: 8
             memory: "32Gi"
           limits:
-            cpu: 1
+            cpu: 8
             memory: "64Gi"
             nvidia.com/gpu: 1
       nodeSelector:

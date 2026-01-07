@@ -72,7 +72,9 @@ def main():
         print(f"Error: Input file not found at {args.input_smt}")
         return
 
-    tokens = smt_content.replace('\n', ' ').split(' ')
+    # Split the content by the page separator
+    page_separator = "\n\n<page_break>\n\n"
+    smt_pages = smt_content.split(page_separator)
     
     # --- Build music21 Score ---
     score = stream.Score()
@@ -81,104 +83,122 @@ def main():
 
     part = stream.Part()
     measure_number = 1
-    current_measure = stream.Measure(number=measure_number)
+    
+    # Set up a default time signature and clef for the first measure
+    first_measure = stream.Measure(number=measure_number)
+    first_measure.append(meter.TimeSignature('4/4'))
+    first_measure.append(clef.PercussionClef())
+    part.append(first_measure)
+    
+    current_measure = first_measure
 
-    # Set up a default time signature and clef
-    current_measure.append(meter.TimeSignature('4/4'))
-    current_measure.append(clef.PercussionClef())
-
+    print(f"Found {len(smt_pages)} page(s) to process.")
     print("Parsing tokens and building score...")
-    for token_str in tokens:
-        token = parse_token(token_str)
-        if not token:
-            continue
 
-        if token["type"] == "title":
-            md.title = token["value"]
-            continue
-        elif token["type"] == "creator":
-            md.composer = token["value"]
-            continue
+    for page_idx, smt_page_content in enumerate(smt_pages):
+        tokens = smt_page_content.replace('\n', ' ').split(' ')
+        
+        for token_str in tokens:
+            token = parse_token(token_str)
+            if not token:
+                continue
 
-        if token["type"] == "barline":
-            # Only append the measure if it has notes/rests in it
-            if len(current_measure.notesAndRests) > 0:
+            # Metadata is only processed from the first page
+            if page_idx == 0:
+                if token["type"] == "title":
+                    md.title = token["value"]
+                    continue
+                elif token["type"] == "creator":
+                    md.composer = token["value"]
+                    continue
+            
+            # Skip metadata tokens on subsequent pages
+            elif token["type"] in ["title", "creator"]:
+                continue
+
+            if token["type"] == "barline":
+                # Only add a new measure if the current one is not empty
+                if len(current_measure.notesAndRests) > 0:
+                    part.append(current_measure)
+                    measure_number += 1
+                    current_measure = stream.Measure(number=measure_number)
+            
+            elif token["type"] == "timeSignature":
+                # If the current measure is empty, add the time signature to it.
+                # Otherwise, create a new measure for the time signature.
+                if len(current_measure.notesAndRests) > 0:
+                    part.append(current_measure)
+                    measure_number += 1
+                    current_measure = stream.Measure(number=measure_number)
+                current_measure.append(meter.TimeSignature(token["value"]))
+
+            elif token["type"] == "repeat":
+                # Add a repeat barline to the end of the current measure
+                current_measure.rightBarline = repeat.RepeatMark(direction='end')
                 part.append(current_measure)
-                if current_measure.number % 4 == 0:
-                    part.append(layout.SystemLayout(isNew=True))
                 
+                # Start a new measure with a start repeat mark
                 measure_number += 1
                 current_measure = stream.Measure(number=measure_number)
-        
-        elif token["type"] == "timeSignature":
-            current_measure.append(meter.TimeSignature(token["value"]))
+                current_measure.leftBarline = repeat.RepeatMark(direction='start')
 
-        elif token["type"] == "repeat":
-            # If the current measure has content, append it first.
-            if len(current_measure.notesAndRests) > 0:
-                part.append(current_measure)
-                if current_measure.number % 4 == 0:
-                    part.append(layout.SystemLayout(isNew=True))
-                measure_number += 1
+            elif token["type"] == "rest":
+                duration_type = DURATION_MAP.get(token["duration"], "quarter")
+                r = note.Rest(type=duration_type)
+                current_measure.append(r)
 
-            # Create a new measure specifically for the repeat mark
-            repeat_measure = stream.Measure(number=measure_number)
-            repeat_measure.append(repeat.RepeatMark())
-            part.append(repeat_measure)
-            if repeat_measure.number % 4 == 0:
-                part.append(layout.SystemLayout(isNew=True))
-            
-            measure_number += 1
-            # Start a new measure for subsequent notes
-            current_measure = stream.Measure(number=measure_number)
+            elif token["type"] == "note":
+                duration_type = DURATION_MAP.get(token["duration"], "quarter")
+                
+                if len(token["instruments"]) > 1:
+                    # Create a chord for multiple instruments
+                    notes_for_chord = []
+                    for inst_abbr in token["instruments"]:
+                        inst_info = INSTRUMENT_MAP.get(inst_abbr)
+                        if inst_info:
+                            n = note.Note(inst_info['midi'])
+                            n.notehead = inst_info['notehead']
+                            notes_for_chord.append(n)
+                    if notes_for_chord:
+                        c = chord.Chord(notes_for_chord, type=duration_type)
+                        current_measure.append(c)
+                else:
+                    # Create a single note
+                    inst_abbr = token["instruments"][0]
+                    inst_info = INSTRUMENT_MAP.get(inst_abbr)
+                    if inst_info:
+                        n = percussion.PercussionChord(type=duration_type)
+                        n.notehead = inst_info['notehead']
+                        
+                        # Set display pitch
+                        display_note = note.Note(f"{inst_info['display_step']}{inst_info['display_octave']}")
+                        
+                        # Create a new unpitched object for the instrument
+                        unpitched = percussion.Unpitched(
+                            displayName=inst_abbr,
+                            midiNumber=inst_info['midi']
+                        )
+                        unpitched.displayStep = inst_info['display_step']
+                        unpitched.displayOctave = inst_info['display_octave']
+                        
+                        n.add(unpitched)
+                        current_measure.append(n)
 
-        elif token["type"] == "rest":
-            d = duration.Duration(DURATION_MAP.get(token["duration"], "quarter"))
-            r = note.Rest(duration=d)
-            current_measure.append(r)
-
-        elif token["type"] == "note":
-            d = duration.Duration(DURATION_MAP.get(token["duration"], "quarter"))
-            
-            note_objects = []
-            # FIX: Remove duplicate instruments before creating notes
-            unique_instruments = list(set(token["instruments"]))
-            
-            for inst_abbr in unique_instruments:
-                inst_info = INSTRUMENT_MAP.get(inst_abbr)
-                if inst_info:
-                    # Use Unpitched for percussion notation
-                    n = note.Unpitched()
-                    n.duration = d
-                    n.display_step = inst_info['display_step']
-                    n.display_octave = inst_info['display_octave']
-                    n.notehead = inst_info['notehead']
-                    
-                    # Add a stem direction hint for clarity
-                    if n.display_step in ['F', 'G', 'A', 'B'] and n.display_octave == 4:
-                        n.stemDirection = 'down'
-                    else:
-                        n.stemDirection = 'up'
-
-                    note_objects.append(n)
-            
-            if len(note_objects) > 1:
-                # Use a PercussionChord for multiple instruments at once
-                c = percussion.PercussionChord(note_objects)
-                current_measure.append(c)
-            elif len(note_objects) == 1:
-                # Use a single Note
-                current_measure.append(note_objects[0])
-
-    # Append the last measure
-    if current_measure.elements:
+    # Append the last measure if it's not empty
+    if len(current_measure.notesAndRests) > 0:
         part.append(current_measure)
 
     score.insert(0, part)
     
+    # Add page and system breaks for better layout
+    score.insert(0, layout.SystemLayout(isNew=True, top=150))
+
     print(f"Writing MusicXML file to: {args.output_xml}")
-    score.write('musicxml', fp=args.output_xml)
-    print("Conversion complete!")
+    try:
+        score.write('musicxml', fp=args.output_xml)
+        print("Conversion successful.")
+    except Exception as e:
+        print(f"Error writing MusicXML file: {e}")
 
 
 if __name__ == "__main__":

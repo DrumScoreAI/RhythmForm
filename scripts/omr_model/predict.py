@@ -6,10 +6,81 @@ from pdf2image import convert_from_path
 from PIL import Image
 from torchvision import transforms
 from tqdm import tqdm
+import multiprocessing as mp
 
 from . import config
 from .tokenizer import StTokenizer
 from .model import ImageToStModel
+
+# --- Worker Initialization ---
+# Global variables for the worker processes
+worker_model = None
+worker_tokenizer = None
+worker_transform = None
+worker_beam_width = 5
+
+def initialize_worker(checkpoint_path, tokenizer_path, beam_width):
+    """
+    Initializes the model, tokenizer, and transforms for each worker process.
+    This is called once per process in the pool.
+    """
+    global worker_model, worker_tokenizer, worker_transform, worker_beam_width
+    
+    print(f"Initializing worker (PID: {os.getpid()})...")
+    
+    # Set globals for this worker
+    worker_beam_width = beam_width
+
+    # 1. Tokenizer
+    worker_tokenizer = StTokenizer()
+    worker_tokenizer.load(tokenizer_path)
+    
+    # 2. Transform
+    worker_transform = transforms.Compose([
+        transforms.Resize((config.IMG_HEIGHT, config.IMG_WIDTH)),
+        transforms.ToTensor()
+    ])
+    
+    # 3. Model
+    worker_model = ImageToStModel(
+        vocab_size=config.VOCAB_SIZE,
+        d_model=config.D_MODEL,
+        nhead=config.NHEAD,
+        num_decoder_layers=config.NUM_DECODER_LAYERS,
+        dim_feedforward=config.DIM_FEEDFORWARD,
+        dropout=config.DROPOUT
+    )
+    
+    try:
+        # Load model state dict for the specific device of this worker
+        worker_model.load_state_dict(torch.load(checkpoint_path, map_location=config.DEVICE))
+        worker_model.to(config.DEVICE)
+        worker_model.eval()
+        print(f"Worker {os.getpid()} loaded model to {config.DEVICE}")
+    except Exception as e:
+        print(f"Error loading model in worker {os.getpid()}: {e}")
+        worker_model = None
+
+def process_page(image):
+    """
+    The target function for each worker process.
+    Processes a single image and returns the predicted SMT string.
+    """
+    if worker_model is None:
+        return "Error: Model not loaded in worker."
+
+    # Convert to grayscale and apply transformations
+    image = image.convert('L')
+    image_tensor = worker_transform(image)
+    
+    predicted_st = beam_search_predict(
+        worker_model, 
+        image_tensor, 
+        worker_tokenizer, 
+        beam_width=worker_beam_width
+    )
+    return predicted_st
+
 
 def beam_search_predict(model, image_tensor, tokenizer, beam_width=5, max_len=500):
     """
@@ -111,40 +182,10 @@ def main():
     parser.add_argument('--output-path', type=str, required=True, help='Path to save the generated SMT text file.')
     parser.add_argument('--checkpoint-path', type=str, required=True, help='Full path to the model checkpoint file to use.')
     parser.add_argument('--beam-width', type=int, default=5, help='Beam width for beam search decoding.')
+    parser.add_argument('--num-workers', type=int, default=mp.cpu_count(), help='Number of parallel workers for page processing.')
     args = parser.parse_args()
 
-    # --- 1. Setup ---
-    print(f"Using device: {config.DEVICE}")
-    tokenizer = StTokenizer()
-    tokenizer.load(config.TOKENIZER_VOCAB_PATH)
-    
-    # Define the same transforms used during training
-    transform = transforms.Compose([
-        transforms.Resize((config.IMG_HEIGHT, config.IMG_WIDTH)),
-        transforms.ToTensor()
-    ])
-    
-    # --- 2. Load Model ---
-    model = ImageToStModel(
-        vocab_size=config.VOCAB_SIZE,
-        d_model=config.D_MODEL,
-        nhead=config.NHEAD,
-        num_decoder_layers=config.NUM_DECODER_LAYERS,
-        dim_feedforward=config.DIM_FEEDFORWARD,
-        dropout=config.DROPOUT
-    )
-    
-    checkpoint_path = args.checkpoint_path
-    print(f"Loading model from: {checkpoint_path}")
-    try:
-        model.load_state_dict(torch.load(checkpoint_path, map_location=config.DEVICE))
-    except FileNotFoundError:
-        print(f"Error: Model checkpoint not found at {checkpoint_path}")
-        return
-        
-    model.to(config.DEVICE)
-
-    # --- 3. Process PDF and Predict ---
+    # --- 1. Process PDF ---
     print(f"Converting PDF to images: {args.pdf_path}")
     try:
         images = convert_from_path(args.pdf_path)
@@ -152,18 +193,25 @@ def main():
         print(f"Error converting PDF: {e}")
         return
 
-    all_smt_strings = []
-    print(f"Generating SMT for {len(images)} page(s)...")
-    for i, image in enumerate(tqdm(images, desc="Processing pages")):
-        # Convert to grayscale and apply transformations
-        image = image.convert('L')
-        image_tensor = transform(image)
-        
-        predicted_st = beam_search_predict(model, image_tensor, tokenizer, beam_width=args.beam_width)
-        all_smt_strings.append(predicted_st)
+    # --- 2. Parallel Prediction ---
+    print(f"Generating SMT for {len(images)} page(s) using {args.num_workers} workers...")
     
-    # --- 4. Save Output ---
-    final_smt = "\n".join(all_smt_strings)
+    # Set up the multiprocessing pool
+    # 'spawn' is safer for CUDA
+    ctx = mp.get_context('spawn')
+    with ctx.Pool(
+        processes=args.num_workers, 
+        initializer=initialize_worker, 
+        initargs=(args.checkpoint_path, config.TOKENIZER_VOCAB_PATH, args.beam_width)
+    ) as pool:
+        # Use tqdm to show progress for the parallel processing
+        all_smt_strings = list(tqdm(pool.imap(process_page, images), total=len(images), desc="Processing pages"))
+
+    # --- 3. Save Output ---
+    # The separator is a specific string that smt_to_musicxml can use to split pages.
+    page_separator = "\n\n<page_break>\n\n"
+    final_smt = page_separator.join(all_smt_strings)
+    
     with open(args.output_path, 'w') as f:
         f.write(final_smt)
         

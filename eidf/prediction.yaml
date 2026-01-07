@@ -11,6 +11,10 @@ spec:
       name: prediction-pod
     spec:
       restartPolicy: Never
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: "OnRootMismatch"
       imagePullSecrets:
         - name: eidfreg
       containers:

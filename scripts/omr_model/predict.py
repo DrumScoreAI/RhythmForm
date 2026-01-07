@@ -32,7 +32,8 @@ def beam_search_predict(model, image_tensor, tokenizer, beam_width=5, max_len=50
     # A beam is a tuple of (log_probability, sequence)
     beams = [(0.0, [sos_token_id])]
     
-    for _ in range(max_len):
+    pbar = tqdm(range(max_len), desc="Beam Search", leave=False)
+    for _ in pbar:
         all_candidates = []
         
         for log_prob, seq in beams:

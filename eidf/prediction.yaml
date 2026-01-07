@@ -1,0 +1,57 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: rhythmform-prediction
+  labels:
+    kueue.x-k8s.io/queue-name: eidf235ns-user-queue
+spec:
+  completions: 1
+  template:
+    metadata:
+      name: prediction-pod
+    spec:
+      restartPolicy: Never
+      imagePullSecrets:
+        - name: eidfreg
+      containers:
+      - name: predictor
+        image: registry.eidf.ac.uk/eidf235/rhythmform:latest
+        env:
+          - name: RHYTHMFORMHOME
+            value: "/app"
+        args: [
+          "python",
+          "-m",
+          "scripts.omr_model.predict",
+          "--pdf-path", "/app/training_data/temp/back-in-black.pdf",
+          "--output-path", "/app/test_outputs/back-in-black.smt",
+          "--checkpoint-path", "/app/training_data/checkpoints/model_best.pth"
+        ]
+        volumeMounts:
+          - mountPath: /app/training_data
+            name: training-data-volume
+          - mountPath: /app/test_outputs
+            name: test-outputs-volume
+          - mountPath: /dev/shm
+            name: dshm
+        resources:
+          requests:
+            cpu: 1
+            memory: "32Gi"
+          limits:
+            cpu: 1
+            memory: "64Gi"
+            nvidia.com/gpu: 1
+      nodeSelector:
+        nvidia.com/gpu.product: NVIDIA-A100-SXM4-40GB
+      volumes:
+        - name: training-data-volume
+          persistentVolumeClaim:
+            claimName: training-data
+        - name: test-outputs-volume
+          persistentVolumeClaim:
+            claimName: test-outputs
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 32Gi

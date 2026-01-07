@@ -8,6 +8,8 @@ from torchvision import transforms
 from tqdm import tqdm
 import multiprocessing as mp
 
+import sys
+
 from . import config
 from .tokenizer import StTokenizer
 from .model import ImageToStModel
@@ -23,10 +25,13 @@ def initialize_worker(checkpoint_path, tokenizer_path, beam_width):
     """
     Initializes the model, tokenizer, and transforms for each worker process.
     This is called once per process in the pool.
+    Output is suppressed to keep the main console clean.
     """
+    # Suppress stdout for this worker's initialization
+    original_stdout = sys.stdout
+    sys.stdout = open(os.devnull, 'w')
+
     global worker_model, worker_tokenizer, worker_transform, worker_beam_width
-    
-    print(f"Initializing worker (PID: {os.getpid()})...")
     
     # Set globals for this worker
     worker_beam_width = beam_width
@@ -56,10 +61,16 @@ def initialize_worker(checkpoint_path, tokenizer_path, beam_width):
         worker_model.load_state_dict(torch.load(checkpoint_path, map_location=config.DEVICE))
         worker_model.to(config.DEVICE)
         worker_model.eval()
-        print(f"Worker {os.getpid()} loaded model to {config.DEVICE}")
     except Exception as e:
+        # Restore stdout to print any errors during initialization
+        sys.stdout.close()
+        sys.stdout = original_stdout
         print(f"Error loading model in worker {os.getpid()}: {e}")
         worker_model = None
+    finally:
+        # Ensure stdout is always restored
+        sys.stdout.close()
+        sys.stdout = original_stdout
 
 def process_page(image):
     """

@@ -29,7 +29,8 @@ spec:
           "scripts.omr_model.predict",
           "--pdf-path", "/app/training_data/temp/HoobastankTheReason.pdf",
           "--output-path", "/app/test_outputs/HoobastankTheReason.smt",
-          "--checkpoint-path", "/app/training_data/checkpoints/model_best.pth"
+          "--checkpoint-path", "/app/training_data/checkpoints/model_best.pth",
+          "--num-workers", "8"
         ]
         volumeMounts:
           - mountPath: /app/training_data
@@ -41,10 +42,10 @@ spec:
         resources:
           requests:
             cpu: 32
-            memory: "32Gi"
+            memory: "128Gi"
           limits:
-            cpu: 32
-            memory: "64Gi"
+            cpu: 64
+            memory: "256Gi"
             nvidia.com/gpu: 1
       nodeSelector:
         nvidia.com/gpu.product: NVIDIA-A100-SXM4-40GB

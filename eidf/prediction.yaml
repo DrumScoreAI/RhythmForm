@@ -23,8 +23,8 @@ spec:
           "python",
           "-m",
           "scripts.omr_model.predict",
-          "--pdf-path", "/app/training_data/temp/back-in-black.pdf",
-          "--output-path", "/app/test_outputs/back-in-black.smt",
+          "--pdf-path", "/app/training_data/temp/HoobastankTheReason.pdf",
+          "--output-path", "/app/test_outputs/HoobastankTheReason.smt",
           "--checkpoint-path", "/app/training_data/checkpoints/model_best.pth"
         ]
         volumeMounts:

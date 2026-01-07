@@ -13,56 +13,93 @@ from .model import ImageToStModel
 
 def beam_search_predict(model, image_tensor, tokenizer, beam_width=5, max_len=500):
     """
-    Generates an ST string prediction using beam search.
+    Generates an ST string prediction using a batched beam search for faster inference.
     """
     model.eval()
     
     sos_token_id = tokenizer.token_to_id['<sos>']
     eos_token_id = tokenizer.token_to_id['<eos>']
-    
-    # The transform is now applied outside, so the image_tensor is ready
-    src_image = image_tensor.unsqueeze(0).to(config.DEVICE)
-    
+    device = config.DEVICE
+
     # --- Encoder Step ---
-    # The image is processed by the encoder only once.
+    src_image = image_tensor.unsqueeze(0).to(device)
     with torch.no_grad(), torch.amp.autocast('cuda'):
-        memory = model.encode(src_image)
+        # The memory is calculated once and expanded to match the beam width.
+        memory = model.encode(src_image)  # Shape: [1, H*W, d_model]
+        memory = memory.expand(beam_width, -1, -1)  # Shape: [beam_width, H*W, d_model]
 
-    # --- Decoder (Beam Search) Step ---
-    # A beam is a tuple of (log_probability, sequence)
-    beams = [(0.0, [sos_token_id])]
+    # --- Batched Beam Search Decoder ---
+    # We'll store the top k sequences and their scores.
+    # sequences shape: [beam_width, 1] -> [beam_width, max_len]
+    sequences = torch.full((beam_width, 1), sos_token_id, dtype=torch.long, device=device)
     
-    pbar = tqdm(range(max_len), desc="Beam Search", leave=False)
-    for _ in pbar:
-        all_candidates = []
-        
-        for log_prob, seq in beams:
-            if seq[-1] == eos_token_id:
-                all_candidates.append((log_prob, seq))
-                continue
+    # top_k_scores shape: [beam_width, 1]
+    top_k_scores = torch.zeros(beam_width, 1, device=device)
 
-            with torch.no_grad(), torch.amp.autocast('cuda'):
-                tgt_sequence = torch.tensor([seq], dtype=torch.long).to(config.DEVICE)
-                output = model.decode(tgt_sequence, memory)
+    # Keep track of completed sequences
+    complete_sequences = []
+    complete_sequence_scores = []
 
-            last_token_logits = output[:, -1, :]
-            log_probs = F.log_softmax(last_token_logits, dim=-1)
-            
-            top_log_probs, top_indices = torch.topk(log_probs, beam_width, dim=-1)
-            
-            for i in range(beam_width):
-                next_token_id = top_indices[0, i].item()
-                new_log_prob = log_prob + top_log_probs[0, i].item()
-                new_seq = seq + [next_token_id]
-                all_candidates.append((new_log_prob, new_seq))
-
-        ordered = sorted(all_candidates, key=lambda x: x[0], reverse=True)
-        beams = ordered[:beam_width]
-        
-        if beams[0][1][-1] == eos_token_id:
+    pbar = tqdm(range(max_len - 1), desc="Beam Search", leave=False)
+    for step in pbar:
+        if sequences.size(0) == 0: # Stop if all beams are complete
             break
+
+        with torch.no_grad(), torch.amp.autocast('cuda'):
+            output = model.decode(sequences, memory) # Shape: [current_beam_size, seq_len, vocab_size]
             
-    best_seq = beams[0][1]
+        # Get the logits for the last token and calculate log probabilities
+        last_token_logits = output[:, -1, :] # Shape: [current_beam_size, vocab_size]
+        log_probs = F.log_softmax(last_token_logits, dim=-1)
+        
+        # Add the current scores to the log probabilities to get candidate scores
+        # log_probs shape: [current_beam_size, vocab_size]
+        # top_k_scores.view(-1, 1) shape: [current_beam_size, 1]
+        candidate_scores = top_k_scores.view(-1, 1) + log_probs
+        
+        # Get the top k candidates from all beams combined
+        # We want top `beam_width` scores from `current_beam_size * vocab_size` possibilities
+        num_candidates = min(beam_width, candidate_scores.numel())
+        top_candidate_scores, top_candidate_indices = torch.topk(
+            candidate_scores.view(-1), num_candidates
+        )
+
+        # Decode the top candidate indices to find the beam and token IDs
+        prev_beam_indices = top_candidate_indices // config.VOCAB_SIZE
+        next_token_ids = top_candidate_indices % config.VOCAB_SIZE
+
+        # Create the new sequences and scores
+        new_sequences = sequences[prev_beam_indices]
+        new_sequences = torch.cat([new_sequences, next_token_ids.unsqueeze(1)], dim=1)
+        
+        # Separate completed sequences from ongoing ones
+        is_complete = (next_token_ids == eos_token_id)
+        
+        # Store completed sequences
+        if torch.any(is_complete):
+            complete_sequences.extend(new_sequences[is_complete].tolist())
+            complete_sequence_scores.extend(top_candidate_scores[is_complete].tolist())
+            
+            # Reduce the beam width by the number of completed sequences
+            beam_width -= is_complete.sum().item()
+            if beam_width == 0:
+                break
+
+        # Update sequences, scores, and memory for ongoing beams
+        is_ongoing = ~is_complete
+        sequences = new_sequences[is_ongoing]
+        memory = memory[prev_beam_indices[is_ongoing]]
+        top_k_scores = top_candidate_scores[is_ongoing].unsqueeze(1)
+
+    # If no sequences were completed, use the current best one
+    if not complete_sequences:
+        complete_sequences = sequences.tolist()
+        complete_sequence_scores = top_k_scores.squeeze().tolist()
+
+    # Find the best sequence among all completed ones
+    best_score_index = complete_sequence_scores.index(max(complete_sequence_scores))
+    best_seq = complete_sequences[best_score_index]
+    
     # Decode, skipping the <sos> token
     predicted_st = tokenizer.decode(best_seq[1:])
     return predicted_st

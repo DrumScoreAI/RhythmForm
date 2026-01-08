@@ -174,14 +174,16 @@ def main():
                         display_note = note.Note(f"{inst_info['display_step']}{inst_info['display_octave']}")
                         
                         # Create a new unpitched object for the instrument
-                        unpitched = percussion.Unpitched(
-                            displayName=inst_abbr,
-                            midiNumber=inst_info['midi']
+                        unpitched = note.Unpitched(
+                            displayName=inst_abbr
                         )
                         unpitched.displayStep = inst_info['display_step']
                         unpitched.displayOctave = inst_info['display_octave']
                         
-                        n.add(unpitched)
+                        # Assign the unpitched object and midi to the note
+                        n.unpitched = unpitched
+                        n.midi = inst_info['midi']
+
                         current_measure.append(n)
 
     # Append the last measure if it's not empty

@@ -85,13 +85,10 @@ def main():
     measure_number = 1
     
     # Set up a default time signature and clef for the first measure
-    first_measure = stream.Measure(number=measure_number)
-    first_measure.append(meter.TimeSignature('4/4'))
-    first_measure.append(clef.PercussionClef())
-    part.append(first_measure)
+    current_measure = stream.Measure(number=measure_number)
+    current_measure.append(meter.TimeSignature('4/4'))
+    current_measure.append(clef.PercussionClef())
     
-    current_measure = first_measure
-
     print(f"Found {len(smt_pages)} page(s) to process.")
     print("Parsing tokens and building score...")
 
@@ -167,27 +164,20 @@ def main():
                     inst_abbr = token["instruments"][0]
                     inst_info = INSTRUMENT_MAP.get(inst_abbr)
                     if inst_info:
-                        n = percussion.PercussionChord(type=duration_type)
+                        # Create a note with the correct MIDI value for the instrument
+                        n = note.Note(inst_info['midi'])
+                        n.duration.type = duration_type
                         n.notehead = inst_info['notehead']
                         
-                        # Set display pitch
-                        display_note = note.Note(f"{inst_info['display_step']}{inst_info['display_octave']}")
+                        # music21's PercussionChord will handle the rest
+                        p = percussion.PercussionChord()
+                        p.add(n)
+                        p.duration.type = duration_type
                         
-                        # Create a new unpitched object for the instrument
-                        unpitched = note.Unpitched(
-                            displayName=inst_abbr
-                        )
-                        unpitched.displayStep = inst_info['display_step']
-                        unpitched.displayOctave = inst_info['display_octave']
-                        
-                        # Assign the unpitched object and midi to the note
-                        n.unpitched = unpitched
-                        n.midi = inst_info['midi']
-
-                        current_measure.append(n)
+                        current_measure.append(p)
 
     # Append the last measure if it's not empty
-    if len(current_measure.notesAndRests) > 0:
+    if len(current_measure.notesAndRests) > 0 or current_measure.number == 1:
         part.append(current_measure)
 
     score.insert(0, part)

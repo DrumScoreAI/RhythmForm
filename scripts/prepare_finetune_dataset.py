@@ -7,6 +7,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from fractions import Fraction
 from tqdm import tqdm
 import argparse
+import random
 from scripts.omr_model import config
 from scripts.omr_model.utils import musicxml_to_smt
 
@@ -23,25 +24,30 @@ IMAGE_OUTPUT_DIR = FINE_TUNE_DIR / 'images'
 SMT_OUTPUT_DIR = FINE_TUNE_DIR / 'smt' # Added for clarity
 DATASET_JSON_PATH = FINE_TUNE_DIR / 'finetune_dataset.json'
 
-def process_pdf(pdf_path):
+def process_pdf(pdf_path, use_repeats):
     """
     Processes a single PDF file for the fine-tuning dataset:
     1. Finds the matching MusicXML file.
-    2. Converts the MusicXML to an SMT string.
+    2. Converts the MusicXML to an SMT string, handling repeats randomly.
     3. Converts the PDF to a PNG image.
     4. Returns a dictionary for the dataset JSON.
     """
-    print(f"Processing {pdf_path.name}...")
-    xml_path = XML_INPUT_DIR / pdf_path.with_suffix('.musicxml').name
+    print(f"Processing {pdf_path.name} (use_repeats={use_repeats})...")
+    xml_filename = pdf_path.with_suffix('.xml').name
+    # The conversion script might create .xml, but let's also check for .musicxml
+    xml_path = XML_INPUT_DIR / xml_filename
+    if not xml_path.exists():
+        xml_path = XML_INPUT_DIR / pdf_path.with_suffix('.musicxml').name
+
     png_path = IMAGE_OUTPUT_DIR / pdf_path.with_suffix('.png').name
     smt_path = SMT_OUTPUT_DIR / pdf_path.with_suffix('.smt').name
 
     if not xml_path.exists():
-        print(f"  -> Skipping: No corresponding MusicXML file found at {xml_path}")
+        print(f"  -> Skipping: No corresponding MusicXML file found for {pdf_path.name}")
         return None
 
     # 1. Generate SMT from the ground-truth MusicXML
-    smt_string = musicxml_to_smt(xml_path)
+    smt_string = musicxml_to_smt(xml_path, use_repeats=use_repeats)
     if not smt_string:
         print(f"  -> Skipping: Failed to generate SMT from {xml_path.name}")
         return None
@@ -105,9 +111,13 @@ def main():
 
     print(f"Found {len(pdf_files)} PDF files to process with {num_cores} cores.")
 
+    # Randomly decide for the whole batch if repeats should be used or not
+    use_repeats_for_batch = random.choice([True, False])
+    print(f"This batch will be processed with use_repeats={use_repeats_for_batch}.")
+
     dataset = []
     with ProcessPoolExecutor(max_workers=num_cores) as executor:
-        future_to_pdf = {executor.submit(process_pdf, pdf): pdf for pdf in pdf_files}
+        future_to_pdf = {executor.submit(process_pdf, pdf, use_repeats_for_batch): pdf for pdf in pdf_files}
         
         for future in tqdm(as_completed(future_to_pdf), total=len(pdf_files), desc="Processing files"):
             result = future.result()

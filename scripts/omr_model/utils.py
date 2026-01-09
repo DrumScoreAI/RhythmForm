@@ -171,6 +171,42 @@ def musicxml_to_smt(xml_path, use_repeats=False):
     duration_map = _get_duration_map_from_xml(xml_path)
 
     header_tokens = []
+    # --- Extract Metadata ---
+    # Try to get metadata from <credit> tags first, as they are often more detailed.
+    title = None
+    composer = None
+    subtitle = None
+
+    for credit_tag in soup.find_all('credit'):
+        credit_type_tag = credit_tag.find('credit-type')
+        credit_words_tag = credit_tag.find('credit-words')
+        if credit_type_tag is not None and credit_words_tag is not None and credit_words_tag.string:
+            text = credit_words_tag.string.strip()
+            if credit_type_tag.string == 'title' and not title:
+                title = text
+            elif credit_type_tag.string == 'composer' and not composer:
+                composer = text
+            elif credit_type_tag.string == 'subtitle' and not subtitle:
+                subtitle = text
+
+    # Fallback to <work> and <identification> if not found in <credit>
+    if not title:
+        work_title_tag = soup.find('work-title')
+        if work_title_tag and work_title_tag.string:
+            title = work_title_tag.string.strip()
+    
+    if not composer:
+        composer_tag = soup.find('creator', {'type': 'composer'})
+        if composer_tag and composer_tag.string:
+            composer = composer_tag.string.strip()
+
+    if title:
+        header_tokens.append(f"title[{title}]")
+    if subtitle:
+        header_tokens.append(f"subtitle[{subtitle}]")
+    if composer:
+        header_tokens.append(f"composer[{composer}]")
+
     # Find the first clef and time signature in the first part.
     first_part = soup.find('part')
     if first_part:
@@ -188,6 +224,7 @@ def musicxml_to_smt(xml_path, use_repeats=False):
 
     smt_measures = []
     previous_measure_smt = None
+    last_section_text = None
 
     all_measures = soup.find_all('measure')
     for measure_elem in all_measures:
@@ -209,8 +246,18 @@ def musicxml_to_smt(xml_path, use_repeats=False):
             measure_smt_tokens = []
             element_idx = 0
             
-            # Find all direct children 'note', 'forward', 'backup' of the measure
-            for element in measure_elem.find_all(['note', 'forward', 'backup'], recursive=False):
+            # Find all direct children 'note', 'forward', 'backup', and 'direction' of the measure
+            for element in measure_elem.find_all(['note', 'forward', 'backup', 'direction'], recursive=False):
+                # Handle text annotations like "Verse"
+                if element.name == 'direction':
+                    words = element.find('words')
+                    if words and words.string:
+                        current_text = words.string.strip()
+                        if current_text != last_section_text:
+                            measure_smt_tokens.append(f"text[{current_text}]")
+                            last_section_text = current_text
+                    continue
+
                 # Skip chord elements as they are handled with the main note
                 if element.name == 'note' and element.find('chord'):
                     continue
@@ -220,6 +267,11 @@ def musicxml_to_smt(xml_path, use_repeats=False):
                 # We need to handle chords, which are multiple notes at the same time position.
                 # The first note does not have a <chord/> tag, subsequent ones do.
                 if element.name == 'note':
+                    # Check for tuplets
+                    tuplet_start = element.find('tuplet', {'type': 'start'})
+                    if tuplet_start and tuplet_start.get('number'):
+                        measure_smt_tokens.append(f"tuplet[{tuplet_start.get('number')}:start]")
+
                     if element.find('rest'): # It's a rest within a note tag
                         measure_smt_tokens.append(f"rest[{duration}]")
                     else:
@@ -232,6 +284,10 @@ def musicxml_to_smt(xml_path, use_repeats=False):
                         token = _convert_bs_notes_to_smt(chord_notes, duration)
                         if token:
                             measure_smt_tokens.append(token)
+                    
+                    tuplet_stop = element.find('tuplet', {'type': 'stop'})
+                    if tuplet_stop and tuplet_stop.get('number'):
+                        measure_smt_tokens.append(f"tuplet[{tuplet_stop.get('number')}:stop]")
 
                 element_idx += 1
             

@@ -318,7 +318,7 @@ def musicxml_to_smt(xml_path, use_repeats=False):
         else:
             # This is a normal measure, so we generate its SMT.
             measure_smt_tokens = []
-            element_idx = 0
+            note_rest_idx = 0 # Use a separate index for duration map lookups
             # Iterate over all elements to correctly capture Unpitched notes
             for element in measure.elements:
                 token = None
@@ -328,11 +328,14 @@ def musicxml_to_smt(xml_path, use_repeats=False):
                     if hasattr(element, 'isChord') and element.isChord:
                         continue
                     
-                    duration = duration_map.get((measure.number, element_idx), Fraction(element.duration.quarterLength).limit_denominator())
+                    # Use the dedicated note/rest index for the duration map
+                    duration = duration_map.get((measure.number, note_rest_idx), Fraction(element.duration.quarterLength).limit_denominator())
                     token = _convert_note_to_smt(element, duration, id_to_midi_map)
                     if token:
                         measure_smt_tokens.append(token)
-                    element_idx += 1
+                    
+                    # Only increment the index for note/rest/chord objects
+                    note_rest_idx += 1
             measure_smt = " ".join(measure_smt_tokens)
 
         if measure_smt:

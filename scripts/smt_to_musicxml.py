@@ -1,6 +1,6 @@
 import argparse
 import re
-from music21 import stream, note, chord, meter, duration, layout, clef, repeat, percussion, metadata
+from music21 import stream, note, chord, meter, duration, layout, clef, repeat, metadata, instrument
 
 # --- SMT to music21 Mappings ---
 # Maps SMT instrument abbreviations to MIDI pitches and display properties for a standard drum map.
@@ -33,7 +33,7 @@ def parse_token(token):
         return None
     
     # Handle different types of barline tokens
-    if token in ["barline", "measure_break"]:
+    if token in ["barline", "measure_break", "|"]:
         return {"type": "barline"}
 
     match = re.match(r"(\w+)\[(.*?)\]", token)
@@ -72,121 +72,125 @@ def main():
         print(f"Error: Input file not found at {args.input_smt}")
         return
 
-    # Split the content by the page separator
-    page_separator = "\n\n<page_break>\n\n"
-    smt_pages = smt_content.split(page_separator)
-    
-    # --- Build music21 Score ---
     score = stream.Score()
     md = metadata.Metadata()
     score.insert(0, md)
 
     part = stream.Part()
+    part.insert(0, instrument.Percussion())
+    part.insert(0, clef.PercussionClef())
+    
+    note_map = {
+        'BD':  {'display_step': 'F', 'display_octave': 4, 'notehead': 'normal'},
+        'SD':  {'display_step': 'C', 'display_octave': 5, 'notehead': 'normal'},
+        'HH':  {'display_step': 'G', 'display_octave': 5, 'notehead': 'x'},
+        'HHO': {'display_step': 'G', 'display_octave': 5, 'notehead': 'circle-x'},
+        'CY':  {'display_step': 'A', 'display_octave': 5, 'notehead': 'x'},
+        'RD':  {'display_step': 'B', 'display_octave': 5, 'notehead': 'x'},
+        'LT':  {'display_step': 'A', 'display_octave': 4, 'notehead': 'normal'},
+        'MT':  {'display_step': 'D', 'display_octave': 5, 'notehead': 'normal'},
+        'HT':  {'display_step': 'E', 'display_octave': 5, 'notehead': 'normal'},
+        'FT':  {'display_step': 'E', 'display_octave': 4, 'notehead': 'normal'},
+    }
+
+    # Split by spaces and handle the pipe character as a separate token.
+    smt_content_with_spaces = smt_content.replace('|', ' | ')
+    tokens = smt_content_with_spaces.replace('\n', ' ').split()
+
+    time_signature = meter.TimeSignature('4/4')
+    for token_str in tokens:
+        token = parse_token(token_str)
+        if token and token["type"] == "timeSignature":
+            time_signature = meter.TimeSignature(token["value"])
+            break
+    part.append(time_signature)
+
+    for token_str in tokens:
+        token = parse_token(token_str)
+        if not token: continue
+        if token["type"] == "title": md.title = token["value"]
+        elif token["type"] == "creator": md.composer = token["value"]
+
+    current_measure_elements = []
     measure_number = 1
+    current_offset = 0.0
     
-    # Set up a default time signature and clef for the first measure
-    current_measure = stream.Measure(number=measure_number)
-    current_measure.append(meter.TimeSignature('4/4'))
-    current_measure.append(clef.PercussionClef())
-    
-    print(f"Found {len(smt_pages)} page(s) to process.")
-    print("Parsing tokens and building score...")
+    for token_str in tokens:
+        token = parse_token(token_str)
+        if not token or token["type"] in ["title", "creator", "timeSignature"]:
+            continue
 
-    for page_idx, smt_page_content in enumerate(smt_pages):
-        tokens = smt_page_content.replace('\n', ' ').split(' ')
-        
-        for token_str in tokens:
-            token = parse_token(token_str)
-            if not token:
-                continue
-
-            # Metadata is only processed from the first page
-            if page_idx == 0:
-                if token["type"] == "title":
-                    md.title = token["value"]
-                    continue
-                elif token["type"] == "creator":
-                    md.composer = token["value"]
-                    continue
-            
-            # Skip metadata tokens on subsequent pages
-            elif token["type"] in ["title", "creator"]:
-                continue
-
-            if token["type"] == "barline":
-                # Only add a new measure if the current one is not empty
-                if len(current_measure.notesAndRests) > 0:
-                    part.append(current_measure)
-                    measure_number += 1
-                    current_measure = stream.Measure(number=measure_number)
-            
-            elif token["type"] == "timeSignature":
-                # If the current measure is empty, add the time signature to it.
-                # Otherwise, create a new measure for the time signature.
-                if len(current_measure.notesAndRests) > 0:
-                    part.append(current_measure)
-                    measure_number += 1
-                    current_measure = stream.Measure(number=measure_number)
-                current_measure.append(meter.TimeSignature(token["value"]))
-
-            elif token["type"] == "repeat":
-                # Add a repeat barline to the end of the current measure
-                current_measure.rightBarline = repeat.RepeatMark(direction='end')
-                part.append(current_measure)
+        if token["type"] == "barline":
+            if current_measure_elements:
+                m = stream.Measure(number=measure_number)
+                for el in current_measure_elements:
+                    m.insert(el['offset'], el['element'])
                 
-                # Start a new measure with a start repeat mark
+                # Automatically create voices for overlapping notes
+                m.makeVoices(inPlace=True)
+
+                part.append(m)
+                
                 measure_number += 1
-                current_measure = stream.Measure(number=measure_number)
-                current_measure.leftBarline = repeat.RepeatMark(direction='start')
-
-            elif token["type"] == "rest":
-                duration_type = DURATION_MAP.get(token["duration"], "quarter")
-                r = note.Rest(type=duration_type)
-                current_measure.append(r)
-
-            elif token["type"] == "note":
-                duration_type = DURATION_MAP.get(token["duration"], "quarter")
+                current_measure_elements = []
+                current_offset = 0.0
                 
-                if len(token["instruments"]) > 1:
-                    # Create a chord for multiple instruments
-                    notes_for_chord = []
-                    for inst_abbr in token["instruments"]:
-                        inst_info = INSTRUMENT_MAP.get(inst_abbr)
-                        if inst_info:
-                            n = note.Note(inst_info['midi'])
-                            n.notehead = inst_info['notehead']
-                            notes_for_chord.append(n)
-                    if notes_for_chord:
-                        c = chord.Chord(notes_for_chord, type=duration_type)
-                        current_measure.append(c)
-                else:
-                    # Create a single note
-                    inst_abbr = token["instruments"][0]
-                    inst_info = INSTRUMENT_MAP.get(inst_abbr)
-                    if inst_info:
-                        # Create a note with the correct MIDI value for the instrument
-                        n = note.Note(inst_info['midi'])
-                        n.duration.type = duration_type
-                        n.notehead = inst_info['notehead']
-                        
-                        # music21's PercussionChord will handle the rest
-                        p = percussion.PercussionChord()
-                        p.add(n)
-                        p.duration.type = duration_type
-                        
-                        current_measure.append(p)
+                if (measure_number -1) % 4 == 0:
+                    part.append(layout.SystemLayout(isNew=True))
 
-    # Append the last measure if it's not empty
-    if len(current_measure.notesAndRests) > 0 or current_measure.number == 1:
-        part.append(current_measure)
+        elif token["type"] == "rest":
+            d = duration.Duration(type=DURATION_MAP.get(token["duration"], 'quarter'))
+            r = note.Rest(duration=d)
+            current_measure_elements.append({'offset': current_offset, 'element': r})
+            current_offset += d.quarterLength
+
+        elif token["type"] == "note":
+            d = duration.Duration(type=DURATION_MAP.get(token["duration"], 'quarter'))
+            
+            elements_to_add = []
+            for inst_abbr in token["instruments"]:
+                if inst_abbr in INSTRUMENT_MAP:
+                    inst_info = INSTRUMENT_MAP[inst_abbr]
+                    
+                    # Create an Unpitched note for percussion
+                    n = note.Note()
+                    n.duration = d
+                    n.pitch.displayStep = inst_info['display_step']
+                    n.pitch.displayOctave = inst_info['display_octave']
+                    n.notehead = inst_info['notehead']
+                    
+                    # Assign the instrument to the note
+                    p_inst = instrument.Percussion()
+                    p_inst.instrumentName = inst_abbr
+                    n.instruments = [p_inst]
+                    
+                    elements_to_add.append(n)
+
+            if not elements_to_add:
+                continue
+
+            if len(elements_to_add) > 1:
+                # For chords, music21 handles voices best when they are added as separate notes at the same offset
+                for n in elements_to_add:
+                    current_measure_elements.append({'offset': current_offset, 'element': n})
+            else:
+                current_measure_elements.append({'offset': current_offset, 'element': elements_to_add[0]})
+
+            current_offset += d.quarterLength
+
+    if current_measure_elements:
+        m = stream.Measure(number=measure_number)
+        for el in current_measure_elements:
+            m.insert(el['offset'], el['element'])
+        m.makeVoices(inPlace=True)
+        part.append(m)
 
     score.insert(0, part)
     
-    # Add page and system breaks for better layout
-    score.insert(0, layout.SystemLayout(isNew=True, top=150))
-
     print(f"Writing MusicXML file to: {args.output_xml}")
     try:
+        # The makeNotation call is critical for handling percussion clefs and voices correctly.
+        score.makeNotation(inPlace=True)
         score.write('musicxml', fp=args.output_xml)
         print("Conversion successful.")
     except Exception as e:

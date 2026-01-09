@@ -28,9 +28,9 @@ def process_pdf(pdf_path, use_repeats):
     """
     Processes a single PDF file for the fine-tuning dataset:
     1. Finds the matching MusicXML file.
-    2. Converts the MusicXML to an SMT string, handling repeats randomly.
-    3. Converts the PDF to a PNG image.
-    4. Returns a dictionary for the dataset JSON.
+    2. Converts the MusicXML to an SMT string.
+    3. Converts each page of the PDF to a PNG image.
+    4. Returns a list of dictionaries for the dataset JSON, one for each page.
     """
     print(f"Processing {pdf_path.name} (use_repeats={use_repeats})...")
     xml_filename = pdf_path.with_suffix('.xml').name
@@ -39,55 +39,63 @@ def process_pdf(pdf_path, use_repeats):
     if not xml_path.exists():
         xml_path = XML_INPUT_DIR / pdf_path.with_suffix('.musicxml').name
 
-    png_path = IMAGE_OUTPUT_DIR / pdf_path.with_suffix('.png').name
-    smt_path = SMT_OUTPUT_DIR / pdf_path.with_suffix('.smt').name
-
     if not xml_path.exists():
         print(f"  -> Skipping: No corresponding MusicXML file found for {pdf_path.name}")
-        return None
+        return []
 
     # 1. Generate SMT from the ground-truth MusicXML
     smt_string = musicxml_to_smt(xml_path, use_repeats=use_repeats)
     if not smt_string:
         print(f"  -> Skipping: Failed to generate SMT from {xml_path.name}")
-        return None
+        return []
 
-    # --- New: Save the generated SMT to a file for inspection ---
+    # --- Save the generated SMT to a file for inspection ---
     try:
         SMT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        smt_path = SMT_OUTPUT_DIR / pdf_path.with_suffix('.smt').name
         with open(smt_path, 'w') as f:
             f.write(smt_string)
         print(f"  -> Ground-truth SMT saved to {smt_path.name}")
     except IOError as e:
         print(f"  -> Error writing SMT file: {e}")
-        return None
+        return []
     # --- End new section ---
 
-    # 2. Convert the PDF to a PNG image
+    # 2. Convert the PDF to PNG images (one per page)
     try:
         IMAGE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        # The output path for pdftoppm should be a prefix. It will add '-1.png', '-2.png', etc.
+        image_prefix = IMAGE_OUTPUT_DIR / pdf_path.stem
+        
         subprocess.run([
             'pdftoppm',
             '-png',
-            '-singlefile',
+            # Removed '-singlefile' to get all pages
             '-r', str(IMAGE_DPI),
             str(pdf_path),
-            str(png_path.with_suffix('')) # pdftoppm adds the .png suffix
+            str(image_prefix)
         ], check=True, capture_output=True, text=True)
 
-        if not png_path.exists():
-             print(f"  -> Error: PNG not created for {pdf_path.name}")
-             return None
+        # Find all generated images for this PDF
+        generated_images = sorted(list(IMAGE_OUTPUT_DIR.glob(f"{pdf_path.stem}-*.png")))
+
+        if not generated_images:
+             print(f"  -> Error: No PNGs were created for {pdf_path.name}")
+             return []
         
-        print(f"  -> Successfully created image and SMT.")
-        # Return paths relative to the training_data directory
-        relative_image_path = png_path.relative_to(TRAINING_DATA_DIR)
-        return {"image_path": str(relative_image_path), "st": smt_string}
+        print(f"  -> Successfully created {len(generated_images)} image(s) and SMT.")
+        
+        page_entries = []
+        for png_path in generated_images:
+            relative_image_path = png_path.relative_to(TRAINING_DATA_DIR)
+            page_entries.append({"image_path": str(relative_image_path), "st": smt_string})
+        
+        return page_entries
 
     except subprocess.CalledProcessError as e:
         print(f"  -> Error during image rendering of {pdf_path.name}:")
         print(e.stderr)
-        return None
+        return []
 
 def main():
     """
@@ -120,9 +128,9 @@ def main():
         future_to_pdf = {executor.submit(process_pdf, pdf, use_repeats_for_batch): pdf for pdf in pdf_files}
         
         for future in tqdm(as_completed(future_to_pdf), total=len(pdf_files), desc="Processing files"):
-            result = future.result()
-            if result:
-                dataset.append(result)
+            results = future.result()
+            if results:
+                dataset.extend(results)
 
     if not dataset:
         print("No data was successfully processed. Exiting.")

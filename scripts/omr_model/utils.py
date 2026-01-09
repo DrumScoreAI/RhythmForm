@@ -112,6 +112,295 @@ def _get_duration_map_from_xml(xml_path):
     return duration_map
 
 
+def _convert_bs_notes_to_smt(note_elements, duration):
+    """
+    Converts a list of BeautifulSoup <note> elements (representing a single note or a chord)
+    to a single SMT token.
+    """
+    smt_notes = []
+    for note_elem in note_elements:
+        # Handle rests
+        if note_elem.find('rest'):
+            # This function is for notes, but we can safeguard.
+            # In the main loop, rests are handled separately.
+            # If a chord contains a rest, we'll represent the whole event as a rest.
+            return f"rest[{duration}]"
+
+        # Handle unpitched notes (percussion)
+        unpitched = note_elem.find('unpitched')
+        if unpitched:
+            display_step_tag = unpitched.find('display-step')
+            display_octave_tag = unpitched.find('display-octave')
+            
+            if display_step_tag and display_octave_tag:
+                display_step = display_step_tag.string
+                display_octave = int(display_octave_tag.string)
+                notehead_tag = note_elem.find('notehead')
+                notehead_text = notehead_tag.string if notehead_tag and notehead_tag.string else 'normal'
+                
+                display_key = (display_step, display_octave, notehead_text)
+                if display_key in DRUM_DISPLAY_TO_SMT:
+                    smt_notes.append(DRUM_DISPLAY_TO_SMT[display_key])
+    
+    if not smt_notes:
+        return None
+
+    note_str = ".".join(sorted(list(set(smt_notes))))
+    return f"note[{note_str},{duration}]"
+
+
+def musicxml_to_smt(xml_path, use_repeats=False):
+    """
+    Converts a MusicXML file to its SMT representation using BeautifulSoup.
+    This is the main entry point for MusicXML to SMT conversion.
+
+    Args:
+        xml_path (str or Path): The path to the MusicXML file.
+        use_repeats (bool): If True, will try to find repeated measures and
+                            represent them as 'repeat[measure]'. If False,
+                            it will "unroll" any repeats into full note sequences.
+    """
+    try:
+        with open(xml_path, 'r', encoding='utf-8') as f:
+            soup = BeautifulSoup(f, 'xml')
+    except Exception as e:
+        print(f"Error reading or parsing XML file with BeautifulSoup: {e}")
+        return ""
+
+    # This is the most reliable way to get durations, so we do it first.
+    duration_map = _get_duration_map_from_xml(xml_path)
+
+    header_tokens = []
+    # Find the first clef and time signature in the first part.
+    first_part = soup.find('part')
+    if first_part:
+        # Get Clef
+        clef_tag = first_part.find('clef')
+        if clef_tag and clef_tag.find('sign') and clef_tag.find('sign').string == 'percussion':
+            header_tokens.append("clef[percussion]")
+
+        # Get Time Signature
+        time_tag = first_part.find('time')
+        if time_tag and time_tag.find('beats') and time_tag.find('beat-type'):
+            beats = time_tag.find('beats').string
+            beat_type = time_tag.find('beat-type').string
+            header_tokens.append(f"time[{beats}/{beat_type}]")
+
+    smt_measures = []
+    previous_measure_smt = None
+
+    all_measures = soup.find_all('measure')
+    for measure_elem in all_measures:
+        measure_number = int(measure_elem.get('number', 0))
+        
+        # Check for measure repeat symbol. MuseScore can export this in a few ways.
+        # The most common for '%' is <measure-style><measure-repeat type="start" count="1"/></measure-style>
+        # Or a simple <repeat type="percent"/>. We'll check for both.
+        is_repeat_measure = False
+        if measure_elem.find('measure-repeat') or (measure_elem.find('repeat') and measure_elem.find('repeat').get('type') == 'percent'):
+             is_repeat_measure = True
+
+        if use_repeats and is_repeat_measure:
+            measure_smt = "repeat[measure]"
+        elif not use_repeats and is_repeat_measure:
+            measure_smt = previous_measure_smt
+        else:
+            # This is a normal measure, so we generate its SMT.
+            measure_smt_tokens = []
+            element_idx = 0
+            
+            # Find all direct children 'note', 'forward', 'backup' of the measure
+            for element in measure_elem.find_all(['note', 'forward', 'backup'], recursive=False):
+                # Skip chord elements as they are handled with the main note
+                if element.name == 'note' and element.find('chord'):
+                    continue
+
+                duration = duration_map.get((measure_number, element_idx), Fraction(0))
+                
+                # We need to handle chords, which are multiple notes at the same time position.
+                # The first note does not have a <chord/> tag, subsequent ones do.
+                if element.name == 'note':
+                    if element.find('rest'): # It's a rest within a note tag
+                        measure_smt_tokens.append(f"rest[{duration}]")
+                    else:
+                        chord_notes = [element]
+                        next_sibling = element.find_next_sibling('note')
+                        while next_sibling and next_sibling.find('chord'):
+                            chord_notes.append(next_sibling)
+                            next_sibling = next_sibling.find_next_sibling('note')
+                        
+                        token = _convert_bs_notes_to_smt(chord_notes, duration)
+                        if token:
+                            measure_smt_tokens.append(token)
+
+                element_idx += 1
+            
+            measure_smt = " ".join(measure_smt_tokens)
+
+        if measure_smt:
+            smt_measures.append(measure_smt)
+        
+        if not is_repeat_measure:
+            previous_measure_smt = measure_smt
+
+    header_str = " ".join(header_tokens)
+    body_str = " | ".join(smt_measures)
+
+    if header_str and body_str:
+        return f"{header_str} | {body_str}"
+    elif body_str:
+        return body_str
+    else:
+        return ""
+
+
+def _parse_smt_token(token):
+
+
+def musicxml_to_smt(xml_path, use_repeats=False):
+    """
+    Converts a MusicXML file to its SMT representation using BeautifulSoup.
+    This is the main entry point for MusicXML to SMT conversion.
+
+    Args:
+        xml_path (str or Path): The path to the MusicXML file.
+        use_repeats (bool): If True, will try to find repeated measures and
+                            represent them as 'repeat[measure]'. If False,
+                            it will "unroll" any repeats into full note sequences.
+    """
+    try:
+        with open(xml_path, 'r', encoding='utf-8') as f:
+            soup = BeautifulSoup(f, 'xml')
+    except Exception as e:
+        print(f"Error reading or parsing XML file with BeautifulSoup: {e}")
+        return ""
+
+    # This is the most reliable way to get durations, so we do it first.
+    duration_map = _get_duration_map_from_xml(xml_path)
+
+    header_tokens = []
+    # Find the first clef and time signature in the first part.
+    first_part = soup.find('part')
+    if first_part:
+        # Get Clef
+        clef_tag = first_part.find('clef')
+        if clef_tag and clef_tag.find('sign') and clef_tag.find('sign').string == 'percussion':
+            header_tokens.append("clef[percussion]")
+
+        # Get Time Signature
+        time_tag = first_part.find('time')
+        if time_tag and time_tag.find('beats') and time_tag.find('beat-type'):
+            beats = time_tag.find('beats').string
+            beat_type = time_tag.find('beat-type').string
+            header_tokens.append(f"time[{beats}/{beat_type}]")
+
+    smt_measures = []
+    previous_measure_smt = None
+
+    all_measures = soup.find_all('measure')
+    for measure_elem in all_measures:
+        measure_number = int(measure_elem.get('number', 0))
+        
+        # Check for measure repeat symbol. MuseScore can export this in a few ways.
+        # The most common for '%' is <measure-style><measure-repeat type="start" count="1"/></measure-style>
+        # Or a simple <repeat type="percent"/>. We'll check for both.
+        is_repeat_measure = False
+        if measure_elem.find('measure-repeat') or (measure_elem.find('repeat') and measure_elem.find('repeat').get('type') == 'percent'):
+             is_repeat_measure = True
+
+        if use_repeats and is_repeat_measure:
+            measure_smt = "repeat[measure]"
+        elif not use_repeats and is_repeat_measure:
+            measure_smt = previous_measure_smt
+        else:
+            # This is a normal measure, so we generate its SMT.
+            measure_smt_tokens = []
+            element_idx = 0
+            
+            # Find all direct children 'note', 'forward', 'backup' of the measure
+            for element in measure_elem.find_all(['note', 'forward', 'backup'], recursive=False):
+                # Skip chord elements as they are handled with the main note
+                if element.name == 'note' and element.find('chord'):
+                    continue
+
+                duration = duration_map.get((measure_number, element_idx), Fraction(0))
+                
+                # We need to handle chords, which are multiple notes at the same time position.
+                # The first note does not have a <chord/> tag, subsequent ones do.
+                if element.name == 'note':
+                    chord_notes = [element]
+                    next_sibling = element.find_next_sibling('note')
+                    while next_sibling and next_sibling.find('chord'):
+                        chord_notes.append(next_sibling)
+                        next_sibling = next_sibling.find_next_sibling('note')
+                    
+                    token = _convert_bs_notes_to_smt(chord_notes, duration)
+                    if token:
+                        measure_smt_tokens.append(token)
+
+                elif element.find('rest'): # It's a rest within a note tag
+                    measure_smt_tokens.append(f"rest[{duration}]")
+
+                element_idx += 1
+            
+            measure_smt = " ".join(measure_smt_tokens)
+
+        if measure_smt:
+            smt_measures.append(measure_smt)
+        
+        if not is_repeat_measure:
+            previous_measure_smt = measure_smt
+
+    header_str = " ".join(header_tokens)
+    body_str = " | ".join(smt_measures)
+
+    if header_str and body_str:
+        return f"{header_str} | {body_str}"
+    elif body_str:
+        return body_str
+    else:
+        return ""
+
+def _convert_bs_notes_to_smt(note_elements, duration):
+    """
+    Converts a list of BeautifulSoup <note> elements (representing a single note or a chord)
+    to a single SMT token.
+    """
+    smt_notes = []
+    for note_elem in note_elements:
+        # Handle rests
+        if note_elem.find('rest'):
+            # This function is for notes, but we can safeguard.
+            # In the main loop, rests are handled separately.
+            # If a chord contains a rest, we'll represent the whole event as a rest.
+            return f"rest[{duration}]"
+
+        # Handle unpitched notes (percussion)
+        unpitched = note_elem.find('unpitched')
+        if unpitched:
+            display_step_tag = unpitched.find('display-step')
+            display_octave_tag = unpitched.find('display-octave')
+            
+            if display_step_tag and display_octave_tag:
+                display_step = display_step_tag.string
+                display_octave = int(display_octave_tag.string)
+                notehead_tag = note_elem.find('notehead')
+                notehead_text = notehead_tag.string if notehead_tag and notehead_tag.string else 'normal'
+                
+                display_key = (display_step, display_octave, notehead_text)
+                if display_key in DRUM_DISPLAY_TO_SMT:
+                    smt_notes.append(DRUM_DISPLAY_TO_SMT[display_key])
+    
+    if not smt_notes:
+        return None
+
+    note_str = ".".join(sorted(list(set(smt_notes))))
+    return f"note[{note_str},{duration}]"
+
+
+def _parse_smt_token(token):
+
+
 def _extract_instrument_map_from_xml(xml_path):
     """
     Directly parses the MusicXML file using BeautifulSoup to find <score-instrument>
@@ -261,7 +550,7 @@ def _convert_note_to_smt_bs(element, duration, id_to_midi_map=None):
 
 def musicxml_to_smt(xml_path, use_repeats=False):
     """
-    Converts a MusicXML file to its SMT representation using music21.
+    Converts a MusicXML file to its SMT representation using BeautifulSoup.
     This is the main entry point for MusicXML to SMT conversion.
 
     Args:
@@ -271,78 +560,85 @@ def musicxml_to_smt(xml_path, use_repeats=False):
                             it will "unroll" any repeats into full note sequences.
     """
     try:
-        # It's safer to use music21's repeat handling, so we load it.
-        # expandRepeats=True will unroll things like sectional repeats (e.g., :||),
-        # but it correctly preserves measure repeats (the '%' symbol).
-        score = music21.converter.parse(xml_path, expandRepeats=True)
+        with open(xml_path, 'r', encoding='utf-8') as f:
+            soup = BeautifulSoup(f, 'xml')
     except Exception as e:
-        print(f"Error parsing MusicXML file with music21: {e}")
+        print(f"Error reading or parsing XML file with BeautifulSoup: {e}")
         return ""
 
-    # We still use BeautifulSoup for things music21 gets wrong, like durations.
-    id_to_midi_map = _extract_instrument_map_from_xml(xml_path)
+    # This is the most reliable way to get durations, so we do it first.
     duration_map = _get_duration_map_from_xml(xml_path)
 
-    part = score.parts[0] if score.parts else None
-    if not part:
-        return ""
-
     header_tokens = []
-    first_measure = part.measure(1)
-    if first_measure:
+    # Find the first clef and time signature in the first part.
+    first_part = soup.find('part')
+    if first_part:
         # Get Clef
-        clef = first_measure.getElementsByClass('Clef')
-        if clef and isinstance(clef[0], music21.clef.PercussionClef):
+        clef_tag = first_part.find('clef')
+        if clef_tag and clef_tag.find('sign') and clef_tag.find('sign').string == 'percussion':
             header_tokens.append("clef[percussion]")
 
         # Get Time Signature
-        ts = first_measure.getElementsByClass('TimeSignature')
-        if ts:
-            header_tokens.append(f"time[{ts[0].ratioString}]")
+        time_tag = first_part.find('time')
+        if time_tag and time_tag.find('beats') and time_tag.find('beat-type'):
+            beats = time_tag.find('beats').string
+            beat_type = time_tag.find('beat-type').string
+            header_tokens.append(f"time[{beats}/{beat_type}]")
 
     smt_measures = []
     previous_measure_smt = None
 
-    for measure in part.getElementsByClass('Measure'):
-        # Check for measure repeat symbol ('%')
-        # music21 parses these as a RepeatExpression spanner.
-        repeat_expressions = measure.getSpannerSites('RepeatExpression')
-        is_repeat_measure = any(re.isFirst(measure) for re in repeat_expressions)
+    all_measures = soup.find_all('measure')
+    for measure_elem in all_measures:
+        measure_number = int(measure_elem.get('number', 0))
+        
+        # Check for measure repeat symbol. MuseScore can export this in a few ways.
+        # The most common for '%' is <measure-style><measure-repeat type="start" count="1"/></measure-style>
+        # Or a simple <repeat type="percent"/>. We'll check for both.
+        is_repeat_measure = False
+        if measure_elem.find('measure-repeat') or (measure_elem.find('repeat') and measure_elem.find('repeat').get('type') == 'percent'):
+             is_repeat_measure = True
 
         if use_repeats and is_repeat_measure:
             measure_smt = "repeat[measure]"
         elif not use_repeats and is_repeat_measure:
-            # If we are not using repeats, and this is a repeat measure,
-            # use the SMT from the previous measure.
             measure_smt = previous_measure_smt
         else:
             # This is a normal measure, so we generate its SMT.
             measure_smt_tokens = []
-            note_rest_idx = 0 # Use a separate index for duration map lookups
-            # Iterate over all elements to correctly capture Unpitched notes
-            for element in measure.elements:
-                token = None
-                # We only care about notes, rests, and chords.
-                if isinstance(element, (music21.note.Note, music21.note.Rest, music21.chord.ChordBase)):
-                    # Skip chord notes as they are handled with the main note
-                    if hasattr(element, 'isChord') and element.isChord:
-                        continue
+            element_idx = 0
+            
+            # Find all direct children 'note', 'forward', 'backup' of the measure
+            for element in measure_elem.find_all(['note', 'forward', 'backup'], recursive=False):
+                # Skip chord elements as they are handled with the main note
+                if element.name == 'note' and element.find('chord'):
+                    continue
+
+                duration = duration_map.get((measure_number, element_idx), Fraction(0))
+                
+                # We need to handle chords, which are multiple notes at the same time position.
+                # The first note does not have a <chord/> tag, subsequent ones do.
+                if element.name == 'note':
+                    chord_notes = [element]
+                    next_sibling = element.find_next_sibling('note')
+                    while next_sibling and next_sibling.find('chord'):
+                        chord_notes.append(next_sibling)
+                        next_sibling = next_sibling.find_next_sibling('note')
                     
-                    # Use the dedicated note/rest index for the duration map
-                    duration = duration_map.get((measure.number, note_rest_idx), Fraction(element.duration.quarterLength).limit_denominator())
-                    token = _convert_note_to_smt(element, duration, id_to_midi_map)
+                    token = _convert_bs_notes_to_smt(chord_notes, duration)
                     if token:
                         measure_smt_tokens.append(token)
-                    
-                    # Only increment the index for note/rest/chord objects
-                    note_rest_idx += 1
+
+                elif element.find('rest'): # It's a rest within a note tag
+                    measure_smt_tokens.append(f"rest[{duration}]")
+
+                element_idx += 1
+            
             measure_smt = " ".join(measure_smt_tokens)
 
         if measure_smt:
             smt_measures.append(measure_smt)
         
-        # Store the SMT of the current "real" measure for potential future repeats.
-        # Do not update if the current measure was a repeat itself.
         if not is_repeat_measure:
             previous_measure_smt = measure_smt
 
@@ -355,6 +651,43 @@ def musicxml_to_smt(xml_path, use_repeats=False):
         return body_str
     else:
         return ""
+
+def _convert_bs_notes_to_smt(note_elements, duration):
+    """
+    Converts a list of BeautifulSoup <note> elements (representing a single note or a chord)
+    to a single SMT token.
+    """
+    smt_notes = []
+    for note_elem in note_elements:
+        # Handle rests
+        if note_elem.find('rest'):
+            # This function is for notes, but we can safeguard.
+            # In the main loop, rests are handled separately.
+            # If a chord contains a rest, we'll represent the whole event as a rest.
+            return f"rest[{duration}]"
+
+        # Handle unpitched notes (percussion)
+        unpitched = note_elem.find('unpitched')
+        if unpitched:
+            display_step_tag = unpitched.find('display-step')
+            display_octave_tag = unpitched.find('display-octave')
+            
+            if display_step_tag and display_octave_tag:
+                display_step = display_step_tag.string
+                display_octave = int(display_octave_tag.string)
+                notehead_tag = note_elem.find('notehead')
+                notehead_text = notehead_tag.string if notehead_tag and notehead_tag.string else 'normal'
+                
+                display_key = (display_step, display_octave, notehead_text)
+                if display_key in DRUM_DISPLAY_TO_SMT:
+                    smt_notes.append(DRUM_DISPLAY_TO_SMT[display_key])
+    
+    if not smt_notes:
+        return None
+
+    note_str = ".".join(sorted(list(set(smt_notes))))
+    return f"note[{note_str},{duration}]"
+
 
 def _parse_smt_token(token):
     """Parses a single SMT token into a structured dictionary."""

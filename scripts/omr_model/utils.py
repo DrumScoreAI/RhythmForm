@@ -243,50 +243,85 @@ def _convert_note_to_smt_bs(element, duration, id_to_midi_map=None):
 
 
 
-def musicxml_to_smt(xml_path):
+def musicxml_to_smt(xml_path, use_repeats=False):
     """
-    Converts a MusicXML file to its SMT representation using BeautifulSoup.
+    Converts a MusicXML file to its SMT representation using music21.
     This is the main entry point for MusicXML to SMT conversion.
+
+    Args:
+        xml_path (str or Path): The path to the MusicXML file.
+        use_repeats (bool): If True, will try to find repeated measures and
+                            represent them as 'repeat[measure]'. If False,
+                            it will "unroll" any repeats into full note sequences.
     """
     try:
-        with open(xml_path, 'r', encoding='utf-8') as f:
-            soup = BeautifulSoup(f, 'xml')
+        # It's safer to use music21's repeat handling, so we load it.
+        # expandRepeats=True will unroll things like sectional repeats (e.g., :||),
+        # but it correctly preserves measure repeats (the '%' symbol).
+        score = music21.converter.parse(xml_path, expandRepeats=True)
     except Exception as e:
-        print(f"Error reading MusicXML file: {e}")
+        print(f"Error parsing MusicXML file with music21: {e}")
         return ""
 
+    # We still use BeautifulSoup for things music21 gets wrong, like durations.
     id_to_midi_map = _extract_instrument_map_from_xml(xml_path)
     duration_map = _get_duration_map_from_xml(xml_path)
 
+    part = score.parts[0] if score.parts else None
+    if not part:
+        return ""
+
     header_tokens = []
-    first_measure = soup.find('measure')
+    first_measure = part.measure(1)
     if first_measure:
         # Get Clef
-        clef_sign = first_measure.find('sign')
-        if clef_sign and clef_sign.string == 'percussion':
+        clef = first_measure.getElementsByClass('Clef')
+        if clef and isinstance(clef[0], music21.clef.PercussionClef):
             header_tokens.append("clef[percussion]")
 
         # Get Time Signature
-        time_sig = first_measure.find('time')
-        if time_sig and time_sig.find('beats') and time_sig.find('beat-type'):
-            beats = time_sig.find('beats').string
-            beat_type = time_sig.find('beat-type').string
-            header_tokens.append(f"time[{beats}/{beat_type}]")
+        ts = first_measure.getElementsByClass('TimeSignature')
+        if ts:
+            header_tokens.append(f"time[{ts[0].ratioString}]")
 
     smt_measures = []
-    all_measures = soup.find_all('measure')
-    for measure_elem in all_measures:
-        measure_number = int(measure_elem.get('number', 0))
-        
-        # Check for repeats
-        is_repeated = False
-        barline = measure_elem.find('barline')
-        if barline and barline.find('repeat') and barline.find('repeat').get('direction') == 'backward':
-            is_repeated = True
+    previous_measure_smt = None
 
-        measure_smt = _measure_to_smt_bs(measure_elem, duration_map, is_repeated=is_repeated, id_to_midi_map=id_to_midi_map)
+    for measure in part.getElementsByClass('Measure'):
+        # Check for measure repeat symbol ('%')
+        # music21 parses these as a RepeatExpression spanner.
+        repeat_expressions = measure.getSpannerSites('RepeatExpression')
+        is_repeat_measure = any(re.isFirst(measure) for re in repeat_expressions)
+
+        if use_repeats and is_repeat_measure:
+            measure_smt = "repeat[measure]"
+        elif not use_repeats and is_repeat_measure:
+            # If we are not using repeats, and this is a repeat measure,
+            # use the SMT from the previous measure.
+            measure_smt = previous_measure_smt
+        else:
+            # This is a normal measure, so we generate its SMT.
+            measure_smt_tokens = []
+            element_idx = 0
+            for element in measure.notesAndRests:
+                # Skip chord notes as they are handled with the main note
+                if element.isChord:
+                    continue
+                
+                duration = duration_map.get((measure.number, element_idx), Fraction(element.duration.quarterLength).limit_denominator())
+                token = _convert_note_to_smt(element, duration, id_to_midi_map)
+                if token:
+                    measure_smt_tokens.append(token)
+                element_idx += 1
+            measure_smt = " ".join(measure_smt_tokens)
+
         if measure_smt:
             smt_measures.append(measure_smt)
+        
+        # Store the SMT of the current "real" measure for potential future repeats.
+        # Do not update if the current measure was a repeat itself.
+        if not is_repeat_measure:
+            previous_measure_smt = measure_smt
 
     header_str = " ".join(header_tokens)
     body_str = " | ".join(smt_measures)

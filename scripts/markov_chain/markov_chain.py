@@ -35,4 +35,4 @@ class MarkovChain:
             )[0]
             result.append(next_token)
             state = (*state[1:], next_token)
-        return ' '.join(result)
+        return result

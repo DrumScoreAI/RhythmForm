@@ -15,6 +15,15 @@ def load_symbolic_texts(dataset_file):
             sequences.append(st_text)
     return sequences
 
+def process_file(file_path, model):
+    print(f"Processing {file_path}...")
+    with open(file_path, 'r') as f:
+        content = f.read()
+    
+    # Split the content by spaces to get tokens, and handle multiple spaces
+    tokens = [token for token in content.split(' ') if token]
+    model.add_sequence(tokens)
+
 def main():
 
     RHYTHMFORMHOME = os.environ.get('RHYTHMFORMHOME', Path(__file__).parent.parent)

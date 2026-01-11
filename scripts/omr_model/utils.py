@@ -321,7 +321,7 @@ def _parse_smt_token(token_str):
     
     token_info = {"type": token_type}
 
-    if token_type in ["title", "subtitle", "composer", "clef", "time"]:
+    if token_type in ["title", "subtitle", "composer", "creator", "clef", "time"]:
         token_info["value"] = content
     elif token_type == "text":
         token_info["value"] = content
@@ -371,16 +371,27 @@ def smt_to_musicxml(smt_string: str) -> music21.stream.Score:
             token = _parse_smt_token(token_str)
             if not token: continue
             
-            if token["type"] == "clef" and token["value"] == "percussion":
+            if token["type"] == "title":
+                score.metadata = music21.metadata.Metadata()
+                score.metadata.title = token["value"]
+            elif token["type"] == "subtitle":
+                if not score.metadata:
+                    score.metadata = music21.metadata.Metadata()
+                score.metadata.movementName = token["value"]
+            elif token["type"] == "creator":
+                if not score.metadata:
+                    score.metadata = music21.metadata.Metadata()
+                score.metadata.composer = token["value"]
+            elif token["type"] == "clef" and token["value"] == "percussion":
                 part.insert(0, music21.clef.PercussionClef())
-            elif token["type"] == "timeSignature":
+            elif token["type"] == "time":
                 part.insert(0, music21.meter.TimeSignature(token["value"]))
 
         # --- Second pass for notes and structure ---
         tuplet_state = None
         for token_str in tokens:
             token = _parse_smt_token(token_str)
-            if not token or token["type"] in ["clef", "timeSignature"]:
+            if not token or token["type"] in ["title", "subtitle", "creator", "clef", "time"]:
                 continue
 
             elif token["type"] == "tuplet":

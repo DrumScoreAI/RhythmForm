@@ -3,7 +3,7 @@ import os
 import pickle
 from pathlib import Path
 import json
-from .markov_chain import MarkovChain
+from markov_chain import MarkovChain
 
 def load_symbolic_texts(dataset_file):
     sequences = []

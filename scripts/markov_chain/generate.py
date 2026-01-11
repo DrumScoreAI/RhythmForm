@@ -1,22 +1,18 @@
 import argparse
 import pickle
-from .markov_chain import MarkovChain
+from pathlib import Path
+from markov_chain import MarkovChain
 
 def generate_sequence(model, length=100, start_token=None):
     return model.generate(length=length, start_token=start_token)
 
-def generate_musicxml(sequence):
-    # Placeholder function: Convert the generated sequence into MusicXML format.
-    # The actual implementation would depend on the specific symbolic text format used.
-    musicxml_content = f"<musicxml>\n<!-- Generated Sequence -->\n{sequence}\n</musicxml>"
-    return musicxml_content
-
 def main():
-    parser = argparse.ArgumentParser(description="Generate a sequence using a trained MarkovChain model.")
+    parser = argparse.ArgumentParser(description="Generate synthetic SMT files using a trained MarkovChain model.")
     parser.add_argument('--model', type=str, required=True, help='Path to the trained MarkovChain model (pickle file)')
-    parser.add_argument('--length', type=int, default=100, help='Length of the sequence to generate')
-    parser.add_argument('--start', type=str, default=None, help='Optional start token')
-    parser.add_argument('--output', type=str, default=None, help='Output file to save the generated sequence (prints to stdout if not set)')
+    parser.add_argument('--output_dir', type=str, required=True, help='Directory to save the generated SMT files')
+    parser.add_argument('--num_files', type=int, default=1, help='Number of SMT files to generate')
+    parser.add_argument('--length', type=int, default=150, help='Approximate length of the sequence to generate')
+    parser.add_argument('--start', type=str, default=None, help='Optional start token for generation')
     args = parser.parse_args()
 
     # Load the trained MarkovChain model
@@ -25,19 +21,24 @@ def main():
     if not isinstance(model, MarkovChain):
         raise ValueError('Loaded object is not a MarkovChain instance')
 
-    # Generate sequence
-    sequence = generate_sequence(model, length=args.length, start_token=args.start)
+    # Create output directory if it doesn't exist
+    output_path = Path(args.output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
 
-    # Output
-    if args.output:
-        with open(args.output, 'w') as out_f:
-            for item in sequence:
-                out_f.write(f"{item}")
-            out_f.write('\n')
-    else:
-        for item in sequence:
-            print(item, end='')
-        print()
+    print(f"Generating {args.num_files} synthetic SMT files in {args.output_dir}...")
+
+    for i in range(args.num_files):
+        # Generate sequence
+        sequence = generate_sequence(model, length=args.length, start_token=args.start)
+        
+        # Define output file path
+        output_file = output_path / f"synthetic_score_{i+1}.smt"
+
+        # Write sequence to file
+        with open(output_file, 'w') as out_f:
+            out_f.write(" ".join(sequence))
+    
+    print(f"Successfully generated {args.num_files} files.")
 
 if __name__ == "__main__":
     main()

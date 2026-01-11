@@ -200,6 +200,12 @@ def musicxml_to_smt(xml_path, use_repeats=False):
         if composer_tag and composer_tag.string:
             composer = composer_tag.string.strip()
 
+    # Fallback for subtitle
+    if not subtitle:
+        movement_title_tag = soup.find('movement-title')
+        if movement_title_tag and movement_title_tag.string:
+            subtitle = movement_title_tag.string.strip()
+
     if title:
         header_tokens.append(f"title[{title}]")
     if subtitle:
@@ -359,15 +365,16 @@ def smt_to_musicxml(smt_string: str) -> music21.stream.Score:
     try:
         score = music21.stream.Score()
         part = music21.stream.Part()
-        measure_number = 1
-        current_measure = music21.stream.Measure(number=measure_number)
         
-        # Tokenize the SMT string
-        smt_with_spaces = smt_string.replace('|', ' | ')
-        tokens = smt_with_spaces.replace('\n', ' ').split()
+        # Split string into header and body
+        parts = smt_string.split('|', 1)
+        header_string = parts[0].strip()
+        body_string = parts[1].strip() if len(parts) > 1 else ""
 
+        header_tokens = header_string.split()
+        
         # --- Initial setup from header ---
-        for token_str in tokens:
+        for token_str in header_tokens:
             token = _parse_smt_token(token_str)
             if not token: continue
             
@@ -387,84 +394,84 @@ def smt_to_musicxml(smt_string: str) -> music21.stream.Score:
             elif token["type"] == "time":
                 part.insert(0, music21.meter.TimeSignature(token["value"]))
 
-        # --- Second pass for notes and structure ---
+        # --- Process measures from body ---
+        measure_strings = body_string.split('|')
+        measure_number = 1
         tuplet_state = None
-        for token_str in tokens:
-            token = _parse_smt_token(token_str)
-            if not token or token["type"] in ["title", "subtitle", "creator", "clef", "time"]:
+
+        for measure_str in measure_strings:
+            current_measure = music21.stream.Measure(number=measure_number)
+            tokens = measure_str.strip().split()
+            
+            if not tokens:
                 continue
 
-            elif token["type"] == "tuplet":
-                if token["state"] == "start":
-                    tuplet_state = music21.duration.Tuplet(numberNotes=3, notesFollowing=1)
-                else: # stop
-                    tuplet_state = None
-                continue
+            for token_str in tokens:
+                token = _parse_smt_token(token_str)
+                if not token:
+                    continue
+                
+                if token["type"] == "text":
+                    # Create a text expression and add it to the measure
+                    te = music21.expressions.TextExpression(token["value"])
+                    current_measure.append(te)
+                    continue # Move to the next token
 
-            elif token["type"] == "barline":
-                if current_measure.elements:
-                    part.append(current_measure)
-                    measure_number += 1
-                    current_measure = music21.stream.Measure(number=measure_number)
-                continue
+                if token["type"] == "tuplet":
+                    # This logic needs to be improved to handle nested tuplets if they exist
+                    if "start" in token.get("value", ""):
+                        tuplet_state = music21.duration.Tuplet(numberNotes=3, notesFollowing=1) # Basic triplet
+                    else: # stop
+                        tuplet_state = None
+                    continue
 
-            elif token["type"] == "repeat":
-                # Create a RepeatExpression for the measure repeat symbol (%)
-                re = music21.repeat.RepeatExpression()
-                current_measure.append(re)
-                # Add a hidden rest to fill the measure duration
-                r = music21.note.Rest()
-                if current_measure.timeSignature:
-                    r.duration = current_measure.timeSignature.duration
-                else: # fallback for safety
-                    r.duration.quarterLength = 4.0
-                r.style.hideObjectOnPrint = True
-                current_measure.append(r)
-
-            elif token["type"] == "rest":
-                r = music21.note.Rest()
-                try:
-                    # First, try to convert to a float directly (for "1.0", "0.5", etc.)
-                    r.duration.quarterLength = float(token["duration"])
+                elif token["type"] == "rest":
+                    r = music21.note.Rest()
+                    try:
+                        r.duration.quarterLength = float(token["duration"])
+                    except ValueError:
+                        r.duration.quarterLength = Fraction(token["duration"])
                     if r.quarterLength == 0.0:
                         r.duration.type = 'zero'
-                except ValueError:
-                    try:
-                        # If that fails, it might be a fraction like "1/3"
-                        r.duration.quarterLength = Fraction(token["duration"])
-                        if r.quarterLength == 0.0:
-                            r.duration.type = 'zero'
-                    except (ValueError, ZeroDivisionError):
-                        # Fallback to setting type for "quarter", "eighth", etc.
-                        r.duration.type = "quarter" # Default fallback
-                if tuplet_state:
-                    r.duration.appendTuplet(tuplet_state)
-                current_measure.append(r)
+                    if tuplet_state:
+                        r.duration.appendTuplet(tuplet_state)
+                    current_measure.append(r)
 
-            elif token["type"] == "note":
-                duration = music21.duration.Duration()
-                try:
-                    duration.quarterLength = float(token["duration"])
+                elif token["type"] == "note":
+                    duration = music21.duration.Duration()
+                    try:
+                        duration.quarterLength = float(token["duration"])
+                    except ValueError:
+                        duration.quarterLength = Fraction(token["duration"])
                     if duration.quarterLength == 0.0:
                         duration.type = 'zero'
-                except ValueError:
-                    try:
-                        duration.quarterLength = Fraction(token["duration"])
-                        if duration.quarterLength == 0.0:
-                            duration.type = 'zero'
-                    except (ValueError, ZeroDivisionError):
-                        duration.type = "quarter" # Default fallback
-            
-            if tuplet_state:
-                duration.appendTuplet(tuplet_state)
+                    
+                    if tuplet_state:
+                        duration.appendTuplet(tuplet_state)
 
-                if len(token["instruments"]) > 1:
-                    # It's a chord
-                    chord_notes = []
-                    is_percussion_chord = False
-                    for instrument_name in token["instruments"]:
+                    if len(token["instruments"]) > 1:
+                        # It's a chord
+                        chord_notes = []
+                        for instrument_name in token["instruments"]:
+                            if instrument_name in SMT_TO_DRUM_DISPLAY:
+                                display_info = SMT_TO_DRUM_DISPLAY[instrument_name]
+                                n = music21.note.Unpitched()
+                                n.display_step = display_info['display_step']
+                                n.display_octave = display_info['display_octave']
+                                if 'notehead' in display_info:
+                                    n.notehead = display_info['notehead']
+                            else:
+                                n = music21.note.Note()
+                                n.pitch.midi = int(instrument_name)
+                            chord_notes.append(n)
+                        
+                        c = music21.chord.Chord(chord_notes)
+                        c.duration = duration
+                        current_measure.append(c)
+                    elif len(token["instruments"]) == 1:
+                        # It's a single note
+                        instrument_name = token["instruments"][0]
                         if instrument_name in SMT_TO_DRUM_DISPLAY:
-                            is_percussion_chord = True
                             display_info = SMT_TO_DRUM_DISPLAY[instrument_name]
                             n = music21.note.Unpitched()
                             n.display_step = display_info['display_step']
@@ -472,36 +479,18 @@ def smt_to_musicxml(smt_string: str) -> music21.stream.Score:
                             if 'notehead' in display_info:
                                 n.notehead = display_info['notehead']
                         else:
-                            n = music21.note.Note()
-                            n.pitch.midi = int(instrument_name)
-                        chord_notes.append(n)
-                    
-                    if is_percussion_chord:
-                        c = music21.percussion.PercussionChord(chord_notes)
-                    else:
-                        c = music21.chord.Chord(chord_notes)
+                            try:
+                                n = music21.note.Note()
+                                n.pitch.midi = int(instrument_name)
+                            except (ValueError, TypeError):
+                                n = music21.note.Rest()
 
-                    c.duration = duration
-                    current_measure.append(c)
-                else:
-                    # It's a single note
-                    instrument_name = token["instruments"][0]
-                    if instrument_name in SMT_TO_DRUM_DISPLAY:
-                        display_info = SMT_TO_DRUM_DISPLAY[instrument_name]
-                        n = music21.note.Unpitched()
-                        n.display_step = display_info['display_step']
-                        n.display_octave = display_info['display_octave']
-                        if 'notehead' in display_info:
-                            n.notehead = display_info['notehead']
-                    else:
-                        n = music21.note.Note()
-                        n.pitch.midi = int(instrument_name)
-                    n.duration = duration
-                    current_measure.append(n)
+                        n.duration = duration
+                        current_measure.append(n)
 
-        # Append the last measure if it's not empty
-        if current_measure.elements:
-            part.append(current_measure)
+            if current_measure.hasElements():
+                part.append(current_measure)
+                measure_number += 1
 
         score.insert(0, part)
         return score
@@ -510,3 +499,156 @@ def smt_to_musicxml(smt_string: str) -> music21.stream.Score:
         print(f"Error processing SMT string: {e}")
         print(traceback.format_exc())
         return None
+
+
+def smt_to_musicxml_manual(smt_string: str) -> str:
+    """
+    Converts an SMT string to a MusicXML string manually, avoiding music21's object model pitfalls.
+    """
+    try:
+        # --- XML Boilerplate ---
+        xml_output = [
+            '<?xml version="1.0" encoding="utf-8"?>',
+            '<!DOCTYPE score-partwise  PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">',
+            '<score-partwise version="4.0">',
+        ]
+
+        # --- Metadata ---
+        title = "Untitled"
+        subtitle = ""
+        composer = "Unknown"
+        
+        parts = smt_string.split('|', 1)
+        header_string = parts[0].strip()
+        body_string = parts[1].strip() if len(parts) > 1 else ""
+        header_tokens = header_string.split()
+
+        time_signature = "4/4"
+        clef_set = False
+
+        for token_str in header_tokens:
+            token = _parse_smt_token(token_str)
+            if not token: continue
+            if token["type"] == "title":
+                title = token["value"]
+            elif token["type"] == "subtitle":
+                subtitle = token["value"]
+            elif token["type"] in ["composer", "creator"]:
+                composer = token["value"]
+            elif token["type"] == "time":
+                time_signature = token["value"]
+            elif token["type"] == "clef" and token["value"] == "percussion":
+                clef_set = True
+
+        xml_output.append(f'  <work><work-title>{title}</work-title></work>')
+        
+        # Add credit tags
+        xml_output.append(f'  <credit page="1"><credit-type>title</credit-type><credit-words justify="center" valign="top">{title}</credit-words></credit>')
+        if subtitle:
+            xml_output.append(f'  <credit page="1"><credit-type>subtitle</credit-type><credit-words justify="center" valign="top">{subtitle}</credit-words></credit>')
+        xml_output.append(f'  <credit page="1"><credit-type>composer</credit-type><credit-words justify="right" valign="bottom">{composer}</credit-words></credit>')
+
+        xml_output.append(f'  <identification><creator type="composer">{composer}</creator></identification>')
+        
+        # --- Part List ---
+        xml_output.extend([
+            '  <part-list>',
+            '    <score-part id="P1">',
+            f'      <part-name>{title}</part-name>',
+            '    </score-part>',
+            '  </part-list>',
+            '  <!--=========================== Part 1 ===========================-->',
+            '  <part id="P1">',
+        ])
+
+        # --- Process Measures ---
+        measure_strings = body_string.split('|')
+        measure_number = 1
+        
+        # MusicXML divisions - a high number for precision with fractions
+        divisions = 10080 
+
+        for i, measure_str in enumerate(measure_strings):
+            xml_output.append(f'    <!--========================= Measure {measure_number} =========================-->')
+            xml_output.append(f'    <measure number="{measure_number}">')
+
+            # Add attributes (time signature, clef) to the first measure
+            if i == 0:
+                xml_output.append('      <attributes>')
+                xml_output.append(f'        <divisions>{divisions}</divisions>')
+                beats, beat_type = time_signature.split('/')
+                xml_output.extend([
+                    '        <time>',
+                    f'          <beats>{beats}</beats>',
+                    f'          <beat-type>{beat_type}</beat-type>',
+                    '        </time>',
+                ])
+                if clef_set:
+                    xml_output.extend([
+                        '        <clef>',
+                        '          <sign>percussion</sign>',
+                        '        </clef>',
+                    ])
+                xml_output.append('      </attributes>')
+
+            tokens = measure_str.strip().split()
+            if not tokens:
+                # Handle empty measures
+                duration_in_beats = Fraction(beats) / Fraction(beat_type) * 4
+                rest_duration_xml = int(duration_in_beats * divisions)
+                xml_output.append(f'      <note><rest measure="yes"/><duration>{rest_duration_xml}</duration></note>')
+
+            for token_str in tokens:
+                token = _parse_smt_token(token_str)
+                if not token: continue
+
+                if token["type"] == "text":
+                    xml_output.extend([
+                        '      <direction placement="above">',
+                        '        <direction-type><words>',
+                        f'          {token["value"]}',
+                        '        </words></direction-type>',
+                        '      </direction>',
+                    ])
+                    continue
+
+                duration_fraction = Fraction(token.get("duration", "0")).limit_denominator()
+                xml_duration = int(duration_fraction * divisions)
+
+                if token["type"] == "rest":
+                    xml_output.append(f'      <note><rest/><duration>{xml_duration}</duration></note>')
+
+                elif token["type"] == "note":
+                    is_chord = len(token["instruments"]) > 1
+                    
+                    for i, instrument_name in enumerate(token["instruments"]):
+                        if instrument_name not in SMT_TO_DRUM_DISPLAY:
+                            continue # Skip unknown instruments
+                        
+                        display_info = SMT_TO_DRUM_DISPLAY[instrument_name]
+                        
+                        xml_output.append('      <note>')
+                        if is_chord and i > 0:
+                            xml_output.append('        <chord/>')
+                        
+                        xml_output.extend([
+                            '        <unpitched>',
+                            f'          <display-step>{display_info["display_step"]}</display-step>',
+                            f'          <display-octave>{display_info["display_octave"]}</display-octave>',
+                            '        </unpitched>',
+                            f'        <duration>{xml_duration}</duration>',
+                            f'        <notehead>{display_info["notehead"]}</notehead>',
+                        ])
+                        xml_output.append('      </note>')
+
+            xml_output.append('    </measure>')
+            measure_number += 1
+
+        xml_output.extend(['  </part>', '</score-partwise>'])
+        return "\n".join(xml_output)
+
+    except Exception as e:
+        import traceback
+        print(f"Error processing SMT string manually: {e}")
+        print(traceback.format_exc())
+        return ""

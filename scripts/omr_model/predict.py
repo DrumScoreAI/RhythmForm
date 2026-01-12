@@ -11,8 +11,8 @@ import multiprocessing as mp
 import sys
 
 from . import config
-from .tokenizer import StTokenizer
-from .model import ImageToStModel
+from .tokenizer import SmtTokenizer
+from .model import ImageToSmtModel
 
 # --- Worker Initialization ---
 # Global variables for the worker processes
@@ -37,7 +37,7 @@ def initialize_worker(checkpoint_path, tokenizer_path, beam_width):
     worker_beam_width = beam_width
 
     # 1. Tokenizer
-    worker_tokenizer = StTokenizer()
+    worker_tokenizer = SmtTokenizer()
     worker_tokenizer.load(tokenizer_path)
     
     # 2. Transform
@@ -47,7 +47,7 @@ def initialize_worker(checkpoint_path, tokenizer_path, beam_width):
     ])
     
     # 3. Model
-    worker_model = ImageToStModel(
+    worker_model = ImageToSmtModel(
         vocab_size=config.VOCAB_SIZE,
         d_model=config.D_MODEL,
         nhead=config.NHEAD,

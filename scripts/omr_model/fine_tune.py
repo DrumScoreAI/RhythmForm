@@ -10,12 +10,12 @@ from pathlib import Path
 
 from . import config
 from .dataset import ScoreDataset
-from .tokenizer import StTokenizer
-from .model import ImageToStModel
+from .tokenizer import SmtTokenizer
+from .model import ImageToSmtModel
 
 def collate_fn(batch, pad_token_id):
     images = torch.stack([item['image'] for item in batch])
-    encoded_strings = [item['encoded_st'] for item in batch]
+    encoded_strings = [item['encoded_smt'] for item in batch]
     max_len = max(len(s) for s in encoded_strings)
     padded_strings = []
     for s in encoded_strings:
@@ -43,7 +43,7 @@ def main():
     print(f"Fine-tuning on device: {device}")
 
     # Load tokenizer
-    tokenizer = StTokenizer()
+    tokenizer = SmtTokenizer()
     tokenizer.load(args.tokenizer_vocab)
     pad_token_id = tokenizer.token_to_id['<pad>']
 
@@ -73,7 +73,7 @@ def main():
     )
 
     # Model
-    model = ImageToStModel(
+    model = ImageToSmtModel(
         vocab_size=tokenizer.vocab_size,
         d_model=config.D_MODEL,
         nhead=config.NHEAD,

@@ -154,18 +154,18 @@ def process_file(xml_path, write_smt=False):
         title = "Music21 Fragment"
         creator = "Music21"
 
-    st = musicxml_to_smt(xml_path)
-    if not st:
+    smt_string = musicxml_to_smt(xml_path)
+    if not smt_string:
         return None
 
     # Prepend dynamic metadata to the sequence
-    st = f"title[{title}] creator[{creator}] " + st
+    smt_string = f"title[{title}] creator[{creator}] " + smt_string
     
     if write_smt:
         smt_output_path = SMT_OUTPUT_DIR / xml_path.with_suffix('.smt').name
         try:
             with open(smt_output_path, 'w') as f:
-                f.write(st)
+                f.write(smt_string)
         except Exception as e:
             print(f"  -> Warning: Could not write SMT file {smt_output_path.name}: {e}")
 
@@ -199,7 +199,7 @@ def process_file(xml_path, write_smt=False):
              print(f"  -> Error: PNG not created for {xml_path.name}")
              return None
 
-        return {"image_path": str(png_path.relative_to(TRAINING_DATA_DIR)), "st": st}
+        return {"image_path": str(png_path.relative_to(TRAINING_DATA_DIR)), "smt_string": smt_string}
 
     except subprocess.CalledProcessError as e:
         print(f"  -> Error during rendering of {xml_to_render.name}:")

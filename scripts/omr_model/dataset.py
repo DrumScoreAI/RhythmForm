@@ -59,7 +59,7 @@ class ScoreDataset(Dataset):
             idx = idx.tolist()
 
         item = self.manifest[idx]
-        st_string = item['st']
+        smt_string = item['smt']
         image_path = self.root_dir / item['image_path']
         
         try:
@@ -74,10 +74,10 @@ class ScoreDataset(Dataset):
         if self.transform:
             image = self.transform(image)
 
-        sample = {'image': image, 'st_string': st_string}
+        sample = {'image': image, 'smt_string': smt_string}
 
         if self.tokenizer:
-            sample['encoded_st'] = self.tokenizer.encode(st_string)
+            sample['encoded_st'] = self.tokenizer.encode(smt_string)
 
         return sample
 
@@ -97,7 +97,7 @@ if __name__ == '__main__':
         print("\n--- Inspecting first sample ---")
         print(f"Image tensor shape: {first_sample['image'].shape}")
         print(f"Image tensor dtype: {first_sample['image'].dtype}")
-        print(f"ST string (first 80 chars): {first_sample['st_string'][:80]}...")
+        print(f"ST string (first 80 chars): {first_sample['smt_string'][:80]}...")
         print("-----------------------------\n")
         print("Dataset class seems to be working correctly!")
     else:

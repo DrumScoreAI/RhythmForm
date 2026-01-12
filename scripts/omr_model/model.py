@@ -29,14 +29,14 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
-class ImageToStModel(nn.Module):
+class ImageToSmtModel(nn.Module):
     """
     An Image-to-Text Transformer model for OMR, using a CNN encoder.
     Optionally accepts num_encoder_layers for config compatibility, but does not use it.
     """
     def __init__(self, vocab_size, d_model=512, nhead=8,
                  num_decoder_layers=6, dim_feedforward=2048, dropout=0.1, num_encoder_layers=None):
-        super(ImageToStModel, self).__init__()
+        super(ImageToSmtModel, self).__init__()
 
         self.d_model = d_model
         self.num_encoder_layers = num_encoder_layers  # For config compatibility, not used
@@ -126,7 +126,7 @@ if __name__ == '__main__':
     DIM_FEEDFORWARD = config.DIM_FEEDFORWARD
     
     # --- Create Model ---
-    model = ImageToStModel(
+    model = ImageToSmtModel(
         vocab_size=VOCAB_SIZE,
         d_model=D_MODEL,
         nhead=NHEAD,

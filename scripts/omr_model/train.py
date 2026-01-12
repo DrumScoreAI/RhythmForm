@@ -17,8 +17,8 @@ from datetime import datetime
 # Import all our custom modules
 from . import config
 from .dataset import ScoreDataset
-from .tokenizer import StTokenizer
-from .model import ImageToStModel
+from .tokenizer import SmtTokenizer
+from .model import ImageToSmtModel
 
 # Custom Transform for adding Gaussian Noise
 class AddGaussianNoise(object):
@@ -57,8 +57,8 @@ def collate_fn(batch, pad_token_id):
     """
     images = torch.stack([item['image'] for item in batch])
     
-    # Encode and pad the ST strings
-    encoded_strings = [item['encoded_st'] for item in batch]
+    # Encode and pad the SMT strings
+    encoded_strings = [item['encoded_smt'] for item in batch]
     max_len = max(len(s) for s in encoded_strings)
     
     padded_strings = []
@@ -107,7 +107,7 @@ def main():
     logging.info(f"Using device: {config.DEVICE}")
 
     # Load tokenizer
-    tokenizer = StTokenizer()
+    tokenizer = SmtTokenizer()
     tokenizer.load(config.TOKENIZER_VOCAB_PATH)
     pad_token_id = tokenizer.token_to_id['<pad>']
     
@@ -183,7 +183,7 @@ def main():
     )
 
     # --- 2. Model, Loss, and Optimizer ---
-    model = ImageToStModel(
+    model = ImageToSmtModel(
         vocab_size=config.VOCAB_SIZE,
         d_model=config.D_MODEL,
         nhead=config.NHEAD,

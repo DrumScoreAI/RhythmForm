@@ -21,7 +21,7 @@ else:
 
 def _count_tokens_in_sample(sample):
     """Helper function to count tokens in a single sample for multiprocessing."""
-    return Counter(sample['st_string'].strip().split(' '))
+    return Counter(sample['smt_string'].strip().split(' '))
 
 def _process_chunk(dataset_chunk):
     """Processes a chunk of the dataset and returns an aggregated token counter."""
@@ -30,9 +30,9 @@ def _process_chunk(dataset_chunk):
         chunk_token_counts.update(_count_tokens_in_sample(sample))
     return chunk_token_counts
 
-class StTokenizer:
+class SmtTokenizer:
     """
-    A tokenizer for converting ST strings to and from sequences of integer IDs.
+    A tokenizer for converting SMT strings to and from sequences of integer IDs.
     """
     def __init__(self):
         # Define the special tokens that the model requires.
@@ -90,9 +90,9 @@ class StTokenizer:
     def vocab_size(self):
         return len(self.vocab)
 
-    def encode(self, st_string):
-        """Converts an ST string to a list of integer IDs."""
-        tokens = st_string.strip().split(' ')
+    def encode(self, smt_string):
+        """Converts an SMT string to a list of integer IDs."""
+        tokens = smt_string.strip().split(' ')
         
         # Ensure that any token not found in the vocabulary is mapped
         # to the ID of the '<unk>' token.
@@ -203,7 +203,7 @@ if __name__ == '__main__':
 
     # 1. Load tokenizer. This will initialize it if it doesn't exist.
     print("--- Loading tokenizer ---")
-    tokenizer = StTokenizer()
+    tokenizer = SmtTokenizer()
     tokenizer.load(TOKENIZER_SAVE_PATH)
     original_vocab_size = tokenizer.vocab_size
 
@@ -228,7 +228,7 @@ if __name__ == '__main__':
     
     if len(score_dataset) > 0:
         print("\n--- Testing encoding and decoding ---")
-        sample_string = score_dataset[0]['st_string']
+        sample_string = score_dataset[0]['smt_string']
         print(f"Original string (first 80 chars): {sample_string[:80]}...")
         
         encoded_ids = tokenizer.encode(sample_string)
@@ -243,7 +243,7 @@ if __name__ == '__main__':
         print("Dataset is empty. Skipping encode/decode test.")
 
     print("\n--- Verifying tokenizer integrity ---")
-    new_tokenizer = StTokenizer()
+    new_tokenizer = SmtTokenizer()
     new_tokenizer.load(TOKENIZER_SAVE_PATH)
     print(f"Loaded vocabulary size: {new_tokenizer.vocab_size}")
     assert tokenizer.vocab_size == new_tokenizer.vocab_size

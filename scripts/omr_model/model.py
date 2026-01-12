@@ -28,15 +28,18 @@ class PositionalEncoding(nn.Module):
         x = x + self.pe[:, :x.size(1), :]
         return self.dropout(x)
 
+
 class ImageToStModel(nn.Module):
     """
     An Image-to-Text Transformer model for OMR, using a CNN encoder.
+    Optionally accepts num_encoder_layers for config compatibility, but does not use it.
     """
     def __init__(self, vocab_size, d_model=512, nhead=8,
-                 num_decoder_layers=6, dim_feedforward=2048, dropout=0.1):
+                 num_decoder_layers=6, dim_feedforward=2048, dropout=0.1, num_encoder_layers=None):
         super(ImageToStModel, self).__init__()
 
         self.d_model = d_model
+        self.num_encoder_layers = num_encoder_layers  # For config compatibility, not used
 
         # --- Image Encoder (CNN) ---
         self.cnn_encoder = nn.Sequential(
@@ -128,7 +131,8 @@ if __name__ == '__main__':
         d_model=D_MODEL,
         nhead=NHEAD,
         num_decoder_layers=NUM_DECODER_LAYERS,
-        dim_feedforward=DIM_FEEDFORWARD
+        dim_feedforward=DIM_FEEDFORWARD,
+        num_encoder_layers=getattr(config, 'NUM_ENCODER_LAYERS', None)
     )
     
     print(f"Model created. Total parameters: {sum(p.numel() for p in model.parameters()) / 1e6:.2f}M")

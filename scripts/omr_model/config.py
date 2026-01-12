@@ -75,6 +75,7 @@ except (json.JSONDecodeError, TypeError):
 D_MODEL = 256       # Embedding dimension
 NHEAD = 8         # Number of attention heads
 NUM_DECODER_LAYERS = 6
+NUM_ENCODER_LAYERS = 6  # Not used in current model, but required for compatibility
 DIM_FEEDFORWARD = 1024
 DROPOUT = 0.2
 WEIGHT_DECAY = 1e-5

@@ -77,7 +77,6 @@ def main():
         vocab_size=tokenizer.vocab_size,
         d_model=config.D_MODEL,
         nhead=config.NHEAD,
-        num_encoder_layers=config.NUM_ENCODER_LAYERS,
         num_decoder_layers=config.NUM_DECODER_LAYERS,
         dim_feedforward=config.DIM_FEEDFORWARD,
         dropout=config.DROPOUT

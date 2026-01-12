@@ -28,7 +28,7 @@ spec:
           "--num-epochs", "20",
           "--num-workers", "4",
           "--validation-split", "0.1",
-          "--pretrained-checkpoint", "/app/training_data/checkpoints/model_epoch_50.pth",
+          "--pretrained-checkpoint", "/app/training_data/checkpoints/fine_tuned/finetuned_model_epoch_8.pth",
           "--finetune-dataset", "/app/training_data/fine_tuning/finetune_dataset.json",
           "--output-dir", "/app/training_data/checkpoints/fine_tuned"
         ]

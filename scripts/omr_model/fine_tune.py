@@ -131,7 +131,12 @@ def main():
         # Save checkpoint
         output_dir = Path(args.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
-        checkpoint_path = output_dir / f"_epoch_{epoch+1}.pth"
+        current_latest_epoch = 0
+        epoch_files = list(output_dir.glob("*epoch_*.pth"))
+        current_latest_epoch = max(
+            [int(f.stem.split("_")[-1]) for f in epoch_files] + [0]
+        )
+        checkpoint_path = output_dir / f"finetuned_model_epoch_{epoch+1+current_latest_epoch}.pth"
         torch.save(model.state_dict(), checkpoint_path)
 
         # Save 'last' model (overwrite every epoch)

@@ -39,12 +39,12 @@ spec:
             name: dshm
         resources:
           requests:
-            cpu: 8
+            cpu: 32
             memory: "64Gi"
           limits:
-            cpu: 8
+            cpu: 64
             memory: "128Gi"
-            nvidia.com/gpu: 1
+            nvidia.com/gpu: 2
       nodeSelector:
         nvidia.com/gpu.product: NVIDIA-A100-SXM4-40GB
       volumes:

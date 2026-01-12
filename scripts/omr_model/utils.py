@@ -62,18 +62,15 @@ SMT_TO_DRUM_DISPLAY = {
 }
 
 
-def _get_duration_map_from_xml(xml_path):
+def _get_duration_map_from_xml(soup: BeautifulSoup):
     """
-    Parses the MusicXML to create a mapping from measure and element index
-    to its correct fractional duration. This avoids music21's parsing bugs.
+    Parses a BeautifulSoup object of a MusicXML to create a mapping from measure 
+    and element index to its correct fractional duration.
     The key is a tuple (measure_number, element_index_in_measure), and the
     value is the duration as a Fraction.
     """
     duration_map = {}
     try:
-        with open(xml_path, 'r', encoding='utf-8') as f:
-            soup = BeautifulSoup(f, 'xml')
-
         # MusicXML can define divisions in <part-wise><part><measure><attributes><divisions>
         # We will assume the first one found is the one to use for the whole score.
         first_divisions_tag = soup.find('divisions')
@@ -107,7 +104,7 @@ def _get_duration_map_from_xml(xml_path):
                 element_idx += 1
                     
     except Exception as e:
-        print(f"Warning: Could not build duration map from {xml_path}: {e}")
+        print(f"Warning: Could not build duration map from XML content: {e}")
         
     return duration_map
 
@@ -149,30 +146,30 @@ def _convert_bs_notes_to_smt(note_elements, duration):
     return f"note[{note_str},{duration}]"
 
 
-def musicxml_to_smt(xml_path, use_repeats=False):
+def musicxml_to_smt(musicxml_content: str, use_repeats=False) -> str:
     """
-    Converts a MusicXML file to its SMT representation using BeautifulSoup.
+    Converts a MusicXML file content to its SMT representation using BeautifulSoup.
     This is the main entry point for MusicXML to SMT conversion.
 
     Args:
-        xml_path (str or Path): The path to the MusicXML file.
+        musicxml_content (str): The string content of the MusicXML file.
         use_repeats (bool): If True, will try to find repeated measures and
                             represent them as 'repeat[measure]'. If False,
                             it will "unroll" any repeats into full note sequences.
     """
     try:
-        with open(xml_path, 'r', encoding='utf-8') as f:
-            soup = BeautifulSoup(f, 'xml')
+        soup = BeautifulSoup(musicxml_content, 'xml')
     except Exception as e:
-        print(f"Error reading or parsing XML file with BeautifulSoup: {e}")
+        print(f"Error parsing XML content with BeautifulSoup: {e}")
         return ""
 
     # This is the most reliable way to get durations, so we do it first.
-    duration_map = _get_duration_map_from_xml(xml_path)
+    duration_map = _get_duration_map_from_xml(soup)
 
     header_tokens = []
     # --- Extract Metadata ---
     # Try to get metadata from <credit> tags first, as they are often more detailed.
+    # This is what is actually rendered on the score.
     title = None
     composer = None
     subtitle = None
@@ -188,23 +185,6 @@ def musicxml_to_smt(xml_path, use_repeats=False):
                 composer = text
             elif credit_type_tag.string == 'subtitle' and not subtitle:
                 subtitle = text
-
-    # Fallback to <work> and <identification> if not found in <credit>
-    if not title:
-        work_title_tag = soup.find('work-title')
-        if work_title_tag and work_title_tag.string:
-            title = work_title_tag.string.strip()
-    
-    if not composer:
-        composer_tag = soup.find('creator', {'type': 'composer'})
-        if composer_tag and composer_tag.string:
-            composer = composer_tag.string.strip()
-
-    # Fallback for subtitle
-    if not subtitle:
-        movement_title_tag = soup.find('movement-title')
-        if movement_title_tag and movement_title_tag.string:
-            subtitle = movement_title_tag.string.strip()
 
     if title:
         header_tokens.append(f"title[{title}]")
@@ -505,6 +485,7 @@ def smt_to_musicxml_manual(smt_string: str) -> str:
     """
     Converts an SMT string to a MusicXML string manually, avoiding music21's object model pitfalls.
     """
+    from datetime import date
     try:
         # --- XML Boilerplate ---
         xml_output = [
@@ -548,7 +529,19 @@ def smt_to_musicxml_manual(smt_string: str) -> str:
             xml_output.append(f'  <credit page="1"><credit-type>subtitle</credit-type><credit-words justify="center" valign="top">{subtitle}</credit-words></credit>')
         xml_output.append(f'  <credit page="1"><credit-type>composer</credit-type><credit-words justify="right" valign="bottom">{composer}</credit-words></credit>')
 
-        xml_output.append(f'  <identification><creator type="composer">{composer}</creator></identification>')
+        today = date.today().strftime("%Y-%m-%d")
+        xml_output.append('  <identification>')
+        xml_output.append(f'    <creator type="composer">{composer}</creator>')
+        xml_output.append('    <encoding>')
+        xml_output.append('      <software>RhythmForm</software>')
+        xml_output.append(f'      <encoding-date>{today}</encoding-date>')
+        xml_output.append('      <supports element="accidental" type="yes"/>')
+        xml_output.append('      <supports element="beam" type="yes"/>')
+        xml_output.append('      <supports element="print" attribute="new-page" type="yes" value="yes"/>')
+        xml_output.append('      <supports element="print" attribute="new-system" type="yes" value="yes"/>')
+        xml_output.append('      <supports element="stem" type="yes"/>')
+        xml_output.append('    </encoding>')
+        xml_output.append('  </identification>')
         
         # --- Part List ---
         xml_output.extend([

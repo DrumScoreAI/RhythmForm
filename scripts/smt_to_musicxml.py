@@ -32,7 +32,7 @@ def convert_smt_to_xml(smt_path, output_dir):
 def main():
     parser = argparse.ArgumentParser(description="Convert SMT files back to MusicXML.")
     parser.add_argument('--input-smt', type=str, required=True, help="Path to the input .smt file.")
-    parser.add_argument('--output-xml', type=str, required=True, help="Path to save the output .musicxml file.")
+    parser.add_argument('--output-musicxml', type=str, required=True, help="Path to save the output .musicxml file.")
     args = parser.parse_args()
 
     print(f"Reading SMT file from: {args.input_smt}")
@@ -47,13 +47,15 @@ def main():
     xml_content = smt_to_musicxml_manual(smt_content)
 
     # Save the generated score object to a file
+    output_path = Path(args.output_musicxml)
+    if output_path.suffix.lower() != '.musicxml':
+        print(f"Warning: Output file extension is not .musicxml. Changing to .musicxml")
+        output_path = output_path.with_suffix('.musicxml')
     try:
-        output_path = Path(args.output_xml)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(xml_content)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        score.write('musicxml', fp=output_path)
-        print(f"Successfully converted SMT to MusicXML at: {args.output_xml}")
+        print(f"Successfully converted SMT to MusicXML at: {output_path}")
     except Exception as e:
         print(f"Error writing MusicXML file: {e}")
 

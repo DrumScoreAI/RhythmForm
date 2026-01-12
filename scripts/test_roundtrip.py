@@ -20,7 +20,7 @@ def main():
     xml_dir = project_root / "training_data" / "fine_tuning" / "musicxml"
 
     original_smt_path = smt_dir / f"{args.name}.smt"
-    converted_xml_path = xml_dir / f"{args.name}.xml"
+    converted_xml_path = xml_dir / f"{args.name}.musicxml"
 
     if not original_smt_path.exists():
         print(f"Error: Original SMT file not found at {original_smt_path}")
@@ -35,7 +35,17 @@ def main():
     print(original_smt)
 
     print(f"\n--- Round-tripped SMT from {converted_xml_path.name} ---")
-    round_trip_smt = musicxml_to_smt(converted_xml_path).strip()
+    try:
+        with open(converted_xml_path, 'r', encoding='utf-8') as f:
+            musicxml_content = f.read()
+    except FileNotFoundError:
+        print(f"Error: MusicXML file not found at {converted_xml_path}")
+        return
+    except Exception as e:
+        print(f"Error reading file {converted_xml_path}: {e}")
+        return
+        
+    round_trip_smt = musicxml_to_smt(musicxml_content).strip()
     print(round_trip_smt)
 
     print("\n--- Comparison ---")

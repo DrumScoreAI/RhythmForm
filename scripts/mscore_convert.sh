@@ -59,22 +59,17 @@ if [ -z "$output_path" ]; then
     fi
     
     # Place the output directory alongside the input file's directory
-    output_dir=$(dirname "$input_dir")/"$output_dir_name"
+    output_dir=$(dirname "$input_dir")/../"$output_dir_name"
     
     mkdir -p "$output_dir"
-    # For musicxml format, save with .xml extension for compatibility
-    if [ "$output_format" = "musicxml" ]; then
-        output_extension="xml"
-    else
-        output_extension=$output_format
-    fi
+    output_extension=$output_format
     output_path="${output_dir}/${sanitized_basename}.${output_extension}"
 fi
 
 echo "Converting '$input_file' to '$output_path'..."
 
 # Run MuseScore, filtering out common noise
-"$MUSESCORE_PATH" -o "${output_path}" "${input_file}" 2>&1 | grep -v -E "pw.context|pw.conf|libOpenGL|libjack|libnss3|libpipewire|ALSA"
+"$MUSESCORE_PATH" -o "${output_path}" "${input_file}" 2>&1 | grep -v -E "pw.context|pw.conf|libOpenGL|libjack|libnss3|libpipewire|ALSA|Invalid QML element name"
 
 # Check the exit status of the MuseScore command
 if [ ${PIPESTATUS[0]} -eq 0 ]; then

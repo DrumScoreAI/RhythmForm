@@ -131,8 +131,23 @@ def main():
         # Save checkpoint
         output_dir = Path(args.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
-        checkpoint_path = output_dir / f"finetuned_model_epoch_{epoch+1}.pth"
+        checkpoint_path = output_dir / f"_epoch_{epoch+1}.pth"
         torch.save(model.state_dict(), checkpoint_path)
+
+        # Save 'last' model (overwrite every epoch)
+        last_path = output_dir / "finetuned_model_last.pth"
+        torch.save(model.state_dict(), last_path)
+
+        # Save 'best' model (lowest validation loss)
+        if epoch == 0:
+            best_val_loss = avg_val_loss if len(val_loader) > 0 else avg_train_loss
+            best_path = output_dir / "finetuned_model_best.pth"
+            torch.save(model.state_dict(), best_path)
+        else:
+            if len(val_loader) > 0 and avg_val_loss < best_val_loss:
+                best_val_loss = avg_val_loss
+                best_path = output_dir / "finetuned_model_best.pth"
+                torch.save(model.state_dict(), best_path)
 
     print("\n--- Fine-tuning Complete ---")
 

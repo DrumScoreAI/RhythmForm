@@ -522,12 +522,6 @@ def smt_to_musicxml_manual(smt_string: str) -> str:
                 clef_set = True
 
         xml_output.append(f'  <work><work-title>{title}</work-title></work>')
-        
-        # Add credit tags
-        xml_output.append(f'  <credit page="1"><credit-type>title</credit-type><credit-words justify="center" valign="top">{title}</credit-words></credit>')
-        if subtitle:
-            xml_output.append(f'  <credit page="1"><credit-type>subtitle</credit-type><credit-words justify="center" valign="top">{subtitle}</credit-words></credit>')
-        xml_output.append(f'  <credit page="1"><credit-type>composer</credit-type><credit-words justify="right" valign="bottom">{composer}</credit-words></credit>')
 
         today = date.today().strftime("%Y-%m-%d")
         xml_output.append('  <identification>')
@@ -542,6 +536,64 @@ def smt_to_musicxml_manual(smt_string: str) -> str:
         xml_output.append('      <supports element="stem" type="yes"/>')
         xml_output.append('    </encoding>')
         xml_output.append('  </identification>')
+
+        # --- Defaults (Hard-coded from ground-truth analysis) ---
+        defaults_block = """  <defaults>
+    <scaling>
+      <millimeters>6.99912</millimeters>
+      <tenths>40</tenths>
+      </scaling>
+    <page-layout>
+      <page-height>1696.93</page-height>
+      <page-width>1200.48</page-width>
+      <page-margins type="even">
+        <left-margin>85.725</left-margin>
+        <right-margin>85.725</right-margin>
+        <top-margin>85.725</top-margin>
+        <bottom-margin>85.725</bottom-margin>
+        </page-margins>
+      <page-margins type="odd">
+        <left-margin>85.725</left-margin>
+        <right-margin>85.725</right-margin>
+        <top-margin>85.725</top-margin>
+        <bottom-margin>85.725</bottom-margin>
+        </page-margins>
+      </page-layout>
+    <appearance>
+      <line-width type="light barline">1.8</line-width>
+      <line-width type="heavy barline">5.5</line-width>
+      <line-width type="beam">5</line-width>
+      <line-width type="bracket">4.5</line-width>
+      <line-width type="dashes">1</line-width>
+      <line-width type="enclosure">1</line-width>
+      <line-width type="ending">1.1</line-width>
+      <line-width type="extend">1</line-width>
+      <line-width type="leger">1.6</line-width>
+      <line-width type="pedal">1.1</line-width>
+      <line-width type="octave shift">1.1</line-width>
+      <line-width type="slur middle">2.1</line-width>
+      <line-width type="slur tip">0.5</line-width>
+      <line-width type="staff">1.1</line-width>
+      <line-width type="stem">1</line-width>
+      <line-width type="tie middle">2.1</line-width>
+      <line-width type="tie tip">0.5</line-width>
+      <line-width type="tuplet bracket">1</line-width>
+      <line-width type="wedge">1.2</line-width>
+      <note-size type="cue">70</note-size>
+      <note-size type="grace">70</note-size>
+      <note-size type="grace-cue">49</note-size>
+      </appearance>
+    <music-font font-family="Leland"/>
+    <word-font font-family="Edwin" font-size="10"/>
+    <lyric-font font-family="Edwin" font-size="10"/>
+    </defaults>"""
+        xml_output.append(defaults_block)
+
+        # Add credit tags
+        xml_output.append(f'  <credit page="1"><credit-type>title</credit-type><credit-words justify="center" valign="top">{title}</credit-words></credit>')
+        if subtitle:
+            xml_output.append(f'  <credit page="1"><credit-type>subtitle</credit-type><credit-words justify="center" valign="top">{subtitle}</credit-words></credit>')
+        xml_output.append(f'  <credit page="1"><credit-type>composer</credit-type><credit-words justify="right" valign="bottom">{composer}</credit-words></credit>')
         
         # --- Part List ---
         xml_output.extend([

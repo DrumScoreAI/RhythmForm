@@ -25,7 +25,7 @@ spec:
           "scripts.omr_model.fine_tune",
           "--batch-size", "1",
           "--learning-rate", "0.000001",
-          "--num-epochs", "20",
+          "--num-epochs", "40",
           "--num-workers", "4",
           "--validation-split", "0.1",
           "--pretrained-checkpoint", "/app/training_data/checkpoints/fine_tuned/finetuned_model_best.pth",

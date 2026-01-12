@@ -84,7 +84,7 @@ def main():
 
     # Load pre-trained weights
     print(f"Loading pre-trained weights from {args.pretrained_checkpoint}")
-    model.load_state_dict(torch.load(args.pretrained_checkpoint, map_location=device))
+    model.load_state_dict(torch.load(args.pretrained_checkpoint, map_location=device, weights_only=True))
 
     criterion = nn.CrossEntropyLoss(ignore_index=pad_token_id)
     optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)

@@ -81,7 +81,7 @@ class ScoreDataset(Dataset):
         sample = {'image': image, 'smt_string': smt_string}
 
         if self.tokenizer:
-            sample['encoded_st'] = self.tokenizer.encode(smt_string)
+            sample['encoded_smt'] = self.tokenizer.encode(smt_string)
 
         return sample
 

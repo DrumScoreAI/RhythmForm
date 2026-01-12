@@ -59,7 +59,8 @@ def main():
     indices = list(range(dataset_size))
     split = int(np.floor(args.validation_split * dataset_size))
     np.random.shuffle(indices)
-    train_indices, val_indices = indices[split:], indices[:split]
+    val_indices = indices[:split]
+    train_indices = indices[split:]
     train_sampler = SubsetRandomSampler(train_indices)
     val_sampler = SubsetRandomSampler(val_indices)
 

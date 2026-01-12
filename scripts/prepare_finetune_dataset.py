@@ -120,13 +120,13 @@ def main():
     args = parser.parse_args()
     num_cores = args.cores or os.cpu_count() or 1
 
-    # Find all PDF files in the input directory
-    pdf_files = list(PDF_INPUT_DIR.glob("*.pdf"))
-    if not pdf_files:
-        print(f"No PDF files found in {PDF_INPUT_DIR}. Exiting.")
+    # Find all MusicXML files in the input directory
+    xml_files = list(XML_INPUT_DIR.glob("*.musicxml")) + list(XML_INPUT_DIR.glob("*.xml"))
+    if not xml_files:
+        print(f"No MusicXML files found in {XML_INPUT_DIR}. Exiting.")
         return
 
-    print(f"Found {len(pdf_files)} PDF files to process with {num_cores} cores.")
+    print(f"Found {len(xml_files)} MusicXML files to process with {num_cores} cores.")
 
     # Randomly decide for the whole batch if repeats should be used or not
     use_repeats_for_batch = random.choice([True, False])
@@ -134,9 +134,9 @@ def main():
 
     dataset = []
     with ProcessPoolExecutor(max_workers=num_cores) as executor:
-        future_to_pdf = {executor.submit(process_pdf, pdf, use_repeats_for_batch): pdf for pdf in pdf_files}
+        future_to_xml = {executor.submit(process_musicxml_entry, xml, use_repeats_for_batch): xml for xml in xml_files}
         
-        for future in tqdm(as_completed(future_to_pdf), total=len(pdf_files), desc="Processing files"):
+        for future in tqdm(as_completed(future_to_xml), total=len(xml_files), desc="Processing files"):
             results = future.result()
             if results:
                 dataset.extend(results)

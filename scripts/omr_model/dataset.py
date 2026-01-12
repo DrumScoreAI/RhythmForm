@@ -60,7 +60,11 @@ class ScoreDataset(Dataset):
 
         item = self.manifest[idx]
         smt_string = item['smt_string']
-        image_path = self.root_dir / item['image_path']
+        # Fix: If image_path is absolute, use as is. If it starts with 'fine_tuning/', strip it.
+        image_path_str = item['image_path']
+        if image_path_str.startswith('fine_tuning/'):
+            image_path_str = image_path_str[len('fine_tuning/'):]  # Remove leading 'fine_tuning/'
+        image_path = self.root_dir / image_path_str
         
         try:
             image = Image.open(image_path).convert('L') # Convert to grayscale

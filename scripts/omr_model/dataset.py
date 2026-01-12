@@ -59,7 +59,7 @@ class ScoreDataset(Dataset):
             idx = idx.tolist()
 
         item = self.manifest[idx]
-        smt_string = item['smt']
+        smt_string = item['smt_string']
         image_path = self.root_dir / item['image_path']
         
         try:

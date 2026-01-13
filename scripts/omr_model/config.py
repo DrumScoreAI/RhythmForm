@@ -20,6 +20,7 @@ if fine_tuning:
     DATA_IMAGES_DIR = FINETUNING_DIR / 'images'
     PDF_OUTPUT_DIR = FINETUNING_DIR / 'pdfs'
 else:
+    DATASET_JSON_PATH = TRAINING_DATA_DIR / 'dataset.json'
     MANIFEST_FILE = TRAINING_DATA_DIR / 'training_data.csv'
     CHECKPOINT_DIR = TRAINING_DATA_DIR / 'checkpoints'
     XML_DIR = TRAINING_DATA_DIR / 'musicxml'

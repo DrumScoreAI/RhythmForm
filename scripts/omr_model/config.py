@@ -11,23 +11,27 @@ import subprocess
 PROJECT_ROOT = Path(os.environ.get('RHYTHMFORMHOME', Path(__file__).parent.parent.parent))
 TRAINING_DATA_DIR = PROJECT_ROOT / 'training_data'
 FINETUNING_DIR = TRAINING_DATA_DIR / 'fine_tuning'
-fine_tuning = True
+fine_tuning = False # Set to True when fine-tuning
 if fine_tuning:
-    TRAINING_DATA_DIR = FINETUNING_DIR
-    DATASET_JSON_PATH = TRAINING_DATA_DIR / 'finetune_dataset.json'
+    DATASET_JSON_PATH = FINETUNING_DIR / 'finetune_dataset.json'
     MANIFEST_FILE = ''
-    TOKENIZER_VOCAB_PATH = TRAINING_DATA_DIR / 'finetune_tokenizer_vocab.json'
     CHECKPOINT_DIR = TRAINING_DATA_DIR / 'checkpoints' / 'fine_tuned'
+    XML_DIR = FINETUNING_DIR / 'musicxml'
+    DATA_IMAGES_DIR = FINETUNING_DIR / 'images'
+    PDF_OUTPUT_DIR = FINETUNING_DIR / 'pdfs'
 else:
-    TOKENIZER_VOCAB_PATH = TRAINING_DATA_DIR / 'tokenizer_vocab.json'
     MANIFEST_FILE = TRAINING_DATA_DIR / 'training_data.csv'
     CHECKPOINT_DIR = TRAINING_DATA_DIR / 'checkpoints'
-XML_DIR = TRAINING_DATA_DIR / 'musicxml'
-DATA_IMAGES_DIR = TRAINING_DATA_DIR / 'images'
-PDF_OUTPUT_DIR = TRAINING_DATA_DIR / 'pdfs'
+    XML_DIR = TRAINING_DATA_DIR / 'musicxml'
+    DATA_IMAGES_DIR = TRAINING_DATA_DIR / 'images'
+    PDF_OUTPUT_DIR = TRAINING_DATA_DIR / 'pdfs'
+TOKENIZER_VOCAB_PATH = TRAINING_DATA_DIR / 'merged_tokenizer_vocab.json'
 
 
-pretrained_models = glob(str(CHECKPOINT_DIR / 'model_epoch_*.pth'))
+if fine_tuning:
+    pretrained_models = glob(str(CHECKPOINT_DIR / 'finetuned_model_epoch_*.pth'))
+else:
+    pretrained_models = glob(str(CHECKPOINT_DIR / 'model_epoch_*.pth'))
 if pretrained_models:
     for model_path in pretrained_models:
         highest_epoch = max(int(Path(p).stem.split('_')[-1]) for p in pretrained_models)

@@ -10,21 +10,30 @@ import subprocess
 # This ensures all paths are resolved correctly from the project root.
 PROJECT_ROOT = Path(os.environ.get('RHYTHMFORMHOME', Path(__file__).parent.parent.parent))
 TRAINING_DATA_DIR = PROJECT_ROOT / 'training_data'
+FINETUNING_DIR = TRAINING_DATA_DIR / 'fine_tuning'
+fine_tuning = True
+if fine_tuning:
+    TRAINING_DATA_DIR = FINETUNING_DIR
+    DATASET_JSON_PATH = TRAINING_DATA_DIR / 'finetune_dataset.json'
+    MANIFEST_FILE = ''
+    TOKENIZER_VOCAB_PATH = TRAINING_DATA_DIR / 'finetune_tokenizer_vocab.json'
+    CHECKPOINT_DIR = TRAINING_DATA_DIR / 'checkpoints' / 'fine_tuned'
+else:
+    TOKENIZER_VOCAB_PATH = TRAINING_DATA_DIR / 'tokenizer_vocab.json'
+    MANIFEST_FILE = TRAINING_DATA_DIR / 'training_data.csv'
+    CHECKPOINT_DIR = TRAINING_DATA_DIR / 'checkpoints'
 XML_DIR = TRAINING_DATA_DIR / 'musicxml'
 DATA_IMAGES_DIR = TRAINING_DATA_DIR / 'images'
 PDF_OUTPUT_DIR = TRAINING_DATA_DIR / 'pdfs'
-MANIFEST_FILE = TRAINING_DATA_DIR / 'training_data.csv'
-DATASET_JSON_PATH = TRAINING_DATA_DIR / 'dataset.json'
-TOKENIZER_VOCAB_PATH = TRAINING_DATA_DIR / 'tokenizer_vocab.json'
-CHECKPOINT_DIR = TRAINING_DATA_DIR / 'checkpoints'
+
 
 pretrained_models = glob(str(CHECKPOINT_DIR / 'model_epoch_*.pth'))
 if pretrained_models:
     for model_path in pretrained_models:
         highest_epoch = max(int(Path(p).stem.split('_')[-1]) for p in pretrained_models)
-    FINETUNE_PRETRAINED_MODEL_PATH = CHECKPOINT_DIR / f'model_epoch_{highest_epoch}.pth'
+    FINETUNE_PRETRAINED_MODEL_PATH = CHECKPOINT_DIR / f'finetuned_model_epoch_{highest_epoch}.pth'
 else:
-    FINETUNE_PRETRAINED_MODEL_PATH = CHECKPOINT_DIR / 'best_model.pth'
+    FINETUNE_PRETRAINED_MODEL_PATH = CHECKPOINT_DIR / '..' / 'model_best.pth'
 
 # --- Training Configuration ---
 # Allow forcing CPU for inference/testing

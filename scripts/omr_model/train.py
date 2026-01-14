@@ -80,6 +80,7 @@ def parse_args():
     parser.add_argument('--log-file', type=str, default=None, help='Path to log file')
     parser.add_argument('--log-stdout', action='store_true', help='Log to stdout as well')
     parser.add_argument('--resume-from', type=str, default=None, help='Path to a checkpoint file to resume training from.')
+    parser.add_argument('--seed', type=int, default=42, help='Random seed for reproducibility.')
     return parser.parse_args()
 
 def main():
@@ -95,6 +96,13 @@ def main():
     
     setup_logging(args.log_file, args.log_stdout)
     logging.info(f"Logging initialized. Writing to {args.log_file}")
+
+    # Set random seed for reproducibility
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed)
+    logging.info(f"Random seed set to {args.seed} for reproducibility.")
 
     # Ensure checkpoint directory exists
     os.makedirs(config.CHECKPOINT_DIR, exist_ok=True)
@@ -197,34 +205,6 @@ def main():
         logging.info(f"Using {torch.cuda.device_count()} GPU(s)")
         model = nn.DataParallel(model)
 
-    # --- Resume from Checkpoint ---
-    if args.resume_from:
-        if os.path.exists(args.resume_from):
-            logging.info(f"Resuming training from checkpoint: {args.resume_from}")
-            checkpoint = torch.load(args.resume_from, map_location=config.DEVICE, weights_only=True)
-            
-            # Handle the case where the checkpoint was saved from a DataParallel model
-            # and we are now running on a single GPU, or vice-versa.
-            is_dataparallel = isinstance(model, nn.DataParallel)
-            checkpoint_is_dataparallel = all(k.startswith('module.') for k in checkpoint.keys())
-
-            if is_dataparallel and not checkpoint_is_dataparallel:
-                # Add 'module.' prefix to state_dict keys for DataParallel model
-                logging.info("Loading single-GPU checkpoint into DataParallel model.")
-                new_state_dict = {'module.' + k: v for k, v in checkpoint.items()}
-                model.load_state_dict(new_state_dict)
-            elif not is_dataparallel and checkpoint_is_dataparallel:
-                # Remove 'module.' prefix for single-GPU model
-                logging.info("Loading DataParallel checkpoint into single-GPU model.")
-                new_state_dict = {k.replace('module.', ''): v for k, v in checkpoint.items()}
-                model.load_state_dict(new_state_dict)
-            else:
-                # Keys match, load directly
-                model.load_state_dict(checkpoint)
-        else:
-            logging.warning(f"Checkpoint file not found at {args.resume_from}. Starting training from scratch.")
-
-
     criterion = nn.CrossEntropyLoss(ignore_index=pad_token_id)
     optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=config.WEIGHT_DECAY)
     
@@ -236,12 +216,50 @@ def main():
     # Initialize GradScaler for Mixed Precision Training
     scaler = torch.amp.GradScaler('cuda')
 
+    # --- Checkpointing Setup ---
+    start_epoch = 0
+    best_val_loss = float('inf')
+    
+    # --- Resume from Checkpoint ---
+    if args.resume_from:
+        if os.path.exists(args.resume_from):
+            logging.info(f"Resuming training from checkpoint: {args.resume_from}")
+            # Note: We are not using weights_only=True as we need to load the states of the 
+            # optimizer, scheduler, and scaler. Only load checkpoints from trusted sources.
+            checkpoint = torch.load(args.resume_from, map_location=config.DEVICE)
+            
+            model_state_dict = checkpoint['model_state_dict']
+
+            # Handle DataParallel prefix
+            is_dataparallel = isinstance(model, nn.DataParallel)
+            checkpoint_is_dataparallel = all(k.startswith('module.') for k in model_state_dict.keys())
+
+            if is_dataparallel and not checkpoint_is_dataparallel:
+                logging.info("Loading single-GPU checkpoint into DataParallel model.")
+                new_state_dict = {'module.' + k: v for k, v in model_state_dict.items()}
+                model.load_state_dict(new_state_dict)
+            elif not is_dataparallel and checkpoint_is_dataparallel:
+                logging.info("Loading DataParallel checkpoint into single-GPU model.")
+                new_state_dict = {k.replace('module.', ''): v for k, v in model_state_dict.items()}
+                model.load_state_dict(new_state_dict)
+            else:
+                model.load_state_dict(model_state_dict)
+
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+            scaler.load_state_dict(checkpoint['scaler_state_dict'])
+            start_epoch = checkpoint['epoch'] + 1
+            best_val_loss = checkpoint['best_val_loss']
+            
+            logging.info(f"Resumed from epoch {checkpoint['epoch']}. Starting next epoch: {start_epoch}.")
+            logging.info(f"Resumed best validation loss: {best_val_loss:.4f}")
+        else:
+            logging.warning(f"Checkpoint file not found at {args.resume_from}. Starting training from scratch.")
+
     # --- 3. Training Loop ---
     logging.info("--- Starting Training ---")
     
-    best_val_loss = float('inf')
-    
-    for epoch in range(args.num_epochs):
+    for epoch in range(start_epoch, args.num_epochs):
         # --- Training Phase ---
         model.train()
         train_loss = 0.0
@@ -307,30 +325,33 @@ def main():
         logging.info(f"Current learning rate: {new_lr}")
 
         # --- Save Checkpoints ---
+        # Create a dictionary with all the necessary states
+        state = {
+            'epoch': epoch,
+            'model_state_dict': model.module.state_dict() if isinstance(model, nn.DataParallel) else model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'scheduler_state_dict': scheduler.state_dict(),
+            'scaler_state_dict': scaler.state_dict(),
+            'best_val_loss': best_val_loss,
+        }
+
         # 1. Save Latest (overwrite every epoch)
         last_path = config.CHECKPOINT_DIR / "model_last.pth"
-        if isinstance(model, nn.DataParallel):
-            torch.save(model.module.state_dict(), last_path)
-        else:
-            torch.save(model.state_dict(), last_path)
+        torch.save(state, last_path)
         
         # 2. Save Best
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
+            # Update best loss in state before saving
+            state['best_val_loss'] = best_val_loss
             best_path = config.CHECKPOINT_DIR / "model_best.pth"
-            if isinstance(model, nn.DataParallel):
-                torch.save(model.module.state_dict(), best_path)
-            else:
-                torch.save(model.state_dict(), best_path)
+            torch.save(state, best_path)
             logging.info(f"New best model saved with val loss {best_val_loss:.4f}")
 
         # 3. Save Periodic (every 5 epochs)
         if (epoch + 1) % 5 == 0:
             checkpoint_path = config.CHECKPOINT_DIR / f"model_epoch_{epoch+1}.pth"
-            if isinstance(model, nn.DataParallel):
-                torch.save(model.module.state_dict(), checkpoint_path)
-            else:
-                torch.save(model.state_dict(), checkpoint_path)
+            torch.save(state, checkpoint_path)
             logging.info(f"Periodic checkpoint saved: {checkpoint_path}")
 
     logging.info("--- Training Complete ---")

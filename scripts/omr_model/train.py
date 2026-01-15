@@ -246,6 +246,13 @@ def main():
                 model.load_state_dict(model_state_dict)
 
             optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+
+            # Check if a new learning rate is provided and update the optimizer
+            if args.learning_rate and optimizer.param_groups[0]['lr'] != args.learning_rate:
+                logging.info(f"Updating learning rate from checkpoint value {optimizer.param_groups[0]['lr']} to new value {args.learning_rate}")
+                for param_group in optimizer.param_groups:
+                    param_group['lr'] = args.learning_rate
+
             scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
             scaler.load_state_dict(checkpoint['scaler_state_dict'])
             start_epoch = checkpoint['epoch'] + 1

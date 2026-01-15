@@ -226,7 +226,7 @@ def main():
             logging.info(f"Resuming training from checkpoint: {args.resume_from}")
             # Note: We are not using weights_only=True as we need to load the states of the 
             # optimizer, scheduler, and scaler. Only load checkpoints from trusted sources.
-            checkpoint = torch.load(args.resume_from, map_location=config.DEVICE)
+            checkpoint = torch.load(args.resume_from, map_location=config.DEVICE, weights_only=False)
             
             model_state_dict = checkpoint['model_state_dict']
 

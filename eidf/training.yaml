@@ -20,7 +20,7 @@ spec:
         args:
           - >
             echo "Copying training data to shared memory...";
-            find /pvc-data/ -type f -print0 | xargs -P 32 -0 -I{} cp -rv {} /shm-data;
+            tar -c -C /pvc-data . | tar -x -C /shm-data;
             echo "Copy complete.";
         volumeMounts:
           - mountPath: /pvc-data

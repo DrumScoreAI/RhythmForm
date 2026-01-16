@@ -20,7 +20,7 @@ spec:
         args:
           - >
             echo "Copying training data to shared memory...";
-            cp -r /pvc-data/. /shm-data;
+            cp -rv /pvc-data/. /shm-data | grep -n '' | awk -F: '{if ($1 % 100 == 0) print $ALL}';
             echo "Copy complete.";
         volumeMounts:
           - mountPath: /pvc-data

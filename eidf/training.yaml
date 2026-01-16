@@ -15,12 +15,14 @@ spec:
         - name: eidfreg
       initContainers:
       - name: data-copier
-        image: busybox
-        command: ["/bin/sh", "-c"]
+        image: debian:stable-slim
+        command: ["/bin/bash", "-c"]
         args:
           - >
+            echo "Installing coreutils...";
+            apt-get update && apt-get install -y coreutils;
             echo "Copying training data to shared memory...";
-            tar -c -C /pvc-data . | tar -vx -C /shm-data;
+            find /pvc-data -type f -print0 | xargs -0 -P 64 -I{} cp --parents {} /shm-data;
             echo "Copy complete.";
         volumeMounts:
           - mountPath: /pvc-data
@@ -29,11 +31,11 @@ spec:
             name: dshm
         resources:
           requests:
-            cpu: 32
-            memory: "64Gi"
+            cpu: 64
+            memory: "32Gi"
           limits:
-            cpu: 32
-            memory: "128Gi"
+            cpu: 64
+            memory: "32Gi"
       containers:
       - name: trainer
         image: registry.eidf.ac.uk/eidf235/rhythmform:latest

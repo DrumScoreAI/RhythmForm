@@ -22,7 +22,8 @@ spec:
             echo "Installing coreutils...";
             apt-get update && apt-get install -y coreutils;
             echo "Copying training data to shared memory...";
-            find /pvc-data -type f -print0 | xargs -0 -P 64 -I{} cp --parents -v {} /shm-data;
+            cd /pvc-data;
+            find . -type f -print0 | xargs -0 -P 64 -I{} cp --parents -v {} /shm-data;
             echo "Copy complete.";
         volumeMounts:
           - mountPath: /pvc-data

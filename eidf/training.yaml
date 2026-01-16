@@ -33,10 +33,10 @@ spec:
         resources:
           requests:
             cpu: 64
-            memory: "32Gi"
+            memory: "128Gi"
           limits:
             cpu: 64
-            memory: "32Gi"
+            memory: "256Gi"
       containers:
       - name: trainer
         image: registry.eidf.ac.uk/eidf235/rhythmform:latest

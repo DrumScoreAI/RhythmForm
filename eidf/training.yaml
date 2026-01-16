@@ -13,6 +13,20 @@ spec:
       restartPolicy: Never
       imagePullSecrets:
         - name: eidfreg
+      initContainers:
+        - name: data-copier
+          image: busybox
+          command: ["/bin/sh", "-c"]
+          args:
+            - >
+              echo "Copying training data to shared memory...";
+              cp -r /pvc-data/. /shm-data;
+              echo "Copy complete.";
+          volumeMounts:
+            - mountPath: /pvc-data
+              name: training-data-volume
+            - mountPath: /shm-data
+              name: dshm
       containers:
       - name: trainer
         image: registry.eidf.ac.uk/eidf235/rhythmform:latest
@@ -33,7 +47,7 @@ spec:
         ]
         volumeMounts:
           - mountPath: /app/training_data
-            name: training-data-volume
+            name: dshm
           - mountPath: /dev/shm
             name: dshm
         resources:

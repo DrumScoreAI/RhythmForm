@@ -14,27 +14,26 @@ spec:
       imagePullSecrets:
         - name: eidfreg
       initContainers:
-        - name: data-copier
-          image: busybox
-          command: ["/bin/sh", "-c"]
-          args:
-            - >
-              echo "Copying training data to shared memory...";
-              cp -r /pvc-data/. /shm-data;
-              echo "Copy complete.";
-          volumeMounts:
-            - mountPath: /pvc-data
-              name: training-data-volume
-            - mountPath: /shm-data
-              name: dshm
-          resources:
-            requests:
-              cpu: 4
-              memory: "64Gi"
-            limits:
-              cpu: 4
-              memory: "128Gi"
-              nvidia.com/gpu: 0
+      - name: data-copier
+        image: busybox
+        command: ["/bin/sh", "-c"]
+        args:
+          - >
+            echo "Copying training data to shared memory...";
+            cp -r /pvc-data/. /shm-data;
+            echo "Copy complete.";
+        volumeMounts:
+          - mountPath: /pvc-data
+            name: training-data-volume
+          - mountPath: /shm-data
+            name: dshm
+        resources:
+          requests:
+            cpu: 4
+            memory: "64Gi"
+          limits:
+            cpu: 4
+            memory: "128Gi"
       containers:
       - name: trainer
         image: registry.eidf.ac.uk/eidf235/rhythmform:latest

@@ -235,11 +235,11 @@ def main():
             checkpoint_is_dataparallel = all(k.startswith('module.') for k in model_state_dict.keys())
 
             if is_dataparallel and not checkpoint_is_dataparallel:
-                logging.info("Loading single-GPU checkpoint into DataParallel model.")
+                logging.info("Loading state_dict into DataParallel model.")
                 new_state_dict = {'module.' + k: v for k, v in model_state_dict.items()}
                 model.load_state_dict(new_state_dict)
             elif not is_dataparallel and checkpoint_is_dataparallel:
-                logging.info("Loading DataParallel checkpoint into single-GPU model.")
+                logging.info("Loading state_dict into single-GPU model.")
                 new_state_dict = {k.replace('module.', ''): v for k, v in model_state_dict.items()}
                 model.load_state_dict(new_state_dict)
             else:

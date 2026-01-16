@@ -24,12 +24,12 @@ spec:
           "-m",
           "scripts.omr_model.train",
           "--batch-size", "512",
-          "--learning-rate", "0.0004",
-          "--num-epochs", "150",
+          "--learning-rate", "0.0001",
+          "--num-epochs", "100",
           "--num-workers", "60",
           "--validation-split", "0.1",
           "--log-stdout",
-          "--resume-from", "/app/training_data/checkpoints/model_last.pth"
+          "--resume-from", "/app/training_data/checkpoints/model_best.pth"
         ]
         volumeMounts:
           - mountPath: /app/training_data

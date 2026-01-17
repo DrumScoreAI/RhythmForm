@@ -125,19 +125,35 @@ def main():
     # to a torch.FloatTensor of shape (C x H x W) in the range [0.0, 1.0].
     # We also need to resize the images to a fixed size to ensure they can be batched
     # and to fit in GPU memory.
-    train_transform = transforms.Compose([
-        transforms.Resize((config.IMG_HEIGHT, config.IMG_WIDTH)),
-        # More severe geometric transformations
-        transforms.RandomAffine(degrees=10, translate=(0.1, 0.1), scale=(0.85, 1.15), shear=5),
-        # Paper-like distortions
-        transforms.RandomApply([transforms.ElasticTransform(alpha=75.0, sigma=5.0)], p=0.5),
-        transforms.RandomPerspective(distortion_scale=0.2, p=0.5),
-        # More severe color jitter
-        transforms.ColorJitter(brightness=0.4, contrast=0.4),
-        transforms.ToTensor(),
-        # Add noise
-        AddGaussianNoise(0., 0.05, p=0.7)
-    ])
+
+    # Define the four augmentations
+    aug_transforms = [
+        ("RandomAffine", transforms.RandomAffine(degrees=10, translate=(0.1, 0.1), scale=(0.85, 1.15), shear=5)),
+        ("ElasticTransform", transforms.RandomApply([transforms.ElasticTransform(alpha=75.0, sigma=5.0)], p=0.5)),
+        ("RandomPerspective", transforms.RandomPerspective(distortion_scale=0.2, p=0.5)),
+        ("ColorJitter", transforms.ColorJitter(brightness=0.4, contrast=0.4)),
+    ]
+
+    # This will be set per epoch
+    active_aug_names = []
+    active_aug_transforms = []
+
+    def build_train_transform():
+        # Randomly select 2 augmentations for this epoch
+        import random
+        selected = random.sample(aug_transforms, 2)
+        nonlocal active_aug_names, active_aug_transforms
+        active_aug_names = [name for name, _ in selected]
+        active_aug_transforms = [t for _, t in selected]
+        # Compose the transform pipeline
+        return transforms.Compose([
+            transforms.Resize((config.IMG_HEIGHT, config.IMG_WIDTH)),
+            *active_aug_transforms,
+            transforms.ToTensor(),
+            AddGaussianNoise(0., 0.05, p=0.7)
+        ])
+
+    train_transform = build_train_transform()
 
     val_transform = transforms.Compose([
         transforms.Resize((config.IMG_HEIGHT, config.IMG_WIDTH)),
@@ -266,14 +282,52 @@ def main():
     # --- 3. Training Loop ---
     logging.info("--- Starting Training ---")
     
+    import time
     for epoch in range(start_epoch, args.num_epochs):
+        # Rebuild train_transform with new random augmentations for this epoch
+        train_transform = build_train_transform()
+        train_dataset.transform = train_transform
+        # Log which augmentations are active/inactive
+        all_aug_names = [name for name, _ in aug_transforms]
+        active_set = set(active_aug_names)
+        inactive_set = set(all_aug_names) - active_set
+        logging.info(f"Epoch {epoch+1}: Active augmentations: {sorted(active_set)} | Inactive: {sorted(inactive_set)}")
         # --- Training Phase ---
         model.train()
         train_loss = 0.0
         # Tqdm writes to stderr by default. Changing to stdout.
         train_pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{args.num_epochs} [Train]", file=sys.stdout)
         
+
+        # Timing for transforms
+        transform_times = {name: [] for name, _ in aug_transforms}
+        transform_times['ToTensor'] = []
+        transform_times['AddGaussianNoise'] = []
+
         for batch in train_pbar:
+            # Time each transform in the pipeline for the first image in the batch
+            img = batch['image'][0]
+            x = img
+            # Re-run the transform pipeline step by step for timing
+            # (Assumes transforms.Compose order: Resize, aug1, aug2, ToTensor, AddGaussianNoise)
+            t0 = time.time()
+            x = transforms.Resize((config.IMG_HEIGHT, config.IMG_WIDTH))(x)
+            t1 = time.time()
+            for name, tform in zip(active_aug_names, active_aug_transforms):
+                t_start = time.time()
+                x = tform(x)
+                t_end = time.time()
+                transform_times[name].append(t_end - t_start)
+            t2 = time.time()
+            x = transforms.ToTensor()(x)
+            t3 = time.time()
+            transform_times['ToTensor'].append(t3 - t2)
+            t4 = time.time()
+            x = AddGaussianNoise(0., 0.05, p=0.7)(x)
+            t5 = time.time()
+            transform_times['AddGaussianNoise'].append(t5 - t4)
+
+            # Usual training code
             images = batch['image'].to(config.DEVICE)
             targets = batch['target'].to(config.DEVICE)
             
@@ -300,6 +354,12 @@ def main():
             
             train_loss += loss.item()
             train_pbar.set_postfix({'loss': f"{loss.item():.4f}"})
+
+        # Log average transform times for this epoch
+        for name in transform_times:
+            if transform_times[name]:
+                avg_time = sum(transform_times[name]) / len(transform_times[name])
+                logging.info(f"Epoch {epoch+1}: Avg time for {name}: {avg_time:.6f} s (active: {name in active_aug_names or name in ['ToTensor','AddGaussianNoise']})")
 
         avg_train_loss = train_loss / len(train_loader)
 

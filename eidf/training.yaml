@@ -23,7 +23,7 @@ spec:
             apt-get update && apt-get install -y coreutils;
             echo "Copying training data to shared memory...";
             cd /pvc-data;
-            find . -type f -print0 | xargs -0 -P 64 -I{} cp --parents -v {} /shm-data;
+            find . -type f ! -path "./pdfs/*" ! -path "./musicxml/*" -print0 | xargs -0 -P 64 -I{} cp --parents -v {} /shm-data;
             echo "Changing permissions...";
             chmod -R 777 /shm-data;
             echo "Copy complete.";

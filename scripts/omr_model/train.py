@@ -299,34 +299,7 @@ def main():
         train_pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{args.num_epochs} [Train]", file=sys.stdout)
         
 
-        # Timing for transforms
-        transform_times = {name: [] for name, _ in aug_transforms}
-        transform_times['ToTensor'] = []
-        transform_times['AddGaussianNoise'] = []
-
         for batch in train_pbar:
-            # Time each transform in the pipeline for the first image in the batch
-            img = batch['image'][0]
-            x = img
-            # Re-run the transform pipeline step by step for timing
-            # (Assumes transforms.Compose order: Resize, aug1, aug2, ToTensor, AddGaussianNoise)
-            t0 = time.time()
-            x = transforms.Resize((config.IMG_HEIGHT, config.IMG_WIDTH))(x)
-            t1 = time.time()
-            for name, tform in zip(active_aug_names, active_aug_transforms):
-                t_start = time.time()
-                x = tform(x)
-                t_end = time.time()
-                transform_times[name].append(t_end - t_start)
-            t2 = time.time()
-            x = transforms.ToTensor()(x)
-            t3 = time.time()
-            transform_times['ToTensor'].append(t3 - t2)
-            t4 = time.time()
-            x = AddGaussianNoise(0., 0.05, p=0.7)(x)
-            t5 = time.time()
-            transform_times['AddGaussianNoise'].append(t5 - t4)
-
             # Usual training code
             images = batch['image'].to(config.DEVICE)
             targets = batch['target'].to(config.DEVICE)
@@ -354,12 +327,6 @@ def main():
             
             train_loss += loss.item()
             train_pbar.set_postfix({'loss': f"{loss.item():.4f}"})
-
-        # Log average transform times for this epoch
-        for name in transform_times:
-            if transform_times[name]:
-                avg_time = sum(transform_times[name]) / len(transform_times[name])
-                logging.info(f"Epoch {epoch+1}: Avg time for {name}: {avg_time:.6f} s (active: {name in active_aug_names or name in ['ToTensor','AddGaussianNoise']})")
 
         avg_train_loss = train_loss / len(train_loader)
 

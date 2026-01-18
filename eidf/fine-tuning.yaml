@@ -23,12 +23,12 @@ spec:
           "python",
           "-m",
           "scripts.omr_model.fine_tune",
-          "--batch-size", "1",
+          "--batch-size", "128",
           "--learning-rate", "0.000001",
           "--num-epochs", "90",
           "--num-workers", "16",
           "--validation-split", "0.1",
-          "--pretrained-checkpoint", "/app/training_data/checkpoints/fine_tuned/finetuned_model_best.pth",
+          "--pretrained-checkpoint", "/app/training_data/checkpoints/model_best.pth",
           "--finetune-dataset", "/app/training_data/fine_tuning/finetune_dataset.json",
           "--output-dir", "/app/training_data/checkpoints/fine_tuned"
         ]

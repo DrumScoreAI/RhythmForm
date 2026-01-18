@@ -26,7 +26,7 @@ def collate_fn(batch, pad_token_id):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Fine-tune the OMR model.")
-    parser.add_argument('--batch-size', type=int, default=config.BATCH_SIZE)
+    parser.add_argument('--batch-size', type=int, default=128)
     parser.add_argument('--learning-rate', type=float, default=config.FINE_LEARNING_RATE, help='Lower LR for fine-tuning')
     parser.add_argument('--num-epochs', type=int, default=config.FINE_NUM_EPOCHS)
     parser.add_argument('--num-workers', type=int, default=config.NUM_WORKERS)
@@ -47,11 +47,38 @@ def main():
     tokenizer.load(args.tokenizer_vocab)
     pad_token_id = tokenizer.token_to_id['<pad>']
 
-    transform = transforms.Compose([transforms.ToTensor()])
+    # Augmentation transforms
+    aug_transforms = [
+        ("RandomAffine", transforms.RandomAffine(degrees=10, translate=(0.1, 0.1), scale=(0.85, 1.15), shear=5)),
+        ("ElasticTransform", transforms.RandomApply([transforms.ElasticTransform(alpha=75.0, sigma=5.0)], p=0.5)),
+        ("RandomPerspective", transforms.RandomPerspective(distortion_scale=0.2, p=0.5)),
+        ("ColorJitter", transforms.ColorJitter(brightness=0.4, contrast=0.4)),
+    ]
+
+    active_aug_names = []
+    active_aug_transforms = []
+    def build_train_transform():
+        import random
+        selected = random.sample(aug_transforms, 2)
+        nonlocal active_aug_names, active_aug_transforms
+        active_aug_names = [name for name, _ in selected]
+        active_aug_transforms = [t for _, t in selected]
+        return transforms.Compose([
+            transforms.Resize((config.IMG_HEIGHT, config.IMG_WIDTH)),
+            *active_aug_transforms,
+            transforms.ToTensor()
+        ])
+
+    train_transform = build_train_transform()
+    val_transform = transforms.Compose([
+        transforms.Resize((config.IMG_HEIGHT, config.IMG_WIDTH)),
+        transforms.ToTensor()
+    ])
+
     dataset = ScoreDataset(
         manifest_path=args.finetune_dataset,
         tokenizer=tokenizer,
-        transform=transform
+        transform=train_transform
     )
 
     # Data splitting
@@ -85,14 +112,29 @@ def main():
 
     # Load pre-trained weights
     print(f"Loading pre-trained weights from {args.pretrained_checkpoint}")
-    model.load_state_dict(torch.load(args.pretrained_checkpoint, map_location=device, weights_only=True))
+    checkpoint = torch.load(args.pretrained_checkpoint, map_location=device, weights_only=False)
+    if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
+        state_dict = checkpoint['model_state_dict']
+    else:
+        state_dict = checkpoint
+    model.load_state_dict(state_dict)
 
     criterion = nn.CrossEntropyLoss(ignore_index=pad_token_id)
     optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
 
     # Fine-tuning loop
     print("\n--- Starting Fine-tuning ---")
+    import time
     for epoch in range(args.num_epochs):
+        # Rebuild train_transform with new random augmentations for this epoch
+        train_transform = build_train_transform()
+        dataset.transform = train_transform
+        # Log which augmentations are active/inactive
+        all_aug_names = [name for name, _ in aug_transforms]
+        active_set = set(active_aug_names)
+        inactive_set = set(all_aug_names) - active_set
+        print(f"Epoch {epoch+1}: Active augmentations: {sorted(active_set)} | Inactive: {sorted(inactive_set)}")
+
         model.train()
         train_loss = 0.0
         train_pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{args.num_epochs} [Train]")

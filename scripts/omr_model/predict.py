@@ -57,8 +57,13 @@ def initialize_worker(checkpoint_path, tokenizer_path, beam_width):
     )
     
     try:
-        # Load model state dict for the specific device of this worker
-        worker_model.load_state_dict(torch.load(checkpoint_path, map_location=config.DEVICE, weights_only=True))
+        # Load checkpoint (can be a state dict or a full checkpoint dict)
+        checkpoint = torch.load(checkpoint_path, map_location=config.DEVICE, weights_only=False)
+        if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
+            state_dict = checkpoint['model_state_dict']
+        else:
+            state_dict = checkpoint
+        worker_model.load_state_dict(state_dict)
         worker_model.to(config.DEVICE)
         worker_model.eval()
     except Exception as e:

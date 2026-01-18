@@ -23,7 +23,7 @@ spec:
           "python",
           "-m",
           "scripts.omr_model.fine_tune",
-          "--batch-size", "128",
+          "--batch-size", "64",
           "--learning-rate", "0.000001",
           "--num-epochs", "90",
           "--num-workers", "16",
@@ -44,7 +44,7 @@ spec:
           limits:
             cpu: 64
             memory: "128Gi"
-            nvidia.com/gpu: 2
+            nvidia.com/gpu: 4
       nodeSelector:
         nvidia.com/gpu.product: NVIDIA-A100-SXM4-40GB
       volumes:

@@ -143,7 +143,12 @@ def main():
     model.load_state_dict(state_dict)
 
     criterion = nn.CrossEntropyLoss(ignore_index=pad_token_id)
-    optimizer = None # Will be initialized in the training loop based on freezing state
+    # Use a single optimizer for all parameters from the start
+    optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
+    # Add a learning rate scheduler to reduce LR on plateau
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=2, verbose=True)
+
+    best_val_loss = float('inf')
 
     # Fine-tuning loop
     print("\n--- Starting Fine-tuning ---")
@@ -160,30 +165,6 @@ def main():
 
     import time
     for epoch in range(args.num_epochs):
-        # --- Handle freezing/unfreezing and optimizer setup ---
-        if epoch == 0 and args.freeze_encoder_epochs > 0:
-            print(f"\n--- Phase 1: Training Decoder for {args.freeze_encoder_epochs} epochs (Encoder Frozen) ---")
-            for param in model.cnn_encoder.parameters():
-                param.requires_grad = False
-            # Ensure all other params are trainable
-            for name, param in model.named_parameters():
-                if 'cnn_encoder' not in name:
-                    param.requires_grad = True
-            optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.learning_rate)
-            print(f"Optimizer configured with LR: {args.learning_rate} for decoder parameters.")
-        elif epoch == 0:  # This handles the case where we aren't freezing at all
-            print("\n--- Training all parameters from the start ---")
-            optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
-            print(f"Optimizer configured with LR: {args.learning_rate} for all parameters.")
-
-        if epoch == args.freeze_encoder_epochs:
-            print(f"\n--- Phase 2: Unfreezing Encoder, reducing LR by a factor of {args.unfreeze_lr_factor} ---")
-            for param in model.cnn_encoder.parameters():
-                param.requires_grad = True
-            new_lr = args.learning_rate / args.unfreeze_lr_factor
-            optimizer = optim.Adam(model.parameters(), lr=new_lr)
-            print(f"Optimizer reconfigured with new learning rate: {new_lr}")
-
         # Rebuild train_transform with new random augmentations for this epoch
         train_transform = build_train_transform()
         dataset.transform = train_transform
@@ -229,6 +210,8 @@ def main():
                     val_loss += loss.item()
             avg_val_loss = val_loss / len(val_loader)
             print(f"Epoch {current_epoch_num}/{total_epochs} -> Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
+            # Step the scheduler based on validation loss
+            scheduler.step(avg_val_loss)
         else:
             print(f"Epoch {current_epoch_num}/{total_epochs} -> Train Loss: {avg_train_loss:.4f} (No validation)")
         
@@ -250,15 +233,11 @@ def main():
         torch.save(model.state_dict(), last_path)
 
         # Save 'best' model (lowest validation loss)
-        if epoch == 0:
-            best_val_loss = avg_val_loss if len(val_loader) > 0 else avg_train_loss
+        current_loss = avg_val_loss if len(val_loader) > 0 else avg_train_loss
+        if current_loss < best_val_loss:
+            best_val_loss = current_loss
             best_path = output_dir / "finetuned_model_best.pth"
             torch.save(model.state_dict(), best_path)
-        else:
-            if len(val_loader) > 0 and avg_val_loss < best_val_loss:
-                best_val_loss = avg_val_loss
-                best_path = output_dir / "finetuned_model_best.pth"
-                torch.save(model.state_dict(), best_path)
 
     print("\n--- Fine-tuning Complete ---")
 

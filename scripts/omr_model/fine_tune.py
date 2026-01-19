@@ -163,11 +163,11 @@ def main():
         # --- Handle freezing/unfreezing and optimizer setup ---
         if epoch == 0 and args.freeze_encoder_epochs > 0:
             print(f"\n--- Phase 1: Training Decoder for {args.freeze_encoder_epochs} epochs (Encoder Frozen) ---")
-            for param in model.encoder.parameters():
+            for param in model.cnn_encoder.parameters():
                 param.requires_grad = False
             # Ensure all other params are trainable
             for name, param in model.named_parameters():
-                if 'encoder' not in name:
+                if 'cnn_encoder' not in name:
                     param.requires_grad = True
             optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.learning_rate)
             print(f"Optimizer configured with LR: {args.learning_rate} for decoder parameters.")
@@ -178,7 +178,7 @@ def main():
 
         if epoch == args.freeze_encoder_epochs:
             print(f"\n--- Phase 2: Unfreezing Encoder, reducing LR by a factor of {args.unfreeze_lr_factor} ---")
-            for param in model.encoder.parameters():
+            for param in model.cnn_encoder.parameters():
                 param.requires_grad = True
             new_lr = args.learning_rate / args.unfreeze_lr_factor
             optimizer = optim.Adam(model.parameters(), lr=new_lr)

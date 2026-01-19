@@ -30,7 +30,7 @@ spec:
           "--pdf-path", "/app/training_data/temp/HoobastankTheReason.pdf",
           "--output-path", "/app/training_data/temp/HoobastankTheReason.smt",
           "--checkpoint-path", "/app/training_data/checkpoints/fine_tuned/finetuned_model_best.pth",
-          "--num-workers", "2"
+          "--num-workers", "20"
         ]
         volumeMounts:
           - mountPath: /app/training_data
@@ -39,10 +39,10 @@ spec:
             name: dshm
         resources:
           requests:
-            cpu: 2
+            cpu: 24
             memory: "128Gi"
           limits:
-            cpu: 8
+            cpu: 24
             memory: "256Gi"
             nvidia.com/gpu: 1
       nodeSelector:

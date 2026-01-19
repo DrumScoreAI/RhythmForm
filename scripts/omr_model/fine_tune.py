@@ -12,6 +12,7 @@ from . import config
 from .dataset import ScoreDataset
 from .tokenizer import SmtTokenizer
 from .model import ImageToSmtModel
+from .predict import beam_search_predict
 
 def collate_fn(batch, pad_token_id):
     images = torch.stack([item['image'] for item in batch])
@@ -91,6 +92,21 @@ def main():
     train_sampler = SubsetRandomSampler(train_indices)
     val_sampler = SubsetRandomSampler(val_indices)
 
+    # Grab a single, fixed image from the validation set for qualitative assessment
+    val_dataset_for_prediction = ScoreDataset(
+        manifest_path=args.finetune_dataset,
+        tokenizer=tokenizer,
+        transform=val_transform  # Use the non-augmenting transform
+    )
+    if val_indices:
+        fixed_val_image, fixed_val_target_smt = val_dataset_for_prediction[val_indices[0]]
+        fixed_val_image = fixed_val_image.to(device)
+        print(f"\nUsing validation image index {val_indices[0]} for qualitative prediction checks.")
+    else:
+        fixed_val_image = None
+        print("\nNo validation set found, skipping qualitative prediction checks.")
+
+
     train_loader = DataLoader(
         dataset, batch_size=args.batch_size, sampler=train_sampler,
         num_workers=args.num_workers, collate_fn=lambda b: collate_fn(b, pad_token_id)
@@ -169,6 +185,14 @@ def main():
             print(f"Epoch {epoch+1}/{args.num_epochs} -> Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
         else:
             print(f"Epoch {epoch+1}/{args.num_epochs} -> Train Loss: {avg_train_loss:.4f} (No validation)")
+        
+        # --- Qualitative Validation ---
+        if fixed_val_image is not None:
+            model.eval()
+            with torch.no_grad():
+                predicted_smt = beam_search_predict(model, fixed_val_image, tokenizer, beam_width=3, max_len=200)
+                print(f"    Qualitative Prediction Sample: {predicted_smt[:150]}...")
+
 
         # Save checkpoint
         output_dir = Path(args.output_dir)

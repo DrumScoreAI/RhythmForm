@@ -117,7 +117,7 @@ def main():
         num_workers=args.num_workers, collate_fn=lambda b: collate_fn(b, pad_token_id)
     )
     val_loader = DataLoader(
-        dataset, batch_size=args.batch_size, sampler=val_sampler,d
+        dataset, batch_size=args.batch_size, sampler=val_sampler,
         num_workers=args.num_workers, collate_fn=lambda b: collate_fn(b, pad_token_id)
     )
 

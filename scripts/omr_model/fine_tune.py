@@ -140,20 +140,35 @@ def main():
 
     # Fine-tuning loop
     print("\n--- Starting Fine-tuning ---")
+
+    # Determine starting epoch for checkpoint naming to allow for resuming
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    epoch_files = list(output_dir.glob("*epoch_*.pth"))
+    starting_epoch_offset = 0
+    if epoch_files:
+        starting_epoch_offset = max([int(f.stem.split("_")[-1]) for f in epoch_files])
+    if starting_epoch_offset > 0:
+        print(f"Resuming. Found existing checkpoints. Starting epoch numbering from {starting_epoch_offset + 1}.")
+
     import time
     for epoch in range(args.num_epochs):
         # Rebuild train_transform with new random augmentations for this epoch
         train_transform = build_train_transform()
         dataset.transform = train_transform
+        
+        current_epoch_num = epoch + 1 + starting_epoch_offset
+        total_epochs = args.num_epochs + starting_epoch_offset
+
         # Log which augmentations are active/inactive
         all_aug_names = [name for name, _ in aug_transforms]
         active_set = set(active_aug_names)
         inactive_set = set(all_aug_names) - active_set
-        print(f"Epoch {epoch+1}: Active augmentations: {sorted(active_set)} | Inactive: {sorted(inactive_set)}")
+        print(f"Epoch {current_epoch_num}: Active augmentations: {sorted(active_set)} | Inactive: {sorted(inactive_set)}")
 
         model.train()
         train_loss = 0.0
-        train_pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{args.num_epochs} [Train]")
+        train_pbar = tqdm(train_loader, desc=f"Epoch {current_epoch_num}/{total_epochs} [Train]")
         for batch in train_pbar:
             images = batch['image'].to(device)
             targets = batch['target'].to(device)
@@ -182,9 +197,9 @@ def main():
                     loss = criterion(output.reshape(-1, tokenizer.vocab_size), ground_truth.reshape(-1))
                     val_loss += loss.item()
             avg_val_loss = val_loss / len(val_loader)
-            print(f"Epoch {epoch+1}/{args.num_epochs} -> Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
+            print(f"Epoch {current_epoch_num}/{total_epochs} -> Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
         else:
-            print(f"Epoch {epoch+1}/{args.num_epochs} -> Train Loss: {avg_train_loss:.4f} (No validation)")
+            print(f"Epoch {current_epoch_num}/{total_epochs} -> Train Loss: {avg_train_loss:.4f} (No validation)")
         
         # --- Qualitative Validation ---
         if fixed_val_image is not None:
@@ -195,14 +210,7 @@ def main():
 
 
         # Save checkpoint
-        output_dir = Path(args.output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        current_latest_epoch = 0
-        epoch_files = list(output_dir.glob("*epoch_*.pth"))
-        current_latest_epoch = max(
-            [int(f.stem.split("_")[-1]) for f in epoch_files] + [0]
-        )
-        checkpoint_path = output_dir / f"finetuned_model_epoch_{epoch+1+current_latest_epoch}.pth"
+        checkpoint_path = output_dir / f"finetuned_model_epoch_{current_epoch_num}.pth"
         torch.save(model.state_dict(), checkpoint_path)
 
         # Save 'last' model (overwrite every epoch)

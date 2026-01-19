@@ -99,8 +99,10 @@ def main():
         transform=val_transform  # Use the non-augmenting transform
     )
     if val_indices:
-        fixed_val_image, fixed_val_target_smt = val_dataset_for_prediction[val_indices[0]]
-        fixed_val_image = fixed_val_image.to(device)
+        # Get the dictionary for the first validation sample
+        val_sample = val_dataset_for_prediction[val_indices[0]]
+        # Extract the image tensor and move it to the correct device
+        fixed_val_image = val_sample['image'].to(device)
         print(f"\nUsing validation image index {val_indices[0]} for qualitative prediction checks.")
     else:
         fixed_val_image = None

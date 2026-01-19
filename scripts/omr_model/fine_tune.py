@@ -219,9 +219,16 @@ def main():
         if fixed_val_image is not None:
             model.eval()
             with torch.no_grad():
-                predicted_smt = beam_search_predict(model, fixed_val_image, tokenizer, beam_width=3, max_len=200)
+                predicted_smt = beam_search_predict(model, fixed_val_image, tokenizer, beam_width=3, max_len=1024) # Increased max_len for full predictions
                 print(f"    - Ground Truth SMT: {ground_truth_smt[:150]}...")
                 print(f"    - Prediction Sample:  {predicted_smt[:150]}...")
+
+                # Save the full prediction to a file for detailed analysis
+                prediction_output_dir = Path(args.finetune_dataset).parent / "smt_predicted"
+                prediction_output_dir.mkdir(exist_ok=True)
+                prediction_path = prediction_output_dir / f"prediction_epoch_{current_epoch_num}.smt"
+                with open(prediction_path, "w") as f:
+                    f.write(predicted_smt)
 
 
         # Save checkpoint

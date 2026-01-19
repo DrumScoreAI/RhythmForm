@@ -103,9 +103,12 @@ def main():
         val_sample = val_dataset_for_prediction[val_indices[0]]
         # Extract the image tensor and move it to the correct device
         fixed_val_image = val_sample['image'].to(device)
+        # Decode the ground truth SMT string for comparison
+        ground_truth_smt = tokenizer.decode(val_sample['encoded_smt'])
         print(f"\nUsing validation image index {val_indices[0]} for qualitative prediction checks.")
     else:
         fixed_val_image = None
+        ground_truth_smt = None
         print("\nNo validation set found, skipping qualitative prediction checks.")
 
 
@@ -114,7 +117,7 @@ def main():
         num_workers=args.num_workers, collate_fn=lambda b: collate_fn(b, pad_token_id)
     )
     val_loader = DataLoader(
-        dataset, batch_size=args.batch_size, sampler=val_sampler,
+        dataset, batch_size=args.batch_size, sampler=val_sampler,d
         num_workers=args.num_workers, collate_fn=lambda b: collate_fn(b, pad_token_id)
     )
 
@@ -208,7 +211,8 @@ def main():
             model.eval()
             with torch.no_grad():
                 predicted_smt = beam_search_predict(model, fixed_val_image, tokenizer, beam_width=3, max_len=200)
-                print(f"    Qualitative Prediction Sample: {predicted_smt[:150]}...")
+                print(f"    - Ground Truth SMT: {ground_truth_smt[:150]}...")
+                print(f"    - Prediction Sample:  {predicted_smt[:150]}...")
 
 
         # Save checkpoint

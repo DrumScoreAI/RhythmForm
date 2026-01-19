@@ -36,6 +36,8 @@ def parse_args():
     parser.add_argument('--finetune-dataset', type=str, required=True, help='Path to fine-tune dataset manifest (json)')
     parser.add_argument('--tokenizer-vocab', type=str, default=str(config.TOKENIZER_VOCAB_PATH))
     parser.add_argument('--output-dir', type=str, default=str(config.CHECKPOINT_DIR))
+    parser.add_argument('--freeze-encoder-epochs', type=int, default=5, help='Number of epochs to train with the encoder frozen.')
+    parser.add_argument('--unfreeze-lr-factor', type=float, default=10.0, help='Factor to divide LR by when unfreezing the encoder.')
     return parser.parse_args()
 
 def main():
@@ -141,7 +143,7 @@ def main():
     model.load_state_dict(state_dict)
 
     criterion = nn.CrossEntropyLoss(ignore_index=pad_token_id)
-    optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
+    optimizer = None # Will be initialized in the training loop based on freezing state
 
     # Fine-tuning loop
     print("\n--- Starting Fine-tuning ---")
@@ -158,6 +160,30 @@ def main():
 
     import time
     for epoch in range(args.num_epochs):
+        # --- Handle freezing/unfreezing and optimizer setup ---
+        if epoch == 0 and args.freeze_encoder_epochs > 0:
+            print(f"\n--- Phase 1: Training Decoder for {args.freeze_encoder_epochs} epochs (Encoder Frozen) ---")
+            for param in model.encoder.parameters():
+                param.requires_grad = False
+            # Ensure all other params are trainable
+            for name, param in model.named_parameters():
+                if 'encoder' not in name:
+                    param.requires_grad = True
+            optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.learning_rate)
+            print(f"Optimizer configured with LR: {args.learning_rate} for decoder parameters.")
+        elif epoch == 0:  # This handles the case where we aren't freezing at all
+            print("\n--- Training all parameters from the start ---")
+            optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
+            print(f"Optimizer configured with LR: {args.learning_rate} for all parameters.")
+
+        if epoch == args.freeze_encoder_epochs:
+            print(f"\n--- Phase 2: Unfreezing Encoder, reducing LR by a factor of {args.unfreeze_lr_factor} ---")
+            for param in model.encoder.parameters():
+                param.requires_grad = True
+            new_lr = args.learning_rate / args.unfreeze_lr_factor
+            optimizer = optim.Adam(model.parameters(), lr=new_lr)
+            print(f"Optimizer reconfigured with new learning rate: {new_lr}")
+
         # Rebuild train_transform with new random augmentations for this epoch
         train_transform = build_train_transform()
         dataset.transform = train_transform

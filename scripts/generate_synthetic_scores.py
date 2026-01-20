@@ -126,8 +126,8 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
             
             # Mark this measure number for later modification in prepare_dataset.py
             repeated_measure_numbers.append(i + 1)
-            # The new measure's elements become the basis for the next potential repeat
-            previous_measure_elements = current_measure_elements
+            # DO NOT update previous_measure_elements. This ensures that a repeat is always
+            # a copy of an original measure, not a copy of a copy.
         else:
             # Generate a new, unique measure
             current_offset = 0.0

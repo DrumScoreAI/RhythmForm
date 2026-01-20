@@ -52,25 +52,22 @@ PART_NAMES = ['Drumset', 'Drum Kit', 'Drums', 'Batterie', 'Schlagzeug']
 def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", complexity=0, use_repeats=False):
     """
     Generates a pseudo-random drum score and saves it as a MusicXML file.
-    If use_repeats is True, it may mark measures as repeats in a companion JSON file.
-    Complexity: 0=simple, 1=medium, 2=complex
+    The `use_repeats` flag is maintained for compatibility but the repeat generation logic
+    has been removed due to instability with music21's deepcopy in multiprocessing.
     """
     # --- Define complexity levels ---
     if complexity == 0: # Simple
         active_instruments = {k: v for k, v in DRUM_INSTRUMENTS.items() if 'Hi-Hat' in k or 'Snare' in k or 'Bass Drum' in k}
         active_durations = [0.5, 1.0]
         chord_probability = 0.1
-        repeat_probability = 0.4
     elif complexity == 1: # Medium
         active_instruments = {k: v for k, v in DRUM_INSTRUMENTS.items() if 'Ride' not in k}
         active_durations = [0.25, 0.5, 1.0]
         chord_probability = 0.3
-        repeat_probability = 0.6
     else: # Complex
         active_instruments = DRUM_INSTRUMENTS
         active_durations = DURATIONS
         chord_probability = 0.5
-        repeat_probability = 0.75
 
     # --- 1. Setup Score and Drum Part ---
     score = music21.stream.Score()
@@ -81,9 +78,8 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
     drum_part.partName = part_name
     drum_part.partAbbreviation = part_name[:3] + '.'
 
-    # --- THIS IS THE FIX: Define all instruments and add them to the part's instrument list ---
+    # --- Instrument Definitions ---
     instrument_definitions = {}
-    # Clear any default instruments music21 might have added
     drum_part.instruments = [] 
     for name, (midi_num, _, _, _) in active_instruments.items():
         inst = music21.instrument.Percussion()
@@ -92,96 +88,56 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
         inst_id = f"P{midi_num}"
         inst.instrumentId = inst_id
         instrument_definitions[midi_num] = inst
-        # Add the instrument to the part's list of instruments.
-        # This is the correct way to ensure they appear in the <part-list>.
         drum_part.instruments.append(inst)
 
     drum_part.insert(0, music21.clef.PercussionClef())
     drum_part.insert(0, music21.meter.TimeSignature('4/4'))
 
     # --- 2. Generate Measures ---
-    previous_measure_elements = None
-    repeated_measure_numbers = []
-
     for i in range(num_measures):
         measure = music21.stream.Measure(number=i + 1)
         
-        should_repeat = (
-            use_repeats and
-            previous_measure_elements is not None and
-            i > 0 and
-            random.random() < repeat_probability
-        )
-
-        if should_repeat:
-            # --- THIS IS THE FIX ---
-            # We must create deep copies of the elements from the previous measure.
-            # The correct way to do this for music21 objects is with copy.deepcopy().
-            current_measure_elements = []
-            if previous_measure_elements is not None:
-                for el in previous_measure_elements:
-                    el_copy = copy.deepcopy(el) # Deep copy using the copy module
-                    measure.insert(el.offset, el_copy)
-                    current_measure_elements.append(el_copy)
+        # Generate a new, unique measure
+        current_offset = 0.0
+        while current_offset < 4.0:
+            remaining_duration = 4.0 - current_offset
+            possible_durations = [d for d in active_durations if d <= remaining_duration]
+            if not possible_durations:
+                rest = music21.note.Rest(quarterLength=remaining_duration)
+                measure.insert(current_offset, rest)
+                break
             
-            # Mark this measure number for later modification in prepare_dataset.py
-            repeated_measure_numbers.append(i + 1)
-            # DO NOT update previous_measure_elements. This ensures that a repeat is always
-            # a copy of an original measure, not a copy of a copy.
-        else:
-            # Generate a new, unique measure
-            current_offset = 0.0
-            current_measure_elements = []
-            while current_offset < 4.0:
-                remaining_duration = 4.0 - current_offset
-                possible_durations = [d for d in active_durations if d <= remaining_duration]
-                if not possible_durations:
-                    rest = music21.note.Rest(quarterLength=remaining_duration)
-                    measure.insert(current_offset, rest)
-                    current_measure_elements.append(rest)
-                    break
-                
-                duration = random.choice(possible_durations)
+            duration = random.choice(possible_durations)
 
-                # Generate note or rest
-                if random.random() < 0.85: # 85% chance of a note/chord
-                    is_chord = random.random() < chord_probability
-                    note_event = music21.percussion.PercussionChord() if is_chord else music21.note.Unpitched()
-                    num_notes_in_event = random.randint(2, 3) if is_chord else 1
+            # Generate note or rest
+            if random.random() < 0.85: # 85% chance of a note/chord
+                is_chord = random.random() < chord_probability
+                note_event = music21.percussion.PercussionChord() if is_chord else music21.note.Unpitched()
+                num_notes_in_event = random.randint(2, 3) if is_chord else 1
+                
+                instruments_in_chord = random.sample(list(active_instruments.keys()), num_notes_in_event)
+
+                for instrument_name in instruments_in_chord:
+                    midi_num, d_step, d_octave, notehead_style = active_instruments[instrument_name]
                     
-                    # Ensure unique instruments in a chord
-                    instruments_in_chord = random.sample(list(active_instruments.keys()), num_notes_in_event)
-
-                    for instrument_name in instruments_in_chord:
-                        midi_num, d_step, d_octave, notehead_style = active_instruments[instrument_name]
+                    unpitched_note = music21.note.Unpitched()
+                    unpitched_note.displayStep = d_step
+                    unpitched_note.displayOctave = d_octave
+                    unpitched_note.notehead = notehead_style
+                    unpitched_note.instrument = instrument_definitions[midi_num]
+                    
+                    if is_chord:
+                        note_event.add(unpitched_note)
+                    else:
+                        note_event = unpitched_note
                         
-                        unpitched_note = music21.note.Unpitched()
-                        unpitched_note.displayStep = d_step
-                        unpitched_note.displayOctave = d_octave
-                        unpitched_note.notehead = notehead_style
-                        
-                        # --- THIS IS THE FIX ---
-                        # Refer to the predefined instrument object by its ID.
-                        # music21 will create the correct <instrument id="..."> tag.
-                        unpitched_note.instrument = instrument_definitions[midi_num]
-                        
-                        if is_chord:
-                            note_event.add(unpitched_note)
-                        else:
-                            note_event = unpitched_note
-                            
-                    note_event.duration.quarterLength = duration
-                    measure.insert(current_offset, note_event)
-                    current_measure_elements.append(note_event)
-                else: # 15% chance of a rest
-                    rest = music21.note.Rest(quarterLength=duration)
-                    measure.insert(current_offset, rest)
-                    current_measure_elements.append(rest)
-                
-                current_offset += duration
+                note_event.duration.quarterLength = duration
+                measure.insert(current_offset, note_event)
+            else: # 15% chance of a rest
+                rest = music21.note.Rest(quarterLength=duration)
+                measure.insert(current_offset, rest)
             
-            # Store the elements of this new measure in case the next one is a repeat
-            previous_measure_elements = current_measure_elements
+            current_offset += duration
 
         # Set barlines. The last measure gets a final barline.
         if i == num_measures - 1:
@@ -194,16 +150,9 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
     score.insert(0, drum_part)
     
     # --- 3. Save Files ---
-    # Save the MusicXML file with all notes explicitly written
+    # Save the MusicXML file
     score.write('musicxml', fp=output_path)
-    print(f"Successfully generated randomised score at: {output_path}")
-
-    # Save the companion JSON file with the list of repeated measure numbers
-    if repeated_measure_numbers:
-        json_path = Path(output_path).with_suffix('.json')
-        with open(json_path, 'w') as f:
-            json.dump({"repeated_measures": repeated_measure_numbers}, f)
-        print(f"  -> Found repeats, saved info to: {json_path}")
+    print(f"Successfully generated random score at: {output_path}")
 
 
 def generate_markov_score(markov_model, output_path, complexity=0, title="Synthetic Score"):

@@ -225,13 +225,12 @@ def generate_markov_score(markov_model, output_path, complexity=0, title="Synthe
     ]
     full_sequence_str = " ".join(metadata + sequence)
 
-    # Convert the SMT string to a music21 Score object
+    # Convert the SMT string to a MusicXML file
     converter = SmtConverter(full_sequence_str)
-    score = converter.parse()
-    
-    # Save the score as a MusicXML file
-    score.write('musicxml', fp=output_path)
-    print(f"Successfully generated Markov score at: {output_path}")
+    if converter.write_musicxml(output_path):
+        print(f"Successfully generated Markov score at: {output_path}")
+    else:
+        print(f"Failed to generate Markov score at: {output_path}")
 
 
 if __name__ == '__main__':

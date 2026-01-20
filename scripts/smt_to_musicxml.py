@@ -10,21 +10,42 @@ if __name__ == "__main__" and __package__ is None:
 
 from scripts.omr_model.utils import smt_to_musicxml_manual
 
+class SmtConverter:
+    """A class to handle the conversion of an SMT string to a MusicXML string."""
+    def __init__(self, smt_string):
+        self.smt_string = smt_string
+        self._xml_string = None
+
+    def parse(self):
+        """Uses the manual converter to get a MusicXML string."""
+        if self._xml_string is None:
+             # The smt_to_musicxml_manual function returns an XML string
+            self._xml_string = smt_to_musicxml_manual(self.smt_string)
+        return self._xml_string
+    
+    def write_musicxml(self, output_path):
+        """Parses the SMT to an XML string and writes it to a file."""
+        xml_string = self.parse()
+        if xml_string:
+            output_path = Path(output_path)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(xml_string)
+            return True
+        return False
+
 def convert_smt_to_xml(smt_path, output_dir):
-    """Converts a single SMT file to a MusicXML file using the manual converter."""
+    """Converts a single SMT file to a MusicXML file using the SmtConverter."""
     try:
         with open(smt_path, 'r') as f:
             smt_string = f.read()
-        
-        xml_string = smt_to_musicxml_manual(smt_string)
-        if not xml_string:
-            print(f"  -> Failed to convert {smt_path.name}")
-            return
 
+        converter = SmtConverter(smt_string)
         output_path = output_dir / smt_path.with_suffix('.xml').name
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(xml_string)
-        print(f"  -> Successfully converted {smt_path.name} to {output_path.name}")
+        if converter.write_musicxml(output_path):
+            print(f"  -> Successfully converted {smt_path.name} to {output_path.name}")
+        else:
+            print(f"  -> Failed to convert {smt_path.name}")
 
     except Exception as e:
         print(f"  -> Error processing {smt_path.name}: {e}")
@@ -43,19 +64,20 @@ def main():
         print(f"Error: Input file not found at {args.input_smt}")
         return
 
-    # Use the centralized manual conversion function
-    xml_content = smt_to_musicxml_manual(smt_content)
-
+    # Use the SmtConverter class
+    converter = SmtConverter(smt_content)
+    
     # Save the generated score object to a file
     output_path = Path(args.output_musicxml)
     if output_path.suffix.lower() != '.musicxml':
         print(f"Warning: Output file extension is not .musicxml. Changing to .musicxml")
         output_path = output_path.with_suffix('.musicxml')
+    
     try:
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(xml_content)
-        print(f"Successfully converted SMT to MusicXML at: {output_path}")
+        if converter.write_musicxml(output_path):
+            print(f"Successfully converted SMT to MusicXML at: {output_path}")
+        else:
+            print(f"Failed to write MusicXML file for: {args.input_smt}")
     except Exception as e:
         print(f"Error writing MusicXML file: {e}")
 

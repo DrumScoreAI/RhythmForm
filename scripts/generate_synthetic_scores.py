@@ -9,6 +9,13 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
 from glob import glob
 
+import sys
+# This block allows the script to be run from the command line (e.g. `python scripts/generate...`)
+# by adding the project root to the Python path, so that imports like `from scripts...` work.
+if __name__ == '__main__' and __package__ is None:
+    project_root = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(project_root))
+
 # --- Markov Chain Imports ---
 import pickle
 from scripts.markov_chain.markov_chain import MarkovChain

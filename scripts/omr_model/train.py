@@ -19,6 +19,7 @@ from . import config
 from .dataset import ScoreDataset
 from .tokenizer import SmtTokenizer
 from .model import ImageToSmtModel
+from .predict import beam_search_predict
 
 # Custom Transform for adding Gaussian Noise
 class AddGaussianNoise(object):
@@ -185,6 +186,19 @@ def main():
     train_sampler = SubsetRandomSampler(train_indices)
     validation_sampler = SubsetRandomSampler(val_indices)
 
+    # --- Grab a single validation image for qualitative prediction ---
+    fixed_val_image = None
+    ground_truth_smt = None
+    if val_indices:
+        # Get the dictionary for the first validation sample
+        val_sample = val_dataset[val_indices[0]] # Use the val_dataset with non-augmenting transform
+        # Extract the image tensor and move it to the correct device
+        fixed_val_image = val_sample['image'].to(config.DEVICE)
+        # Decode the ground truth SMT string for comparison
+        ground_truth_smt = tokenizer.decode(val_sample['encoded_smt'])
+        logging.info(f"Using validation image index {val_indices[0]} for qualitative prediction checks during training.")
+
+
     # 3. Update the DataLoader to use the correct dataset and sampler
     logging.info(f"Creating DataLoaders with {args.num_workers} workers")
     train_loader = DataLoader(
@@ -235,6 +249,7 @@ def main():
     # --- Checkpointing Setup ---
     start_epoch = 0
     best_val_loss = float('inf')
+    best_token_accuracy = -1.0
     
     # --- Resume from Checkpoint ---
     if args.resume_from:
@@ -273,9 +288,13 @@ def main():
             scaler.load_state_dict(checkpoint['scaler_state_dict'])
             start_epoch = checkpoint['epoch'] + 1
             best_val_loss = checkpoint['best_val_loss']
+            if 'best_token_accuracy' in checkpoint:
+                best_token_accuracy = checkpoint.get('best_token_accuracy', -1.0)
+
             
             logging.info(f"Resumed from epoch {checkpoint['epoch']}. Starting next epoch: {start_epoch}.")
             logging.info(f"Resumed best validation loss: {best_val_loss:.4f}")
+            logging.info(f"Resumed best token accuracy: {best_token_accuracy:.4f}")
         else:
             logging.warning(f"Checkpoint file not found at {args.resume_from}. Starting training from scratch.")
 
@@ -358,38 +377,72 @@ def main():
         new_lr = optimizer.param_groups[0]['lr']
         logging.info(f"Current learning rate: {new_lr}")
 
-        # --- Save Checkpoints ---
-        # Create a dictionary with all the necessary states
-        state = {
+        # --- Qualitative Validation and Token Accuracy ---
+        if fixed_val_image is not None:
+            model.eval()
+            with torch.no_grad():
+                logging.info("--- Performing Qualitative Validation ---")
+                predicted_smt = beam_search_predict(model, fixed_val_image, tokenizer, beam_width=3, max_len=1024)
+                
+                # Calculate Token Accuracy
+                gt_tokens = ground_truth_smt.split()
+                pred_tokens = predicted_smt.split()
+                correct_tokens = 0
+                for i in range(min(len(gt_tokens), len(pred_tokens))):
+                    if gt_tokens[i] == pred_tokens[i]:
+                        correct_tokens += 1
+                token_accuracy = correct_tokens / len(gt_tokens) if len(gt_tokens) > 0 else 0
+                
+                logging.info(f"    - Ground Truth SMT: {ground_truth_smt[:150]}...")
+                logging.info(f"    - Prediction Sample:  {predicted_smt[:150]}...")
+                logging.info(f"    - Token Accuracy: {token_accuracy:.4f}")
+
+        # --- Save Checkpoint ---
+        checkpoint_path = config.CHECKPOINT_DIR / f"model_epoch_{epoch+1}.pth"
+        
+        # Save 'best' model based on token accuracy if available, otherwise fall back to val loss
+        is_best = False
+        if fixed_val_image is not None:
+            if token_accuracy > best_token_accuracy:
+                best_token_accuracy = token_accuracy
+                is_best = True
+        elif avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
+            is_best = True
+
+        if is_best:
+            best_path = config.CHECKPOINT_DIR / "model_best.pth"
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'scheduler_state_dict': scheduler.state_dict(),
+                'scaler_state_dict': scaler.state_dict(),
+                'best_val_loss': best_val_loss,
+                'best_token_accuracy': best_token_accuracy,
+                'args': args
+            }, best_path)
+            logging.info(f"Saved new best model to {best_path} (Epoch {epoch+1}, Token Accuracy: {token_accuracy:.4f})")
+
+        # Save 'last' model (overwrite every epoch)
+        last_path = config.CHECKPOINT_DIR / "model_last.pth"
+        torch.save({
             'epoch': epoch,
-            'model_state_dict': model.module.state_dict() if isinstance(model, nn.DataParallel) else model.state_dict(),
+            'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
             'scheduler_state_dict': scheduler.state_dict(),
             'scaler_state_dict': scaler.state_dict(),
             'best_val_loss': best_val_loss,
-        }
-
-        # 1. Save Latest (overwrite every epoch)
-        last_path = config.CHECKPOINT_DIR / "model_last.pth"
-        torch.save(state, last_path)
-        
-        # 2. Save Best
-        if avg_val_loss < best_val_loss:
-            best_val_loss = avg_val_loss
-            # Update best loss in state before saving
-            state['best_val_loss'] = best_val_loss
-            best_path = config.CHECKPOINT_DIR / "model_best.pth"
-            torch.save(state, best_path)
-            logging.info(f"New best model saved with val loss {best_val_loss:.4f}")
-
-        # 3. Save Periodic (every 5 epochs)
-        if (epoch + 1) % 5 == 0:
-            checkpoint_path = config.CHECKPOINT_DIR / f"model_epoch_{epoch+1}.pth"
-            torch.save(state, checkpoint_path)
-            logging.info(f"Periodic checkpoint saved: {checkpoint_path}")
+            'best_token_accuracy': best_token_accuracy,
+            'args': args
+        }, last_path)
 
     logging.info("--- Training Complete ---")
 
-
 if __name__ == '__main__':
+    # Set the start method for multiprocessing
+    try:
+        torch.multiprocessing.set_start_method('spawn')
+    except RuntimeError:
+        pass
     main()

@@ -28,7 +28,7 @@ def collate_fn(batch, pad_token_id):
 def parse_args():
     parser = argparse.ArgumentParser(description="Fine-tune the OMR model.")
     parser.add_argument('--batch-size', type=int, default=128)
-    parser.add_argument('--learning-rate', type=float, default=config.FINE_LEARNING_RATE, help='Lower LR for fine-tuning')
+    parser.add_argument('--learning-rate', type=float, default=5e-6, help='Lower LR for fine-tuning')
     parser.add_argument('--num-epochs', type=int, default=config.FINE_NUM_EPOCHS)
     parser.add_argument('--num-workers', type=int, default=config.NUM_WORKERS)
     parser.add_argument('--validation-split', type=float, default=config.VALIDATION_SPLIT)
@@ -36,8 +36,6 @@ def parse_args():
     parser.add_argument('--finetune-dataset', type=str, required=True, help='Path to fine-tune dataset manifest (json)')
     parser.add_argument('--tokenizer-vocab', type=str, default=str(config.TOKENIZER_VOCAB_PATH))
     parser.add_argument('--output-dir', type=str, default=str(config.CHECKPOINT_DIR))
-    parser.add_argument('--freeze-encoder-epochs', type=int, default=5, help='Number of epochs to train with the encoder frozen.')
-    parser.add_argument('--unfreeze-lr-factor', type=float, default=10.0, help='Factor to divide LR by when unfreezing the encoder.')
     return parser.parse_args()
 
 def main():
@@ -143,10 +141,10 @@ def main():
     model.load_state_dict(state_dict)
 
     criterion = nn.CrossEntropyLoss(ignore_index=pad_token_id)
-    # Use a single optimizer for all parameters from the start
-    optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
+    # Use AdamW optimizer which is often better for fine-tuning
+    optimizer = optim.AdamW(model.parameters(), lr=args.learning_rate)
     # Add a learning rate scheduler to reduce LR on plateau
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=2, verbose=True)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=1, verbose=True)
 
     best_val_loss = float('inf')
 

@@ -147,9 +147,9 @@ find $TRAINING_DATA_DIR/musicxml -name "*.xml" | grep -v altered | sort -n > $te
 echo "Generating synthetic scores using $num_cores cores..."
 if [ "$continuation" == "true" ] && [ "$existing_scores" -gt 0 ]; then
     echo "Continuation mode enabled."
-    python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --start-index "$start_index"
+    python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl" --start-index "$start_index"
 else
-    python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores"
+    python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl"
 fi
 echo "Synthetic score generation complete."
 

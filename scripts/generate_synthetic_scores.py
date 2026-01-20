@@ -183,6 +183,12 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
             # Store the elements of this new measure in case the next one is a repeat
             previous_measure_elements = current_measure_elements
 
+        # Set barlines. The last measure gets a final barline.
+        if i == num_measures - 1:
+            measure.rightBarline = 'final'
+        else:
+            measure.rightBarline = 'regular'
+
         drum_part.append(measure)
 
     score.insert(0, drum_part)
@@ -202,18 +208,63 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
 
 def generate_markov_score(markov_model, output_path, complexity=0, title="Synthetic Score"):
     """
-    Generates a score using a trained MarkovChain model and saves it as MusicXML.
+    Generates a score using a trained MarkovChain model, ensuring valid measure durations.
     """
+    from fractions import Fraction
+
     # Adjust generation length based on complexity
     if complexity == 0:
-        length = random.randint(80, 120)
+        num_measures = random.randint(12, 18)
     elif complexity == 1:
-        length = random.randint(120, 200)
+        num_measures = random.randint(16, 24)
     else:
-        length = random.randint(200, 300)
+        num_measures = random.randint(20, 32)
+    
+    time_signature = Fraction(4, 4)
+    
+    generated_measures = []
+    
+    for _ in range(num_measures):
+        current_measure_tokens = []
+        current_duration = Fraction(0)
+        
+        while current_duration < time_signature:
+            remaining_duration = time_signature - current_duration
+            
+            # Generate a token
+            # We can pass the last token to guide the generation
+            start_token = current_measure_tokens[-1] if current_measure_tokens else None
+            token = markov_model.generate(length=1, start_token=start_token)[0]
 
-    # Generate the sequence of SMT tokens
-    sequence = markov_model.generate(length=length)
+            # Extract duration from token
+            try:
+                # Basic parsing to find duration like "note[...,1/4]" or "rest[1/2]"
+                content = token.split('[')[1].split(']')[0]
+                if "note" in token:
+                    token_duration = Fraction(content.split(',')[-1])
+                elif "rest" in token:
+                    token_duration = Fraction(content)
+                else: # e.g. text[...]
+                    token_duration = Fraction(0)
+            except (IndexError, ValueError):
+                # If token has no duration or is malformed, skip it
+                continue
+            
+            # If the token fits, add it. Otherwise, fill with a rest and break.
+            if current_duration + token_duration <= time_signature:
+                current_measure_tokens.append(token)
+                current_duration += token_duration
+            else:
+                # Fill the rest of the measure with a rest
+                fill_rest_duration = remaining_duration
+                if fill_rest_duration > 0:
+                    current_measure_tokens.append(f"rest[{fill_rest_duration}]")
+                current_duration += fill_rest_duration # This will end the loop
+        
+        generated_measures.append(" ".join(current_measure_tokens))
+
+    # Join measures with barlines
+    body = " | ".join(generated_measures)
     
     # Add required metadata
     metadata = [
@@ -223,7 +274,7 @@ def generate_markov_score(markov_model, output_path, complexity=0, title="Synthe
         "clef[percussion]",
         "time[4/4]"
     ]
-    full_sequence_str = " ".join(metadata + sequence)
+    full_sequence_str = " ".join(metadata) + " | " + body
 
     # Convert the SMT string to a MusicXML file
     converter = SmtConverter(full_sequence_str)

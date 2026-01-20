@@ -59,7 +59,7 @@ if [ -z "$output_path" ]; then
     fi
     
     # Place the output directory alongside the input file's directory
-    output_dir=$(dirname "$input_dir")/../"$output_dir_name"
+    output_dir="$input_dir/../$output_dir_name"
     
     mkdir -p "$output_dir"
     output_extension=$output_format

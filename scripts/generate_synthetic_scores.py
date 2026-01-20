@@ -190,7 +190,7 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
     # --- 3. Save Files ---
     # Save the MusicXML file with all notes explicitly written
     score.write('musicxml', fp=output_path)
-    print(f"Successfully generated synthetic score at: {output_path}")
+    print(f"Successfully generated randomised score at: {output_path}")
 
     # Save the companion JSON file with the list of repeated measure numbers
     if repeated_measure_numbers:

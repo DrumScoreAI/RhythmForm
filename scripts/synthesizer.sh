@@ -203,6 +203,16 @@ if [ $? -ne 0 ]; then
     echo "Error during data preparation."
     exit 1
 fi
+
+# Add a check to ensure dataset.json was created on a fresh run
+if [ "$continuation" == "false" ] && [ ! -f "$TRAINING_DATA_DIR/dataset.json" ]; then
+    echo "CRITICAL ERROR: dataset.json was not created during a fresh run."
+    echo "This indicates that no source MusicXML/PDF files were found or processed."
+    echo "Please check the logs for errors during score generation, PDF conversion, or manifest building."
+    echo "Aborting before cleanup to preserve generated files for inspection."
+    exit 1
+fi
+
 echo "Data preparation complete."
 
 # Clean up

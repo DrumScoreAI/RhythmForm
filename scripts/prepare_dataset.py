@@ -154,7 +154,15 @@ def process_file(xml_path, write_smt=False):
         title = "Music21 Fragment"
         creator = "Music21"
 
-    smt_string = musicxml_to_smt(xml_path)
+    # Read the content of the XML file before passing it to the conversion function.
+    try:
+        with open(xml_path, 'r', encoding='utf-8') as f:
+            xml_content = f.read()
+    except Exception as e:
+        print(f"  -> Error reading {xml_path.name}: {e}")
+        return None
+    
+    smt_string = musicxml_to_smt(xml_content)
     if not smt_string:
         return None
 

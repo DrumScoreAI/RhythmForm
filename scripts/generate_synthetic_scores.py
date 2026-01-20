@@ -227,10 +227,20 @@ def generate_markov_score(markov_model, output_path, complexity=0, title="Synthe
     for _ in range(num_measures):
         current_measure_tokens = []
         current_duration = Fraction(0)
+        fail_safe_counter = 0 # Add a counter to prevent infinite loops
         
         while current_duration < time_signature:
             remaining_duration = time_signature - current_duration
             
+            # Add a fail-safe to break out of potentially infinite loops
+            fail_safe_counter += 1
+            if fail_safe_counter > 20:
+                print(f"  -> Warning: Stuck generating measure {len(generated_measures) + 1}. Filling with rest.")
+                fill_rest_duration = remaining_duration
+                if fill_rest_duration > 0:
+                    current_measure_tokens.append(f"rest[{fill_rest_duration}]")
+                break # Exit the while loop for this measure
+
             # Generate a token
             # We can pass the last token to guide the generation
             start_token = current_measure_tokens[-1] if current_measure_tokens else None
@@ -250,16 +260,12 @@ def generate_markov_score(markov_model, output_path, complexity=0, title="Synthe
                 # If token has no duration or is malformed, skip it
                 continue
             
-            # If the token fits, add it. Otherwise, fill with a rest and break.
+            # If the token fits, add it. Otherwise, try generating a different one.
             if current_duration + token_duration <= time_signature:
                 current_measure_tokens.append(token)
                 current_duration += token_duration
-            else:
-                # Fill the rest of the measure with a rest
-                fill_rest_duration = remaining_duration
-                if fill_rest_duration > 0:
-                    current_measure_tokens.append(f"rest[{fill_rest_duration}]")
-                current_duration += fill_rest_duration # This will end the loop
+                fail_safe_counter = 0 # Reset counter on success
+            # If token doesn't fit, just continue the loop to try another one
         
         generated_measures.append(" ".join(current_measure_tokens))
 

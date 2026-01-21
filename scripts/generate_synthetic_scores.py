@@ -237,15 +237,22 @@ def generate_markov_score(output_path, complexity=0, title="Synthetic Score"):
             # Generate a token
             # We can pass the last token to guide the generation
             start_token = current_measure_tokens[-1] if current_measure_tokens else None
-            token = worker_markov_model.generate(length=1, start_token=start_token)[0]
+            try:
+                generated = worker_markov_model.generate(length=1, start_token=start_token)
+                token = generated[0] if generated else None
+            except Exception:
+                token = None
 
             # Extract duration from token
+            if not token:
+                continue
+
             try:
                 # Basic parsing to find duration like "note[...,1/4]" or "rest[1/2]"
                 content = token.split('[')[1].split(']')[0]
                 if "note" in token:
                     token_duration = Fraction(content.split(',')[-1])
-                elif "rest" in token:
+                elif token and "rest" in token:
                     token_duration = Fraction(content)
                 else: # e.g. text[...]
                     token_duration = Fraction(0)

@@ -697,3 +697,26 @@ def smt_to_musicxml_manual(smt_string: str) -> str:
         print(f"Error processing SMT string manually: {e}")
         print(traceback.format_exc())
         return ""
+
+
+def normalize_smt_for_markov(smt_string: str) -> str:
+    """
+    Normalizes an SMT string for Markov Chain training by replacing specific
+    metadata values with generic placeholders.
+    """
+    tokens = smt_string.strip().split()
+    normalized_tokens = []
+    
+    for token in tokens:
+        if token.startswith('title['):
+            normalized_tokens.append('title[text]')
+        elif token.startswith('subtitle['):
+            normalized_tokens.append('subtitle[text]')
+        elif token.startswith('composer['):
+            normalized_tokens.append('composer[text]')
+        elif token.startswith('creator['):
+            normalized_tokens.append('composer[text]')
+        else:
+            normalized_tokens.append(token)
+            
+    return " ".join(normalized_tokens)

@@ -13,6 +13,7 @@ usage() {
     echo "  -S, --use_stdout         Log to stdout instead of file"
     echo "  -c, --continuation       Continue previous synthesis run"
     echo "  -w, --write_smt          Write SMT files to training_data/smt directory"
+    echo "  -m, --markov-ratio       Ratio of scores to generate using the Markov model (default: 0.8)"
     echo "  -h, --help               Show this help message"
 }
 
@@ -35,6 +36,10 @@ while [ "$1" != "" ]; do
             ;;
         -w | --write_smt)
             write_smt=true
+            ;;
+        -m | --markov-ratio)
+            shift
+            markov_ratio=$1
             ;;
         -h | --help)
             usage

@@ -17,6 +17,7 @@ from fractions import Fraction
 from tqdm import tqdm
 import argparse
 import glob
+import multiprocessing
 from scripts.omr_model import config
 from scripts.omr_model.utils import musicxml_to_smt
 
@@ -354,4 +355,8 @@ def main():
 
 
 if __name__ == '__main__':
+    try:
+        multiprocessing.set_start_method('spawn')
+    except RuntimeError:
+        pass
     main()

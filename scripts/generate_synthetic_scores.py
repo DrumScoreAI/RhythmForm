@@ -1,4 +1,7 @@
 import random
+import os
+# Set this BEFORE importing music21 to prevent it from trying to load/create user settings
+os.environ['MUSIC21_CONFIGURE_USER'] = '0'
 import music21
 import os
 import json
@@ -8,6 +11,7 @@ from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
 from glob import glob
+import multiprocessing
 
 import sys
 # This block allows the script to be run from the command line (e.g. `python scripts/generate...`)
@@ -18,8 +22,40 @@ if __name__ == '__main__' and __package__ is None:
 
 # --- Markov Chain Imports ---
 import pickle
-from scripts.markov_chain.markov_chain import MarkovChain
+# The MarkovChain class will be imported within the worker initializer
+# from scripts.markov_chain.markov_chain import MarkovChain
 from scripts.smt_to_musicxml import SmtConverter
+
+# --- Global for worker processes ---
+worker_markov_model = None
+
+def init_worker(model_path):
+    """Initializer for each worker process: loads the Markov model into a global variable."""
+    # This setup is critical for spawned processes to find the project's modules.
+    project_root = Path(__file__).resolve().parent.parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+
+    print(f"Worker {os.getpid()}: Initializing...")
+    print(f"Worker {os.getpid()}: Initializing...", flush=True)
+    global worker_markov_model
+    
+    if model_path and Path(model_path).exists():
+        # We must re-import the class here because this runs in a separate process's memory space.
+        from scripts.markov_chain import MarkovChain
+        try:
+            with open(model_path, 'rb') as f:
+                worker_markov_model = pickle.load(f)
+            print(f"Worker {os.getpid()}: Successfully loaded Markov model from {model_path}.")
+            print(f"Worker {os.getpid()}: Successfully loaded Markov model from {model_path}.", flush=True)
+        except Exception as e:
+            print(f"Worker {os.getpid()}: FAILED to load Markov model: {e}")
+            print(f"Worker {os.getpid()}: FAILED to load Markov model: {e}", flush=True)
+            worker_markov_model = None
+    else:
+        print(f"Worker {os.getpid()}: No model path provided.")
+        print(f"Worker {os.getpid()}: No model path provided.", flush=True)
+        worker_markov_model = None
 
 
 # --- Configuration ---
@@ -153,12 +189,19 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
     # Save the MusicXML file
     score.write('musicxml', fp=output_path)
     print(f"Successfully generated random score at: {output_path}")
+    print(f"Successfully generated random score at: {output_path}", flush=True)
 
 
-def generate_markov_score(markov_model, output_path, complexity=0, title="Synthetic Score"):
+def generate_markov_score(output_path, complexity=0, title="Synthetic Score"):
     """
-    Generates a score using a trained MarkovChain model, ensuring valid measure durations.
+    Generates a score using a trained MarkovChain model loaded in the worker process.
     """
+    global worker_markov_model
+    if not worker_markov_model:
+        print(f"  -> Warning: Markov model not available in worker. Falling back to random generation.")
+        print(f"  -> Warning: Markov model not available in worker. Falling back to random generation.", flush=True)
+        # Fallback to random generation to ensure a file is always created.
+        return generate_drum_score(output_path=output_path, complexity=complexity, use_repeats=False)
     from fractions import Fraction
 
     # Adjust generation length based on complexity
@@ -185,6 +228,7 @@ def generate_markov_score(markov_model, output_path, complexity=0, title="Synthe
             fail_safe_counter += 1
             if fail_safe_counter > 20:
                 print(f"  -> Warning: Stuck generating measure {len(generated_measures) + 1}. Filling with rest.")
+                print(f"  -> Warning: Stuck generating measure {len(generated_measures) + 1}. Filling with rest.", flush=True)
                 fill_rest_duration = remaining_duration
                 if fill_rest_duration > 0:
                     current_measure_tokens.append(f"rest[{fill_rest_duration}]")
@@ -193,7 +237,7 @@ def generate_markov_score(markov_model, output_path, complexity=0, title="Synthe
             # Generate a token
             # We can pass the last token to guide the generation
             start_token = current_measure_tokens[-1] if current_measure_tokens else None
-            token = markov_model.generate(length=1, start_token=start_token)[0]
+            token = worker_markov_model.generate(length=1, start_token=start_token)[0]
 
             # Extract duration from token
             try:
@@ -235,11 +279,18 @@ def generate_markov_score(markov_model, output_path, complexity=0, title="Synthe
     converter = SmtConverter(full_sequence_str)
     if converter.write_musicxml(output_path):
         print(f"Successfully generated Markov score at: {output_path}")
+        print(f"Successfully generated Markov score at: {output_path}", flush=True)
     else:
         print(f"Failed to generate Markov score at: {output_path}")
+        print(f"Failed to generate Markov score at: {output_path}", flush=True)
 
 
 if __name__ == '__main__':
+    try:
+        multiprocessing.set_start_method('spawn')
+    except RuntimeError:
+        pass
+
     XML_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     # --- Parse Command Line Arguments ---
@@ -282,19 +333,19 @@ if __name__ == '__main__':
     print(f"Generating {num_scores_to_generate} scores into {XML_OUTPUT_DIR} using {num_cores_to_use} cores, starting at index {start_index}")
 
     # --- Load Markov Model if specified ---
-    markov_model = None
+    markov_model_path = None
     if args.markov_ratio > 0:
         if not args.markov_model:
             raise ValueError("--markov-model must be specified when --markov-ratio > 0")
-        with open(args.markov_model, 'rb') as f:
-            markov_model = pickle.load(f)
-        print(f"Loaded Markov model from {args.markov_model}")
+        markov_model_path = args.markov_model
+        print(f"Using Markov model from {markov_model_path}")
 
 
     tasks = []
     # This logic is now simplified. We just generate scores starting from the given index.
     # The complexity level can be based on the global index.
-    with ProcessPoolExecutor(max_workers=num_cores_to_use) as executor:
+    print(f"Submitting {num_scores_to_generate} tasks to a pool of {num_cores_to_use} workers...")
+    with ProcessPoolExecutor(max_workers=num_cores_to_use, initializer=init_worker, initargs=(markov_model_path,)) as executor:
         for i in range(num_scores_to_generate):
             score_index = i + start_index
             
@@ -310,12 +361,12 @@ if __name__ == '__main__':
             file_path = XML_OUTPUT_DIR / f"synthetic_score_{score_index + 1}_level_{level}.xml"
 
             # Decide whether to use Markov Chain or random generation based on the ratio
-            if markov_model and random.random() < args.markov_ratio:
+            if markov_model_path and random.random() < args.markov_ratio:
                 # Submit a Markov generation task
                 tasks.append(
                     executor.submit(
                         generate_markov_score,
-                        markov_model,
+                        # The model is no longer passed as an argument; it's loaded by the worker.
                         output_path=file_path,
                         complexity=level,
                         title=f"Synthetic Score {score_index + 1}"

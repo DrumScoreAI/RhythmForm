@@ -9,7 +9,10 @@ class MarkovChain:
 
     def train(self, sequences):
         for seq in sequences:
-            tokens = seq.strip().split()
+            if isinstance(seq, str):
+                tokens = seq.strip().split()
+            else:
+                tokens = seq
             if len(tokens) < self.order + 1:
                 continue
             for i in range(len(tokens) - self.order):

@@ -20,6 +20,6 @@ fi
 echo "Cleaning files from $TRAINING_DATA_DIR..."
 
 # Find and delete the specified file types
-find "$TRAINING_DATA_DIR" -path "$TRAINING_DATA_DIR/fine_tuning" -prune -o -mindepth 2 -type f \( -name "*.xml" -o -name "*.pdf" -o -name "*.png" -o -name "*.json" -o -name "*.csv" \) -exec rm -vf {} \;
+find "$TRAINING_DATA_DIR" -path "$TRAINING_DATA_DIR/fine_tuning" -prune -o -path "$TRAINING_DATA_DIR/*/*" -type f \( -name "*.xml" -o -name "*.pdf" -o -name "*.png" -o -name "*.json" -o -name "*.csv" \) -exec rm -vf {} \;
 
 echo "Cleanup complete."

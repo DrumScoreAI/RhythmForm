@@ -36,7 +36,6 @@ def init_worker(model_path):
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
 
-    print(f"Worker {os.getpid()}: Initializing...")
     print(f"Worker {os.getpid()}: Initializing...", flush=True)
     global worker_markov_model
     
@@ -46,14 +45,11 @@ def init_worker(model_path):
         try:
             with open(model_path, 'rb') as f:
                 worker_markov_model = pickle.load(f)
-            print(f"Worker {os.getpid()}: Successfully loaded Markov model from {model_path}.")
             print(f"Worker {os.getpid()}: Successfully loaded Markov model from {model_path}.", flush=True)
         except Exception as e:
-            print(f"Worker {os.getpid()}: FAILED to load Markov model: {e}")
             print(f"Worker {os.getpid()}: FAILED to load Markov model: {e}", flush=True)
             worker_markov_model = None
     else:
-        print(f"Worker {os.getpid()}: No model path provided.")
         print(f"Worker {os.getpid()}: No model path provided.", flush=True)
         worker_markov_model = None
 
@@ -188,7 +184,6 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
     # --- 3. Save Files ---
     # Save the MusicXML file
     score.write('musicxml', fp=output_path)
-    print(f"Successfully generated random score at: {output_path}")
     print(f"Successfully generated random score at: {output_path}", flush=True)
 
 
@@ -198,8 +193,7 @@ def generate_markov_score(output_path, complexity=0, title="Synthetic Score"):
     """
     global worker_markov_model
     if not worker_markov_model:
-        print(f"  -> Warning: Markov model not available in worker. Falling back to random generation.")
-        print(f"  -> Warning: Markov model not available in worker. Falling back to random generation.", flush=True)
+        print(f"  -> Warning: Markov model not available in worker. Falling back to random generation.", file=sys.stderr)
         # Fallback to random generation to ensure a file is always created.
         return generate_drum_score(output_path=output_path, complexity=complexity, use_repeats=False)
     from fractions import Fraction
@@ -227,8 +221,7 @@ def generate_markov_score(output_path, complexity=0, title="Synthetic Score"):
             # Add a fail-safe to break out of potentially infinite loops
             fail_safe_counter += 1
             if fail_safe_counter > 20:
-                print(f"  -> Warning: Stuck generating measure {len(generated_measures) + 1}. Filling with rest.")
-                print(f"  -> Warning: Stuck generating measure {len(generated_measures) + 1}. Filling with rest.", flush=True)
+                print(f"  -> Warning: Stuck generating measure {len(generated_measures) + 1}. Filling with rest.", file=sys.stderr)
                 fill_rest_duration = remaining_duration
                 if fill_rest_duration > 0:
                     current_measure_tokens.append(f"rest[{fill_rest_duration}]")
@@ -285,10 +278,8 @@ def generate_markov_score(output_path, complexity=0, title="Synthetic Score"):
     # Convert the SMT string to a MusicXML file
     converter = SmtConverter(full_sequence_str)
     if converter.write_musicxml(output_path):
-        print(f"Successfully generated Markov score at: {output_path}")
         print(f"Successfully generated Markov score at: {output_path}", flush=True)
     else:
-        print(f"Failed to generate Markov score at: {output_path}")
         print(f"Failed to generate Markov score at: {output_path}", flush=True)
 
 

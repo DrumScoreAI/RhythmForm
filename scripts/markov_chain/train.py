@@ -10,7 +10,7 @@ def load_symbolic_texts(dataset_file):
     with open(dataset_file, 'r') as f:
         json_data = json.load(f)
     for item in json_data:
-        st_text = item.get('st', '').strip()
+        st_text = item.get('smt_string', '').strip()
         if st_text:
             sequences.append(st_text)
     return sequences

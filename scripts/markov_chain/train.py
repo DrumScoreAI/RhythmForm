@@ -28,7 +28,8 @@ def main():
 
     RHYTHMFORMHOME = os.environ.get('RHYTHMFORMHOME', Path(__file__).parent.parent)
     TRAINING_DATA_DIR = Path(RHYTHMFORMHOME) / 'training_data'
-    DATASET_FILE = TRAINING_DATA_DIR / 'dataset.json'
+    FINE_TUNING_DIR = TRAINING_DATA_DIR / 'fine_tuning'
+    DATASET_FILE = FINE_TUNING_DIR / 'finetune_dataset.json'
 
     parser = argparse.ArgumentParser(description="Train a Markov Chain on symbolic drum text.")
     parser.add_argument('--dataset', default=DATASET_FILE, help='JSON file with symbolic text data')

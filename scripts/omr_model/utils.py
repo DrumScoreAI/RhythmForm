@@ -716,6 +716,8 @@ def normalize_smt_for_markov(smt_string: str) -> str:
             normalized_tokens.append('composer[text]')
         elif token.startswith('creator['):
             normalized_tokens.append('composer[text]')
+        elif token.startswith('text['):
+            normalized_tokens.append('text[text]')
         else:
             normalized_tokens.append(token)
             

@@ -123,7 +123,7 @@ clean_training_data() {
     echo "Cleaning files from $TRAINING_DATA_DIR..."
 
     # Find and delete the specified file types, excluding the fine_tuning directory
-    find "$TRAINING_DATA_DIR" -mindepth 2 -path "$TRAINING_DATA_DIR/fine_tuning" -prune -o -type f \( -name "*.xml" -o -name "*.pdf" -o -name "*.png" -o -name "*.csv" -o -name "*.json" -o -name "*.smt" \) -exec rm -vf {} +
+    find "$TRAINING_DATA_DIR" -path "$TRAINING_DATA_DIR/fine_tuning" -prune -o -mindepth 2 -type f \( -name "*.xml" -o -name "*.pdf" -o -name "*.png" -o -name "*.csv" -o -name "*.json" -o -name "*.smt" \) -exec rm -vf {} +
 
     echo "Cleanup complete."
 }

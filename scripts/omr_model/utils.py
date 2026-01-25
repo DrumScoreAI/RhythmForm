@@ -427,7 +427,7 @@ def smt_to_musicxml(smt_string: str) -> music21.stream.Score:
                 except ValueError:
                     duration.quarterLength = Fraction(token["duration"])
                 if duration.quarterLength == 0.0:
-                    duration.type = 'zero'
+                    duration = music21.duration.GraceDuration()
                 
                 if tuplet_state:
                     duration.appendTuplet(tuplet_state)

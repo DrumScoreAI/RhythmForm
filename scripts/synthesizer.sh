@@ -14,6 +14,8 @@ usage() {
     echo "  -c, --continuation       Continue previous synthesis run"
     echo "  -w, --write_smt          Write SMT files to training_data/smt directory"
     echo "  -m, --markov-ratio       Ratio of scores to generate using the Markov model (default: 0.8)"
+    echo "  --min-measures           Minimum number of measures in generated scores (default: 16)"
+    echo "  --max-measures           Minimum number of measures in generated scores (default: 35)"
     echo "  -h, --help               Show this help message"
 }
 
@@ -40,6 +42,14 @@ while [ "$1" != "" ]; do
         -m | --markov-ratio)
             shift
             markov_ratio=$1
+            ;;
+        --min-measures)
+            shift
+            min_measures=$1
+            ;;
+        --max-measures)
+            shift
+            max_measures=$1
             ;;
         -h | --help)
             usage
@@ -86,6 +96,23 @@ else
     half_cores=1
 fi
 
+if [ -z "$min_measures" ]; then
+    min_measures=0
+fi
+
+if [ -z "$max_measures" ]; then
+    max_measures=0
+fi
+
+if [ "$min_measures" -lt 0 ]; then
+    echo "Minimum number of measures invalid. Must be a positive integer or zero."
+    exit 1
+fi
+
+if [ "$max_measures" -lt "$min_measures" ]; then
+    echo "Maximum number of measures invalid. Must be a positive integer greater then --min-measures."
+    exit 1
+fi
 
 TRAINING_DATA_DIR="$RHYTHMFORMHOME/training_data"
 
@@ -152,9 +179,17 @@ find $TRAINING_DATA_DIR/musicxml -name "*.xml" | grep -v altered | sort -n > $te
 echo "Generating synthetic scores using $num_cores cores..."
 if [ "$continuation" == "true" ] && [ "$existing_scores" -gt 0 ]; then
     echo "Continuation mode enabled."
-    python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl" --start-index "$start_index"
+    if [ "$min_measures" -gt 0 ] && [ "$max_measures" -gt "$min_measures" ]; then
+        python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl" --start-index "$start_index" --min-measures "$min_measures" --max-measures "$max_measures"
+    else
+        python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl" --start-index "$start_index"
+    fi
 else
-    python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl"
+    if [ "$min_measures" -gt 0 ] && [ "$max_measures" -gt "$min_measures" ]; then
+        python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl" --min-measures "$min_measures" --max-measures "$max_measures"
+    else
+        python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl"
+    fi
 fi
 echo "Synthetic score generation complete."
 

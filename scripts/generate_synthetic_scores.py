@@ -187,7 +187,7 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
     print(f"Successfully generated random score at: {output_path}", flush=True)
 
 
-def generate_markov_score(output_path, complexity=0, title="Synthetic Score"):
+def generate_markov_score(output_path, complexity=0, title="Synthetic Score", min_measures=None, max_measures=None):
     """
     Generates a score using a trained MarkovChain model loaded in the worker process.
     """
@@ -199,12 +199,15 @@ def generate_markov_score(output_path, complexity=0, title="Synthetic Score"):
     from fractions import Fraction
 
     # Adjust generation length based on complexity
-    if complexity == 0:
-        num_measures = random.randint(12, 18)
-    elif complexity == 1:
-        num_measures = random.randint(16, 24)
+    if min_measures is not None and max_measures is not None:
+        num_measures = random.randint(min_measures, max_measures)
     else:
-        num_measures = random.randint(20, 32)
+        if complexity == 0:
+            num_measures = random.randint(12, 18)
+        elif complexity == 1:
+            num_measures = random.randint(16, 24)
+        else:
+            num_measures = random.randint(20, 32)
     
     time_signature = Fraction(4, 4)
     
@@ -323,6 +326,16 @@ if __name__ == '__main__':
         default=0.8,
         help="Ratio of scores to generate using the Markov model (default: 0.8)"
     )
+    parser.add_argument(
+        "--min-measures",
+        type=int,
+        help="Minimum number of measures per score (overrides complexity defaults)"
+    )
+    parser.add_argument(
+        "--max-measures",
+        type=int,
+        help="Maximum number of measures per score (overrides complexity defaults)"
+    )
     args = parser.parse_args()
     
     num_scores_to_generate = args.num_scores
@@ -367,7 +380,9 @@ if __name__ == '__main__':
                         # The model is no longer passed as an argument; it's loaded by the worker.
                         output_path=file_path,
                         complexity=level,
-                        title=f"Synthetic Score {score_index + 1}"
+                        title=f"Synthetic Score {score_index + 1}",
+                        min_measures=args.min_measures,
+                        max_measures=args.max_measures
                     )
                 )
             else:
@@ -375,7 +390,7 @@ if __name__ == '__main__':
                 tasks.append(
                     executor.submit(
                         generate_drum_score,
-                        num_measures=random.randint(12, 24),
+                        num_measures=random.randint(args.min_measures or 16, args.max_measures or 35),
                         output_path=file_path,
                         complexity=level,
                         use_repeats=use_repeats_for_this_score

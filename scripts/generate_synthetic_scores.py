@@ -81,7 +81,7 @@ DURATIONS = [0.25, 0.5, 1.0, 1.5, 2.0] # 16th, 8th, quarter, dotted 8th, half
 # --- Possible part names for stave labels ---
 PART_NAMES = ['Drumset', 'Drum Kit', 'Drums', 'Batterie', 'Schlagzeug']
 
-def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", complexity=0, use_repeats=False):
+def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", complexity=0, use_repeats=False, measures_per_page=None):
     """
     Generates a pseudo-random drum score and saves it as a MusicXML file.
     The `use_repeats` flag is maintained for compatibility but the repeat generation logic
@@ -177,6 +177,11 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
         else:
             measure.rightBarline = 'regular'
 
+        # Insert Page Break if needed
+        if measures_per_page and (i + 1) < num_measures and (i + 1) % measures_per_page == 0:
+            pb = music21.layout.PageLayout(isNew=True)
+            measure.append(pb)
+
         drum_part.append(measure)
 
     score.insert(0, drum_part)
@@ -187,7 +192,7 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
     print(f"Successfully generated random score at: {output_path}", flush=True)
 
 
-def generate_markov_score(output_path, complexity=0, title="Synthetic Score", min_measures=None, max_measures=None):
+def generate_markov_score(output_path, complexity=0, title="Synthetic Score", min_measures=None, max_measures=None, measures_per_page=None):
     """
     Generates a score using a trained MarkovChain model loaded in the worker process.
     """
@@ -280,7 +285,22 @@ def generate_markov_score(output_path, complexity=0, title="Synthetic Score", mi
 
     # Convert the SMT string to a MusicXML file
     converter = SmtConverter(full_sequence_str)
-    if converter.write_musicxml(output_path):
+    score = converter.parse()
+    
+    if score:
+        # Post-process to add page breaks
+        if measures_per_page:
+            # We need to iterate through measures in the first part
+            parts = score.parts
+            if parts:
+                part = parts[0]
+                measures = list(part.getElementsByClass('Measure'))
+                for i, measure in enumerate(measures):
+                    if (i + 1) < len(measures) and (i + 1) % measures_per_page == 0:
+                        pb = music21.layout.PageLayout(isNew=True)
+                        measure.append(pb)
+        
+        score.write('musicxml', fp=output_path)
         print(f"Successfully generated Markov score at: {output_path}", flush=True)
     else:
         print(f"Failed to generate Markov score at: {output_path}", flush=True)
@@ -336,6 +356,11 @@ if __name__ == '__main__':
         type=int,
         help="Maximum number of measures per score (overrides complexity defaults)"
     )
+    parser.add_argument(
+        "--measures-per-page",
+        type=int,
+        help="Force a page break every N measures."
+    )
     args = parser.parse_args()
     
     num_scores_to_generate = args.num_scores
@@ -382,7 +407,8 @@ if __name__ == '__main__':
                         complexity=level,
                         title=f"Synthetic Score {score_index + 1}",
                         min_measures=args.min_measures,
-                        max_measures=args.max_measures
+                        max_measures=args.max_measures,
+                        measures_per_page=args.measures_per_page
                     )
                 )
             else:
@@ -393,7 +419,8 @@ if __name__ == '__main__':
                         num_measures=random.randint(args.min_measures or 16, args.max_measures or 35),
                         output_path=file_path,
                         complexity=level,
-                        use_repeats=use_repeats_for_this_score
+                        use_repeats=use_repeats_for_this_score,
+                        measures_per_page=args.measures_per_page
                     )
                 )
 

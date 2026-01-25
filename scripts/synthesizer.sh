@@ -5,6 +5,7 @@ num_scores=30
 num_cores=1
 use_stdout=false
 continuation=false
+measures_per_page=45 # Default measures per page to ensure alignment
 
 usage() {
     echo "Usage: $0 [-s|--scores NUM] [-n|--num-cores NUM] [-S|--use_stdout] [-c|--continuation]"
@@ -16,6 +17,7 @@ usage() {
     echo "  -m, --markov-ratio       Ratio of scores to generate using the Markov model (default: 0.8)"
     echo "  --min-measures           Minimum number of measures in generated scores (default: 16)"
     echo "  --max-measures           Minimum number of measures in generated scores (default: 35)"
+    echo "  --measures-per-page      Force page breaks every N measures (default: 12)"
     echo "  -h, --help               Show this help message"
 }
 
@@ -50,6 +52,10 @@ while [ "$1" != "" ]; do
         --max-measures)
             shift
             max_measures=$1
+            ;;
+        --measures-per-page)
+            shift
+            measures_per_page=$1
             ;;
         -h | --help)
             usage
@@ -180,15 +186,15 @@ echo "Generating synthetic scores using $num_cores cores..."
 if [ "$continuation" == "true" ] && [ "$existing_scores" -gt 0 ]; then
     echo "Continuation mode enabled."
     if [ "$min_measures" -gt 0 ] && [ "$max_measures" -gt "$min_measures" ]; then
-        python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl" --start-index "$start_index" --min-measures "$min_measures" --max-measures "$max_measures"
+        python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl" --start-index "$start_index" --min-measures "$min_measures" --max-measures "$max_measures" --measures-per-page "$measures_per_page"
     else
-        python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl" --start-index "$start_index"
+        python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl" --start-index "$start_index" --measures-per-page "$measures_per_page"
     fi
 else
     if [ "$min_measures" -gt 0 ] && [ "$max_measures" -gt "$min_measures" ]; then
-        python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl" --min-measures "$min_measures" --max-measures "$max_measures"
+        python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl" --min-measures "$min_measures" --max-measures "$max_measures" --measures-per-page "$measures_per_page"
     else
-        python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl"
+        python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl" --measures-per-page "$measures_per_page"
     fi
 fi
 echo "Synthetic score generation complete."
@@ -217,28 +223,13 @@ fi
 
 echo "Conversion to PDF complete."
 
-# Create manifest file
-do_or_mi="do"
-# n_or_p = n for new, p for processed
-echo "Creating manifest file..."
-if [ "$continuation" == "false" ] || [ "$existing_scores" -eq 0 ]; then
-    echo "pdf,image,musicxml,do_or_mi,n_or_p" > $TRAINING_DATA_DIR/training_data.csv
-fi
-
-echo "Populating manifest file..."
-python $RHYTHMFORMHOME/scripts/build_manifest.py $TRAINING_DATA_DIR
-
 rm -f $temp1 $temp2 $temp3
-echo "Manifest file created at $TRAINING_DATA_DIR/training_data.csv."
 
 # Prepare data for training
-echo "Preparing data for training using $num_cores cores..."
-if [ "$write_smt" == "true" ]; then
-    echo "SMT writing enabled. SMT files will be written to training_data/smt directory."
-    python $RHYTHMFORMHOME/scripts/prepare_dataset.py --cores $num_cores --write-smt
-else
-    python $RHYTHMFORMHOME/scripts/prepare_dataset.py --cores $num_cores
-fi
+echo "Preparing data for training (splitting pages and aligning SMT) using $num_cores cores..."
+# We now use the new script that handles multi-page splitting
+python $RHYTHMFORMHOME/scripts/prepare_synthetic_dataset.py --data-dir "$TRAINING_DATA_DIR" --cores "$num_cores" --measures-per-page "$measures_per_page"
+
 if [ $? -ne 0 ]; then
     echo "Error during data preparation."
     exit 1

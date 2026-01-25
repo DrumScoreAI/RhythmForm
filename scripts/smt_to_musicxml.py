@@ -8,30 +8,33 @@ if __name__ == "__main__" and __package__ is None:
     project_root = Path(__file__).resolve().parents[1]
     sys.path.append(str(project_root))
 
-from scripts.omr_model.utils import smt_to_musicxml_manual
+from scripts.omr_model.utils import smt_to_musicxml
 
 class SmtConverter:
-    """A class to handle the conversion of an SMT string to a MusicXML string."""
+    """A class to handle the conversion of an SMT string to a MusicXML file."""
     def __init__(self, smt_string):
         self.smt_string = smt_string
-        self._xml_string = None
+        self._score_obj = None
 
     def parse(self):
-        """Uses the manual converter to get a MusicXML string."""
-        if self._xml_string is None:
-             # The smt_to_musicxml_manual function returns an XML string
-            self._xml_string = smt_to_musicxml_manual(self.smt_string)
-        return self._xml_string
+        """Uses the robust music21-based converter to get a Score object."""
+        if self._score_obj is None:
+            self._score_obj = smt_to_musicxml(self.smt_string)
+        return self._score_obj
     
     def write_musicxml(self, output_path):
-        """Parses the SMT to an XML string and writes it to a file."""
-        xml_string = self.parse()
-        if xml_string:
+        """Parses the SMT to a Score object and writes it to a MusicXML file."""
+        score_obj = self.parse()
+        if score_obj:
             output_path = Path(output_path)
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(output_path, 'w', encoding='utf-8') as f:
-                f.write(xml_string)
-            return True
+            try:
+                # music21's write method handles file writing
+                score_obj.write('musicxml', fp=str(output_path))
+                return True
+            except Exception as e:
+                print(f"Error writing MusicXML file with music21: {e}")
+                return False
         return False
 
 def convert_smt_to_xml(smt_path, output_dir):

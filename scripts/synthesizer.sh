@@ -245,7 +245,7 @@ if [ "$continuation" == "false" ] && [ ! -f "$TRAINING_DATA_DIR/dataset.json" ];
 fi
 
 echo "Data preparation complete."
-exit
+
 # Clean up
 echo "Cleaning up any orphaned files..."
 bash $RHYTHMFORMHOME/scripts/clean_up_synth.sh $TRAINING_DATA_DIR $RHYTHMFORMHOME/scripts $num_cores

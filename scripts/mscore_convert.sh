@@ -50,6 +50,16 @@ base_filename="${filename%.*}"
 # Sanitize filename for output: lowercase, no spaces, and remove special characters
 sanitized_basename=$(echo "$base_filename" | tr '[:upper:]' '[:lower:]' | tr -d ' ' | sed 's/[^a-z0-9._-]//g')
 
+# Determine the actual file to render
+# Check if an '_altered' version of the original XML exists.
+altered_xml_path="${input_dir}/${base_filename}_altered.xml"
+if [ -f "$altered_xml_path" ]; then
+    file_to_render="$altered_xml_path"
+    echo "Found altered version for repeats: $file_to_render"
+else
+    file_to_render="$input_file"
+fi
+
 # Determine output path if not explicitly provided
 if [ -z "$output_path" ]; then
     if [ "$output_format" = "pdf" ]; then
@@ -63,13 +73,14 @@ if [ -z "$output_path" ]; then
     
     mkdir -p "$output_dir"
     output_extension=$output_format
-    output_path="${output_dir}/${sanitized_basename}.${output_extension}"
+    # IMPORTANT: The output filename should be based on the ORIGINAL base_filename, not the altered one.
+    output_path="${output_dir}/${base_filename}.${output_extension}"
 fi
 
-echo "Converting '$input_file' to '$output_path'..."
+echo "Converting '$file_to_render' to '$output_path'..."
 
 # Run MuseScore, showing all output for debugging
-"$MUSESCORE_PATH" -o "${output_path}" "${input_file}"
+"$MUSESCORE_PATH" -o "${output_path}" "${file_to_render}"
 
 # Check the exit status of the MuseScore command
 if [ ${PIPESTATUS[0]} -eq 0 ]; then

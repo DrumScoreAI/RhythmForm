@@ -84,8 +84,7 @@ PART_NAMES = ['Drumset', 'Drum Kit', 'Drums', 'Batterie', 'Schlagzeug']
 def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", complexity=0, use_repeats=False, measures_per_page=None):
     """
     Generates a pseudo-random drum score and saves it as a MusicXML file.
-    The `use_repeats` flag is maintained for compatibility but the repeat generation logic
-    has been removed due to instability with music21's deepcopy in multiprocessing.
+    If use_repeats is True, it also creates a companion .json file with repeat information.
     """
     # --- Define complexity levels ---
     if complexity == 0: # Simple
@@ -126,6 +125,17 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
     drum_part.insert(0, music21.meter.TimeSignature('4/4'))
 
     # --- 2. Generate Measures ---
+    repeated_measures_info = []
+    if use_repeats and num_measures > 8: # Only add repeats to longer scores
+        # Decide on a block of 2 or 4 measures to repeat
+        repeat_len = random.choice([2, 4])
+        # Ensure the repeat block doesn't start too close to the end
+        start_measure_index = random.randint(1, num_measures - repeat_len - 2)
+        
+        # The measures that will be visually marked as a repeat.
+        # e.g., if measures 2 and 3 are repeated, the repeat sign is on 4 and 5.
+        repeated_measures_info = list(range(start_measure_index + repeat_len, start_measure_index + 2 * repeat_len))
+
     for i in range(num_measures):
         measure = music21.stream.Measure(number=i + 1)
         
@@ -189,6 +199,13 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
     # --- 3. Save Files ---
     # Save the MusicXML file
     score.write('musicxml', fp=output_path)
+    
+    # If repeats were generated, save the companion JSON file
+    if repeated_measures_info:
+        json_path = Path(output_path).with_suffix('.json')
+        with open(json_path, 'w') as f:
+            json.dump({"repeated_measures": repeated_measures_info}, f)
+
     print(f"Successfully generated random score at: {output_path}", flush=True)
 
 

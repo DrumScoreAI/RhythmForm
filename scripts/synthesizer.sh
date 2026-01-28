@@ -199,6 +199,10 @@ else
 fi
 echo "Synthetic score generation complete."
 
+echo "Preparing XML files with repeat markings..."
+python $RHYTHMFORMHOME/scripts/prepare_repeats.py --data-dir "$TRAINING_DATA_DIR" --cores "$num_cores"
+echo "Repeat preparation complete."
+
 if [ "$continuation" == "true" ] && [ "$existing_scores" -gt 0 ]; then
     find $TRAINING_DATA_DIR/musicxml -name "*.xml" | grep -v altered | sort -n > $temp2
     comm -13 $temp1 $temp2 > $temp3

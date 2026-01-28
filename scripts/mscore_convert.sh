@@ -68,8 +68,8 @@ fi
 
 echo "Converting '$input_file' to '$output_path'..."
 
-# Run MuseScore, filtering out common noise
-"$MUSESCORE_PATH" -o "${output_path}" "${input_file}" 2>&1 | grep -v -E "pw.context|pw.conf|libOpenGL|libjack|libnss3|libpipewire|ALSA|Invalid QML element name"
+# Run MuseScore, showing all output for debugging
+"$MUSESCORE_PATH" -o "${output_path}" "${input_file}"
 
 # Check the exit status of the MuseScore command
 if [ ${PIPESTATUS[0]} -eq 0 ]; then

@@ -228,7 +228,11 @@ rm -f $temp1 $temp2 $temp3
 # Prepare data for training
 echo "Preparing data for training (splitting pages and aligning SMT) using $num_cores cores..."
 # We now use the new script that handles multi-page splitting
-python $RHYTHMFORMHOME/scripts/prepare_synthetic_dataset.py --data-dir "$TRAINING_DATA_DIR" --cores "$num_cores" --measures-per-page "$measures_per_page"
+if [ "$write_smt" == "true" ]; then
+    python $RHYTHMFORMHOME/scripts/prepare_synthetic_dataset.py --data-dir "$TRAINING_DATA_DIR" --cores "$num_cores" --measures-per-page "$measures_per_page" --write-smt
+else
+    python $RHYTHMFORMHOME/scripts/prepare_synthetic_dataset.py --data-dir "$TRAINING_DATA_DIR" --cores "$num_cores" --measures-per-page "$measures_per_page"
+fi
 
 if [ $? -ne 0 ]; then
     echo "Error during data preparation."

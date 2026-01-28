@@ -13,13 +13,13 @@ sys.path.insert(0, str(project_root))
 
 from scripts.omr_model.utils import musicxml_to_smt
 
-def process_score(xml_path, pdf_path, output_dir, measures_per_page):
+def process_score(xml_path, pdf_path, output_dir, measures_per_page, write_smt=False):
     """
     Processes a single score:
     1. Converts PDF to images (one per page).
-    2. Converts XML to SMT.
+    2. Optionally converts XML to SMT.
     3. Splits SMT based on measures_per_page.
-    4. Saves aligned image/SMT pairs.
+    4. Saves aligned image/(optional) SMT pairs.
     """
     try:
         base_name = xml_path.stem
@@ -31,24 +31,26 @@ def process_score(xml_path, pdf_path, output_dir, measures_per_page):
         # Convert PDF to list of PIL images
         images = convert_from_path(str(pdf_path), dpi=200)
         
-        # 2. Convert XML to SMT
-        with open(xml_path, 'r') as f:
-            xml_content = f.read()
-        
-        full_smt = musicxml_to_smt(xml_content)
-        if not full_smt:
-            return []
+        full_smt = None
+        if write_smt:
+            # 2. Convert XML to SMT
+            with open(xml_path, 'r') as f:
+                xml_content = f.read()
             
-        # Split Header and Body
-        if '|' in full_smt:
-            header, body = full_smt.split('|', 1)
-            header = header.strip()
-            body = body.strip()
-        else:
-            header = ""
-            body = full_smt.strip()
-            
-        measures = [m.strip() for m in body.split('|')]
+            full_smt = musicxml_to_smt(xml_content)
+            if not full_smt:
+                return []
+                
+            # Split Header and Body
+            if '|' in full_smt:
+                header, body = full_smt.split('|', 1)
+                header = header.strip()
+                body = body.strip()
+            else:
+                header = ""
+                body = full_smt.strip()
+                
+            measures = [m.strip() for m in body.split('|')]
         
         # 3. Align Pages
         # We assume the PDF generation respected the page breaks inserted by generate_synthetic_scores.py
@@ -57,50 +59,48 @@ def process_score(xml_path, pdf_path, output_dir, measures_per_page):
         dataset_entries = []
         
         # Determine chunk size
-        chunk_size = measures_per_page if measures_per_page else len(measures)
-        
-        # Chunk measures
-        measure_chunks = [measures[i:i + chunk_size] for i in range(0, len(measures), chunk_size)]
-        
-        if len(images) != len(measure_chunks):
-            # Mismatch between PDF pages and SMT chunks. 
-            # This can happen if MuseScore forced a different layout.
-            # For synthetic data, we skip these to avoid bad labels.
-            return []
-            
+        # If SMT is not being written, we rely on the number of pages in the PDF
+        if write_smt:
+            chunk_size = measures_per_page if measures_per_page else len(measures)
+            measure_chunks = [measures[i:i + chunk_size] for i in range(0, len(measures), chunk_size)]
+            if len(images) != len(measure_chunks):
+                # Mismatch between PDF pages and SMT chunks. 
+                return []
+        else:
+            # If not writing SMT, we just process each image page.
+            measure_chunks = [None] * len(images)
+
         for i, (image, chunk) in enumerate(zip(images, measure_chunks)):
             page_num = i + 1
             
             # Construct filenames
             image_filename = f"{base_name}_p{page_num}.png"
-            smt_filename = f"{base_name}_p{page_num}.smt"
-            
             image_path = output_dir / "images" / image_filename
-            smt_path = output_dir / "smt" / smt_filename
             
             # Save Image
             image.save(image_path, "PNG")
             
-            # Construct SMT for this page
-            # Page 1 gets the full header.
-            # Subsequent pages get a minimal header (Clef + Time) to be valid context.
-            if i == 0:
-                page_smt = f"{header} | {' | '.join(chunk)}"
-            else:
-                # Minimal header for context
-                minimal_header = "clef[percussion] time[4/4]"
-                page_smt = f"{minimal_header} | {' | '.join(chunk)}"
+            entry = {
+                "image_path": str(image_path.relative_to(output_dir.parent))
+            }
             
-            # Save SMT
-            with open(smt_path, 'w') as f:
-                f.write(page_smt)
+            if write_smt and chunk:
+                smt_filename = f"{base_name}_p{page_num}.smt"
+                smt_path = output_dir / "smt" / smt_filename
                 
-            # Add to dataset entry
-            dataset_entries.append({
-                "image_path": str(image_path.relative_to(output_dir.parent)),
-                "smt_path": str(smt_path.relative_to(output_dir.parent)),
-                "smt_string": page_smt
-            })
+                if i == 0:
+                    page_smt = f"{header} | {' | '.join(chunk)}"
+                else:
+                    minimal_header = "clef[percussion] time[4/4]"
+                    page_smt = f"{minimal_header} | {' | '.join(chunk)}"
+                
+                with open(smt_path, 'w') as f:
+                    f.write(page_smt)
+                    
+                entry["smt_path"] = str(smt_path.relative_to(output_dir.parent))
+                entry["smt_string"] = page_smt
+            
+            dataset_entries.append(entry)
             
         return dataset_entries
 
@@ -113,6 +113,7 @@ def main():
     parser.add_argument('--data-dir', type=Path, required=True, help="Path to training_data directory")
     parser.add_argument('--cores', type=int, default=1, help="Number of cores")
     parser.add_argument('--measures-per-page', type=int, default=12, help="Measures per page used in generation")
+    parser.add_argument('--write-smt', action='store_true', help="Write SMT files to training_data/smt directory")
     args = parser.parse_args()
     
     xml_dir = args.data_dir / "musicxml"
@@ -120,7 +121,8 @@ def main():
     
     # Create output dirs
     (args.data_dir / "images").mkdir(exist_ok=True)
-    (args.data_dir / "smt").mkdir(exist_ok=True)
+    if args.write_smt:
+        (args.data_dir / "smt").mkdir(exist_ok=True)
     
     xml_files = sorted(list(xml_dir.glob("*.xml")))
     tasks = []
@@ -139,7 +141,8 @@ def main():
                 xml_file, 
                 pdf_file, 
                 args.data_dir, 
-                args.measures_per_page
+                args.measures_per_page,
+                args.write_smt
             ))
             
         for future in tqdm(as_completed(tasks), total=len(tasks)):

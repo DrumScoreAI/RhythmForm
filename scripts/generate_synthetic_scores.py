@@ -466,11 +466,11 @@ if __name__ == '__main__':
             print(f"\\nA score generation task failed with an exception: {e}")
             error_count += 1
 
-    print("\\n--- Score Generation Summary ---")
+    print("\n--- Score Generation Summary ---")
     print(f"Total scores requested: {num_scores_to_generate}")
     print(f"Successfully generated: {success_count}")
     print(f"Timed out:             {timeout_count}")
     print(f"Failed with error:     {error_count}")
-    print("--------------------------------\\n")
+    print("--------------------------------\n")
 
     print("All synthetic scores generated.")

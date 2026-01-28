@@ -378,11 +378,18 @@ if __name__ == '__main__':
         type=int,
         help="Force a page break every N measures."
     )
+    parser.add_argument(
+        "--task-timeout",
+        type=int,
+        default=60,
+        help="Timeout in seconds for each individual score generation task (default: 60)"
+    )
     args = parser.parse_args()
     
     num_scores_to_generate = args.num_scores
     num_cores_to_use = args.cores
     start_index = args.start_index
+    task_timeout = args.task_timeout
     print(f"Generating {num_scores_to_generate} scores into {XML_OUTPUT_DIR} using {num_cores_to_use} cores, starting at index {start_index}")
 
     # --- Load Markov Model if specified ---
@@ -441,8 +448,29 @@ if __name__ == '__main__':
                     )
                 )
 
-        # Optionally, show progress
-        for tqdm_instance in tqdm(as_completed(tasks), total=len(tasks)):
-            pass
+    # --- Wait for completion with timeout and progress ---
+    success_count = 0
+    timeout_count = 0
+    error_count = 0
+
+    print(f"Waiting for {len(tasks)} score generation tasks to complete (timeout per task: {task_timeout}s)...")
+    for future in tqdm(tasks, total=len(tasks), desc="Generating scores"):
+        try:
+            future.result(timeout=task_timeout)
+            success_count += 1
+        except multiprocessing.context.TimeoutError: # This can be raised by the pool
+            print("\\nA score generation task timed out.")
+            timeout_count += 1
+        except Exception as e:
+            # The exception from the worker process is wrapped in a ProcessPoolExecutor exception
+            print(f"\\nA score generation task failed with an exception: {e}")
+            error_count += 1
+
+    print("\\n--- Score Generation Summary ---")
+    print(f"Total scores requested: {num_scores_to_generate}")
+    print(f"Successfully generated: {success_count}")
+    print(f"Timed out:             {timeout_count}")
+    print(f"Failed with error:     {error_count}")
+    print("--------------------------------\\n")
 
     print("All synthetic scores generated.")

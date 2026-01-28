@@ -6,6 +6,7 @@ num_cores=1
 use_stdout=false
 continuation=false
 measures_per_page=45 # Default measures per page to ensure alignment
+task_timeout=10 # Default timeout for individual score generation tasks
 
 usage() {
     echo "Usage: $0 [-s|--scores NUM] [-n|--num-cores NUM] [-S|--use_stdout] [-c|--continuation]"
@@ -18,6 +19,7 @@ usage() {
     echo "  --min-measures           Minimum number of measures in generated scores (default: 16)"
     echo "  --max-measures           Minimum number of measures in generated scores (default: 35)"
     echo "  --measures-per-page      Force page breaks every N measures (default: 12)"
+    echo "  --task-timeout s         Timeout in seconds for each score generation task (default: 10)"
     echo "  -h, --help               Show this help message"
 }
 
@@ -56,6 +58,10 @@ while [ "$1" != "" ]; do
         --measures-per-page)
             shift
             measures_per_page=$1
+            ;;
+        --task-timeout)
+            shift
+            task_timeout=$1
             ;;
         -h | --help)
             usage
@@ -186,15 +192,15 @@ echo "Generating synthetic scores using $num_cores cores..."
 if [ "$continuation" == "true" ] && [ "$existing_scores" -gt 0 ]; then
     echo "Continuation mode enabled."
     if [ "$min_measures" -gt 0 ] && [ "$max_measures" -gt "$min_measures" ]; then
-        python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl" --start-index "$start_index" --min-measures "$min_measures" --max-measures "$max_measures" --measures-per-page "$measures_per_page"
+        python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl" --start-index "$start_index" --min-measures "$min_measures" --max-measures "$max_measures" --measures-per-page "$measures_per_page" --task-timeout "$task_timeout"
     else
-        python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl" --start-index "$start_index" --measures-per-page "$measures_per_page"
+        python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl" --start-index "$start_index" --measures-per-page "$measures_per_page" --task-timeout "$task_timeout"
     fi
 else
     if [ "$min_measures" -gt 0 ] && [ "$max_measures" -gt "$min_measures" ]; then
-        python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl" --min-measures "$min_measures" --max-measures "$max_measures" --measures-per-page "$measures_per_page"
+        python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl" --min-measures "$min_measures" --max-measures "$max_measures" --measures-per-page "$measures_per_page" --task-timeout "$task_timeout"
     else
-        python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl" --measures-per-page "$measures_per_page"
+        python $RHYTHMFORMHOME/scripts/generate_synthetic_scores.py "$num_scores" --cores "$num_cores" --markov-model "$TRAINING_DATA_DIR/markov_model.pkl" --measures-per-page "$measures_per_page" --task-timeout "$task_timeout"
     fi
 fi
 echo "Synthetic score generation complete."

@@ -229,7 +229,7 @@ def generate_markov_score(output_path, complexity=0, title="Synthetic Score", mi
             # Add a fail-safe to break out of potentially infinite loops
             fail_safe_counter += 1
             if fail_safe_counter > 20:
-                print(f"  -> Warning: Stuck generating measure {len(generated_measures) + 1}. Filling with rest.", file=sys.stderr)
+                # print(f"  -> Warning: Measure {len(generated_measures) + 1} filled with rest.", file=sys.stderr)
                 fill_rest_duration = remaining_duration
                 if fill_rest_duration > 0:
                     current_measure_tokens.append(f"rest[{fill_rest_duration}]")

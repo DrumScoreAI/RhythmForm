@@ -81,7 +81,7 @@ def process_score(xml_path, pdf_path, output_dir, measures_per_page, write_smt=F
             image.save(image_path, "PNG")
             
             entry = {
-                "image_path": str(image_path.relative_to(output_dir.parent))
+                "image_path": str(image_path.relative_to(output_dir))
             }
             
             if write_smt and chunk:
@@ -97,7 +97,7 @@ def process_score(xml_path, pdf_path, output_dir, measures_per_page, write_smt=F
                 with open(smt_path, 'w') as f:
                     f.write(page_smt)
                     
-                entry["smt_path"] = str(smt_path.relative_to(output_dir.parent))
+                entry["smt_path"] = str(smt_path.relative_to(output_dir))
                 entry["smt_string"] = page_smt
             
             dataset_entries.append(entry)

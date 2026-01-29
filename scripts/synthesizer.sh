@@ -261,9 +261,9 @@ fi
 echo "Data preparation complete."
 
 # Clean up
-echo "Cleaning up any orphaned files..."
-bash $RHYTHMFORMHOME/scripts/clean_up_synth.sh $TRAINING_DATA_DIR $RHYTHMFORMHOME/scripts $num_cores
-echo "Cleanup complete."
+# echo "Cleaning up any orphaned files..."
+# bash $RHYTHMFORMHOME/scripts/clean_up_synth.sh $TRAINING_DATA_DIR $RHYTHMFORMHOME/scripts $num_cores
+# echo "Cleanup complete."
 
 # Run tokenizer
 echo "Running tokenizer (serial)..."

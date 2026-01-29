@@ -8,7 +8,7 @@ import json
 import copy
 import argparse
 from pathlib import Path
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed, TimeoutError
 from tqdm import tqdm
 from glob import glob
 import multiprocessing
@@ -458,7 +458,7 @@ if __name__ == '__main__':
         try:
             future.result(timeout=task_timeout)
             success_count += 1
-        except multiprocessing.context.TimeoutError: # This can be raised by the pool
+        except TimeoutError: # This can be raised by the pool
             print("\\nA score generation task timed out.")
             timeout_count += 1
         except Exception as e:

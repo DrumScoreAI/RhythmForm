@@ -5,4 +5,4 @@ source /app/venv/bin/activate
     --json-summary /app/training_data/logs/prmon.json --interval 10  \
     --log-filename prmon.log --interval 30 \
     --fast-memmon \
-    -- exec "$@"
+    -- "$@"

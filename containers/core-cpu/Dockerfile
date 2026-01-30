@@ -18,6 +18,10 @@ RUN mkdir /app && mkdir /app/venv
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    make \
+    cmake \
     locales \
     locales-all \
     # en_GB.UTF-8 \
@@ -103,6 +107,14 @@ RUN pip install --upgrade pip
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 # Install remaining requirements (torch will be skipped as it's already satisfied)
 RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir awscli
+
+# Install prmon for resource monitoring
+RUN git clone --recurse-submodules https://github.com/HSF/prmon.git \
+    && cd prmon \
+    && mkdir build && cd build \
+    && cmake -DCMAKE_INSTALL_PREFIX=/app/prmon -S .. -B . \
+    && make -j$(nproc) \
+    && make install
 
 # Copy the rest of your application's code
 COPY . /app

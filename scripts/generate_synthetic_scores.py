@@ -448,23 +448,23 @@ if __name__ == '__main__':
                     )
                 )
 
-    # --- Wait for completion with timeout and progress ---
-    success_count = 0
-    timeout_count = 0
-    error_count = 0
+        # --- Wait for completion with timeout and progress ---
+        success_count = 0
+        timeout_count = 0
+        error_count = 0
 
-    print(f"Waiting for {len(tasks)} score generation tasks to complete (timeout per task: {task_timeout}s)...")
-    for future in tqdm(as_completed(tasks), total=len(tasks), desc="Generating scores"):
-        try:
-            future.result(timeout=task_timeout)
-            success_count += 1
-        except TimeoutError: # This can be raised by the pool
-            print("\\nA score generation task timed out.")
-            timeout_count += 1
-        except Exception as e:
-            # The exception from the worker process is wrapped in a ProcessPoolExecutor exception
-            print(f"\\nA score generation task failed with an exception: {e}")
-            error_count += 1
+        print(f"Waiting for {len(tasks)} score generation tasks to complete (timeout per task: {task_timeout}s)...")
+        for future in tqdm(as_completed(tasks), total=len(tasks), desc="Generating scores"):
+            try:
+                future.result(timeout=task_timeout)
+                success_count += 1
+            except TimeoutError: # This can be raised by the pool
+                print("\\nA score generation task timed out.")
+                timeout_count += 1
+            except Exception as e:
+                # The exception from the worker process is wrapped in a ProcessPoolExecutor exception
+                print(f"\\nA score generation task failed with an exception: {e}")
+                error_count += 1
 
     print("\n--- Score Generation Summary ---")
     print(f"Total scores requested: {num_scores_to_generate}")

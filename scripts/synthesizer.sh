@@ -108,6 +108,14 @@ else
     half_cores=1
 fi
 
+if [ "$num_cores" -ge 8 ]; then
+    pdf_cores=$((num_cores / 4))
+elif [ "$num_cores" -ge 4 ]; then
+    pdf_cores=$((num_cores / 2))
+else
+    pdf_cores=1
+fi
+
 if [ -z "$min_measures" ]; then
     min_measures=0
 fi
@@ -220,10 +228,10 @@ fi
 this_total=$(cat $temp3 | wc -l)
 start_count=$(find $TRAINING_DATA_DIR/pdfs -name "*.pdf" 2>/dev/null | wc -l)
 # Convert MusicXML to PDF
-echo "Converting MusicXML files to PDF using $half_cores cores..."
+echo "Converting MusicXML files to PDF using $pdf_cores cores..."
 # Use xvfb-run -a to start a single Xvfb instance for all parallel conversions
 # Filter out "Invalid QML element name" messages from mscore
-if ! xvfb-run -a bash -c "cat $temp3 | xargs -P $half_cores -I {} bash -c '$RHYTHMFORMHOME/scripts/mscore_convert.sh -i \"\$0\" -f pdf &> >(grep -v \"Invalid QML element name\" >&2)' {}"; then
+if ! xvfb-run -a bash -c "cat $temp3 | xargs -P $pdf_cores -I {} bash -c '$RHYTHMFORMHOME/scripts/mscore_convert.sh -i "\$0" -f pdf &> >(grep -v "Invalid QML element name" >&2)' {}'; then
     echo "Warning: PDF conversion may have failed for some files. One or more mscore_convert.sh processes may have been terminated."
     echo "This can happen due to high memory usage. Check the logs of the failed pod for more details."
 fi

@@ -454,7 +454,7 @@ if __name__ == '__main__':
     error_count = 0
 
     print(f"Waiting for {len(tasks)} score generation tasks to complete (timeout per task: {task_timeout}s)...")
-    for future in tqdm(tasks, total=len(tasks), desc="Generating scores"):
+    for future in tqdm(as_completed(tasks), total=len(tasks), desc="Generating scores"):
         try:
             future.result(timeout=task_timeout)
             success_count += 1

@@ -461,10 +461,12 @@ if __name__ == '__main__':
             except TimeoutError: # This can be raised by the pool
                 print("\\nA score generation task timed out.")
                 timeout_count += 1
+                continue
             except Exception as e:
                 # The exception from the worker process is wrapped in a ProcessPoolExecutor exception
                 print(f"\\nA score generation task failed with an exception: {e}")
                 error_count += 1
+                continue
 
     print("\n--- Score Generation Summary ---")
     print(f"Total scores requested: {num_scores_to_generate}")

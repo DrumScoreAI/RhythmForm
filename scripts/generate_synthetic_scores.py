@@ -409,7 +409,7 @@ if __name__ == '__main__':
     # This logic is now simplified. We just generate scores starting from the given index.
     # The complexity level can be based on the global index.
     print(f"Submitting {num_scores_to_generate} tasks to a pool of {num_cores_to_use} workers...")
-    with ProcessPoolExecutor(max_workers=num_cores_to_use, initializer=init_worker, initargs=(markov_model_path,), maxtasksperchild=1) as executor:
+    with ProcessPoolExecutor(max_workers=num_cores_to_use, initializer=init_worker, initargs=(markov_model_path,), max_tasks_per_child=1) as executor:
         for i in range(num_scores_to_generate):
             score_index = i + start_index
             

@@ -12,6 +12,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed, TimeoutError
 from tqdm import tqdm
 from glob import glob
 import multiprocessing
+import gc
 
 import sys
 # This block allows the script to be run from the command line (e.g. `python scripts/generate...`)
@@ -207,6 +208,7 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
             json.dump({"repeated_measures": repeated_measures_info}, f)
 
     print(f"Successfully generated random score at: {output_path}", flush=True)
+    gc.collect()
 
 
 def generate_markov_score(output_path, complexity=0, title="Synthetic Score", min_measures=None, max_measures=None, measures_per_page=None):
@@ -319,8 +321,10 @@ def generate_markov_score(output_path, complexity=0, title="Synthetic Score", mi
         
         score.write('musicxml', fp=output_path)
         print(f"Successfully generated Markov score at: {output_path}", flush=True)
+        gc.collect()
     else:
         print(f"Failed to generate Markov score at: {output_path}", flush=True)
+        gc.collect()
 
 
 if __name__ == '__main__':
@@ -405,7 +409,7 @@ if __name__ == '__main__':
     # This logic is now simplified. We just generate scores starting from the given index.
     # The complexity level can be based on the global index.
     print(f"Submitting {num_scores_to_generate} tasks to a pool of {num_cores_to_use} workers...")
-    with ProcessPoolExecutor(max_workers=num_cores_to_use, initializer=init_worker, initargs=(markov_model_path,)) as executor:
+    with ProcessPoolExecutor(max_workers=num_cores_to_use, initializer=init_worker, initargs=(markov_model_path,), maxtasksperchild=1) as executor:
         for i in range(num_scores_to_generate):
             score_index = i + start_index
             
@@ -460,11 +464,11 @@ if __name__ == '__main__':
                 future.result(timeout=task_timeout)
                 success_count += 1
             except TimeoutError: # This can be raised by the pool
-                print("\\nA score generation task timed out.")
+                print("\nA score generation task timed out.")
                 timeout_count += 1
             except Exception as e:
                 # The exception from the worker process is wrapped in a ProcessPoolExecutor exception
-                print(f"\\nA score generation task failed with an exception: {e}")
+                print(f"\nA score generation task failed with an exception: {e}")
                 error_count += 1
             if (success_count + timeout_count + error_count) == task_count:
                 break

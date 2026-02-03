@@ -481,6 +481,9 @@ if __name__ == '__main__':
                 if (datetime.now() - start_time).seconds > 300:
                     print("\n--- Early stopping: 95% of tasks completed successfully. ---")
                     break
+        # Force-kill remaining tasks if any are still running after the loop/timeout
+        executor.shutdown(wait=False, cancel_futures=True)
+
 
 
     print("\n--- Score Generation Summary ---")

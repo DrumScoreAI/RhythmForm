@@ -477,7 +477,7 @@ if __name__ == '__main__':
                 error_count += 1
             if (success_count + timeout_count + error_count) == task_count:
                 break
-            if (success_count + timeout_count + error_count) >= task_count * 0.95:
+            if success_count >= task_count * 0.95:
                 if (datetime.now() - start_time).seconds > 300:
                     print("\n--- Early stopping: 95% of tasks completed successfully. ---")
                     break

@@ -13,6 +13,10 @@ from tqdm import tqdm
 from glob import glob
 import multiprocessing
 import gc
+from datetime import datetime
+import sys
+
+
 
 import sys
 # This block allows the script to be run from the command line (e.g. `python scripts/generate...`)
@@ -457,6 +461,7 @@ if __name__ == '__main__':
         timeout_count = 0
         error_count = 0
         task_count = len(tasks)
+        start_time = datetime.now()
 
         print(f"Waiting for {task_count} score generation tasks to complete (timeout per task: {task_timeout}s)...")
         for future in tqdm(as_completed(tasks), total=task_count, desc="Generating scores"):
@@ -472,6 +477,11 @@ if __name__ == '__main__':
                 error_count += 1
             if (success_count + timeout_count + error_count) == task_count:
                 break
+            if success_count >= task_count * 0.99:
+                if (datetime.now() - start_time).seconds > 300:
+                    print("\n--- Early stopping: 99% of tasks completed successfully. ---")
+                    break
+
 
     print("\n--- Score Generation Summary ---")
     print(f"Total scores requested: {num_scores_to_generate}")

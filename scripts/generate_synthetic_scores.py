@@ -475,7 +475,7 @@ if __name__ == '__main__':
         error_count = 0
         task_count = len(tasks)  # pylint: disable=invalid-name
         start_time = datetime.now()
-        global_timeout = (task_timeout * task_count)/num_cores_to_use
+        global_timeout = (task_timeout * task_count)/num_cores_to_use // 3
         completed = []
         kmn = False
 

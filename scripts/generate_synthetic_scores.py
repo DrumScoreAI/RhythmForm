@@ -462,6 +462,7 @@ if __name__ == '__main__':
         error_count = 0
         task_count = len(tasks)
         start_time = datetime.now()
+        global_timeout = (task_timeout * task_count)/num_cores_to_use + 60  # Extra buffer time
 
         print(f"Waiting for {task_count} score generation tasks to complete (timeout per task: {task_timeout}s)...")
         for future in tqdm(as_completed(tasks), total=task_count, desc="Generating scores"):
@@ -481,6 +482,9 @@ if __name__ == '__main__':
                 if (datetime.now() - start_time).seconds > 300:
                     print("\n--- Early stopping: 95% of tasks completed successfully. ---")
                     break
+            if (datetime.now() - start_time).seconds > global_timeout:
+                print("\n--- Global timeout reached. Stopping remaining tasks. ---")
+                break
         # Force-kill remaining tasks if any are still running after the loop/timeout
         executor.shutdown(wait=False, cancel_futures=True)
 

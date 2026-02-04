@@ -324,10 +324,10 @@ def generate_markov_score(output_path, complexity=0, title="Synthetic Score", mi
                         measure.append(pb)
         
         score.write('musicxml', fp=output_path)
-        print(f"Successfully generated Markov score at: {output_path}", flush=True)
+        # print(f"Successfully generated Markov score at: {output_path}", flush=True)
         gc.collect()
     else:
-        print(f"Failed to generate Markov score at: {output_path}", flush=True)
+        # print(f"Failed to generate Markov score at: {output_path}", flush=True)
         gc.collect()
 
 
@@ -476,7 +476,7 @@ if __name__ == '__main__':
                 # The exception from the worker process is wrapped in a ProcessPoolExecutor exception
                 print(f"\nA score generation task failed with an exception: {e}")
                 error_count += 1
-            print(f"Progress: {success_count} succeeded, {timeout_count} timed out, {error_count} errors.", end='\r', flush=True)
+            print(f"Progress: {success_count} succeeded, {timeout_count} timed out (threshold: {task_timeout} s, global threshold: {global_timeout/2 if success_count >= task_count * 0.95 else global_timeout} s), {error_count} errors.", end="\r"flush=True)
             if (success_count + timeout_count + error_count) == task_count:
                 break
             if success_count >= task_count * 0.95:

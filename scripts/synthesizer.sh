@@ -134,6 +134,15 @@ if [ "$max_measures" -lt "$min_measures" ]; then
     exit 1
 fi
 
+if [ -z "$task_timeout" ]; then
+    task_timeout=10
+fi
+
+if [ "$task_timeout" -lt 1 ]; then
+    echo "Task timeout invalid. Must be a positive integer."
+    exit 1
+fi
+
 TRAINING_DATA_DIR="$RHYTHMFORMHOME/training_data"
 
 mkdir -p "$TRAINING_DATA_DIR/musicxml"

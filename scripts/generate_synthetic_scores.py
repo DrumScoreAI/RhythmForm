@@ -389,7 +389,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--task-timeout",
         type=int,
-        default=60,
+        default=10,
         help="Timeout in seconds for each individual score generation task (default: 60)"
     )
     args = parser.parse_args()

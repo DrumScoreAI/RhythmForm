@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+date
 # Default values
 num_scores=30
 num_cores=1
@@ -305,3 +306,4 @@ python $RHYTHMFORMHOME/scripts/zip_and_upload_dataset.py --note "$num_scores sco
 echo "Zip and upload complete."
 
 echo "All data synthesis tasks completed successfully."
+date

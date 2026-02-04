@@ -464,6 +464,7 @@ if __name__ == '__main__':
         start_time = datetime.now()
         global_timeout = (task_timeout * task_count)/num_cores_to_use
         completed = []
+        kmn = False
 
         print(f"Waiting for {task_count} score generation tasks to complete (timeout per task: {task_timeout}s; global timeout: {global_timeout}s)...")
         while datetime.now() - start_time < timedelta(seconds=global_timeout):
@@ -492,6 +493,7 @@ if __name__ == '__main__':
         if (datetime.now() - start_time).seconds > global_timeout:
             print("\n--- Global timeout reached. Stopping remaining tasks. ---")
         # Force-kill remaining tasks if any are still running after the loop/timeout
+        kmn = True
         executor.shutdown(wait=False, cancel_futures=True)
 
 
@@ -503,5 +505,8 @@ if __name__ == '__main__':
     print(f"Failed with error:\t\t{error_count}")
     print(f"Zombied (global timed out):\t{task_count - (success_count + timeout_count + error_count)}")
     print("--------------------------------\n")
+
+    if kmn:
+        os.system("pkill -f generate_synthetic_scores.py")
 
     sys.exit(0)

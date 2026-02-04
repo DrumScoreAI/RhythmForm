@@ -13,7 +13,7 @@ from tqdm import tqdm
 from glob import glob
 import multiprocessing
 import gc
-from datetime import datetime
+from datetime import datetime, timedelta
 import sys
 
 
@@ -463,29 +463,34 @@ if __name__ == '__main__':
         task_count = len(tasks)
         start_time = datetime.now()
         global_timeout = (task_timeout * task_count)/num_cores_to_use
+        completed = []
 
-        print(f"Waiting for {task_count} score generation tasks to complete (timeout per task: {task_timeout}s)...")
-        for future in as_completed(tasks):
-            try:
-                future.result(timeout=task_timeout)
-                success_count += 1
-            except TimeoutError: # This can be raised by the pool
-                print("\nA score generation task timed out.")
-                timeout_count += 1
-            except Exception as e:
-                # The exception from the worker process is wrapped in a ProcessPoolExecutor exception
-                print(f"\nA score generation task failed with an exception: {e}")
-                error_count += 1
-            print(f"Elapsed time: {(datetime.now() - start_time).seconds} s. Progress: {success_count} succeeded, {timeout_count} timed out (threshold: {task_timeout} s, global threshold: {global_timeout/2 if success_count >= task_count * 0.95 else global_timeout} s), {error_count} errors.", end="\r", flush=True)
+        print(f"Waiting for {task_count} score generation tasks to complete (timeout per task: {task_timeout}s; global timeout: {global_timeout}s)...")
+        while datetime.now() - start_time < timedelta(seconds=global_timeout):
+            for future in tasks:
+                if future.done():
+                    if future not in completed:
+                        completed.append(future)
+                        try:
+                            future.result(timeout=task_timeout)
+                            success_count += 1
+                        except TimeoutError: # This can be raised by the pool
+                            print("\nA score generation task timed out.")
+                            timeout_count += 1
+                        except Exception as e:
+                            # The exception from the worker process is wrapped in a ProcessPoolExecutor exception
+                            print(f"\nA score generation task failed with an exception: {e}")
+                            error_count += 1
+            print(f"Elapsed time: {(datetime.now() - start_time).seconds} s. Progress: {success_count} succeeded, {timeout_count} timed out (threshold: {task_timeout} s, global timeout threshold: {global_timeout/2 if success_count >= task_count * 0.95 else global_timeout} s), {error_count} errors.", end="\r", flush=True)
             if (success_count + timeout_count + error_count) == task_count:
+                print("\n--- All tasks completed. ---")
                 break
             if success_count >= task_count * 0.95:
                 if (datetime.now() - start_time).seconds > global_timeout / 2:
                     print("\n--- Early stopping: 95% of tasks completed successfully. ---")
                     break
-            if (datetime.now() - start_time).seconds > global_timeout:
-                print("\n--- Global timeout reached. Stopping remaining tasks. ---")
-                break
+        if (datetime.now() - start_time).seconds > global_timeout:
+            print("\n--- Global timeout reached. Stopping remaining tasks. ---")
         # Force-kill remaining tasks if any are still running after the loop/timeout
         executor.shutdown(wait=False, cancel_futures=True)
 

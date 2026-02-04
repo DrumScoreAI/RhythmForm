@@ -497,10 +497,11 @@ if __name__ == '__main__':
 
 
     print("\n--- Score Generation Summary ---")
-    print(f"Total scores requested: {num_scores_to_generate}")
-    print(f"Successfully generated: {success_count}")
-    print(f"Timed out:             {timeout_count}")
-    print(f"Failed with error:     {error_count}")
+    print(f"Total scores requested:\t\t{num_scores_to_generate}")
+    print(f"Successfully generated:\t\t{success_count}")
+    print(f"Timed out:\t\t\t{timeout_count}")
+    print(f"Failed with error:\t\t{error_count}")
+    print(f"Zombied (global timed out):\t{task_count - (success_count + timeout_count + error_count)}")
     print("--------------------------------\n")
 
     print("All synthetic scores generated.")

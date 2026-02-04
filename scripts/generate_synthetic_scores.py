@@ -211,7 +211,7 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
         with open(json_path, 'w') as f:
             json.dump({"repeated_measures": repeated_measures_info}, f)
 
-    print(f"Successfully generated random score at: {output_path}", flush=True)
+    # print(f"Successfully generated random score at: {output_path}", flush=True)
     gc.collect()
 
 

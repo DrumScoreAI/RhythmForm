@@ -214,6 +214,8 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
     # print(f"Successfully generated random score at: {output_path}", flush=True)
     gc.collect()
 
+    return True
+
 
 def generate_markov_score(output_path, complexity=0, title="Synthetic Score", min_measures=None, max_measures=None, measures_per_page=None):
     """
@@ -329,6 +331,8 @@ def generate_markov_score(output_path, complexity=0, title="Synthetic Score", mi
     else:
         # print(f"Failed to generate Markov score at: {output_path}", flush=True)
         gc.collect()
+
+    return True
 
 
 if __name__ == '__main__':

@@ -462,7 +462,7 @@ if __name__ == '__main__':
         error_count = 0
         task_count = len(tasks)
         start_time = datetime.now()
-        global_timeout = (task_timeout * task_count)/num_cores_to_use + 60  # Extra buffer time
+        global_timeout = (task_timeout * task_count)/num_cores_to_use
 
         print(f"Waiting for {task_count} score generation tasks to complete (timeout per task: {task_timeout}s)...")
         for future in tqdm(as_completed(tasks), total=task_count, desc="Generating scores"):

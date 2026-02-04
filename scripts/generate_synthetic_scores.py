@@ -504,4 +504,4 @@ if __name__ == '__main__':
     print(f"Zombied (global timed out):\t{task_count - (success_count + timeout_count + error_count)}")
     print("--------------------------------\n")
 
-    print("All synthetic scores generated.")
+    sys.exit(0)

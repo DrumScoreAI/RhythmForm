@@ -482,13 +482,13 @@ if __name__ == '__main__':
                             # The exception from the worker process is wrapped in a ProcessPoolExecutor exception
                             print(f"\nA score generation task failed with an exception: {e}")
                             error_count += 1
-            print(f"Elapsed time: {(datetime.now() - start_time).seconds} s. Progress: {success_count} succeeded, {timeout_count} timed out (threshold: {task_timeout} s, global timeout threshold: {global_timeout/2 if success_count >= task_count * 0.95 else global_timeout} s), {error_count} errors.", end="\r", flush=True)
+            print(f"Elapsed time: {(datetime.now() - start_time).seconds} s. Progress: {success_count} succeeded, {timeout_count} timed out (threshold: {task_timeout} s, global timeout threshold: {global_timeout/2 if success_count >= task_count * 0.90 else global_timeout} s), {error_count} errors.", end="\r", flush=True)
             if (success_count + timeout_count + error_count) == task_count:
                 print("\n--- All tasks completed. ---")
                 break
-            if success_count >= task_count * 0.95:
+            if success_count >= task_count * 0.90:
                 if (datetime.now() - start_time).seconds > global_timeout / 2:
-                    print("\n--- Early stopping: 95% of tasks completed successfully. ---")
+                    print("\n--- Early stopping: 90% of tasks completed successfully. ---")
                     break
         if (datetime.now() - start_time).seconds > global_timeout:
             print("\n--- Global timeout reached. Stopping remaining tasks. ---")

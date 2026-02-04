@@ -507,6 +507,6 @@ if __name__ == '__main__':
     print("--------------------------------\n")
 
     if kmn:
-        os.system("pkill -f generate_synthetic_scores.py")
+        os.system("pkill -f multiprocessing.spawn") # This is a bit of a blunt instrument, but it can help clean up any lingering processes on Unix-like systems. Use with caution.
 
     sys.exit(0)

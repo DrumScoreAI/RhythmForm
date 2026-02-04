@@ -1,24 +1,27 @@
-import random
+"""
+Generates synthetic drum scores using either random generation or a trained Markov model.
+
+This script can be used to create a large dataset of MusicXML files for training
+Optical Music Recognition (OMR) models. It supports parallel generation using
+multiple CPU cores.
+"""
+import argparse
+import gc
+import json
+import multiprocessing
 import os
+import pickle
+import random
+import sys
+from concurrent.futures import ProcessPoolExecutor, TimeoutError as ConcurrentTimeoutError
+from datetime import datetime, timedelta
+from fractions import Fraction
+from pathlib import Path
+
 # Set this BEFORE importing music21 to prevent it from trying to load/create user settings
 os.environ['MUSIC21_CONFIGURE_USER'] = '0'
 import music21
-import os
-import json
-import copy
-import argparse
-from pathlib import Path
-from concurrent.futures import ProcessPoolExecutor, as_completed, TimeoutError
-from tqdm import tqdm
-from glob import glob
-import multiprocessing
-import gc
-from datetime import datetime, timedelta
-import sys
 
-
-
-import sys
 # This block allows the script to be run from the command line (e.g. `python scripts/generate...`)
 # by adding the project root to the Python path, so that imports like `from scripts...` work.
 if __name__ == '__main__' and __package__ is None:
@@ -26,31 +29,30 @@ if __name__ == '__main__' and __package__ is None:
     sys.path.insert(0, str(project_root))
 
 # --- Markov Chain Imports ---
-import pickle
 # The MarkovChain class will be imported within the worker initializer
 # from scripts.markov_chain.markov_chain import MarkovChain
 from scripts.smt_to_musicxml import SmtConverter
 
 # --- Global for worker processes ---
-worker_markov_model = None
+worker_markov_model = None  # pylint: disable=invalid-name
 
 def init_worker(model_path):
     """Initializer for each worker process: loads the Markov model into a global variable."""
     # This setup is critical for spawned processes to find the project's modules.
-    project_root = Path(__file__).resolve().parent.parent
-    if str(project_root) not in sys.path:
-        sys.path.insert(0, str(project_root))
+    worker_project_root = Path(__file__).resolve().parent.parent
+    if str(worker_project_root) not in sys.path:
+        sys.path.insert(0, str(worker_project_root))
 
-    print(f"Worker {os.getpid()}: Initializing...", flush=True)
-    global worker_markov_model
-    
+        print(f"Worker {os.getpid()}: Initializing...", flush=True)
+        global worker_markov_model    
     if model_path and Path(model_path).exists():
         # We must re-import the class here because this runs in a separate process's memory space.
-        from scripts.markov_chain import MarkovChain
+        from scripts.markov_chain import MarkovChain  # pylint: disable=import-outside-toplevel
         try:
             with open(model_path, 'rb') as f:
                 worker_markov_model = pickle.load(f)
-            print(f"Worker {os.getpid()}: Successfully loaded Markov model from {model_path}.", flush=True)
+            print(f"Worker {os.getpid()}: Successfully loaded Markov model from "
+                  f"{model_path}.", flush=True)
         except Exception as e:
             print(f"Worker {os.getpid()}: FAILED to load Markov model: {e}", flush=True)
             worker_markov_model = None
@@ -61,7 +63,9 @@ def init_worker(model_path):
 
 # --- Configuration ---
 # Uses the same environment variable and folder structure as prepare_dataset.py
-TRAINING_DATA_DIR = Path(os.environ.get('RHYTHMFORMHOME', Path(__file__).parent.parent)) / 'training_data'
+TRAINING_DATA_DIR = Path(
+    os.environ.get('RHYTHMFORMHOME', Path(__file__).parent.parent)
+) / 'training_data'
 XML_OUTPUT_DIR = TRAINING_DATA_DIR / 'musicxml'
 
 
@@ -86,43 +90,96 @@ DURATIONS = [0.25, 0.5, 1.0, 1.5, 2.0] # 16th, 8th, quarter, dotted 8th, half
 # --- Possible part names for stave labels ---
 PART_NAMES = ['Drumset', 'Drum Kit', 'Drums', 'Batterie', 'Schlagzeug']
 
-def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", complexity=0, use_repeats=False, measures_per_page=None):
+def _get_complexity_settings(complexity):
+    """Returns instrument and duration settings based on complexity level."""
+    if complexity == 0:  # Simple
+        active_instruments = {
+            k: v for k, v in DRUM_INSTRUMENTS.items()
+            if 'Hi-Hat' in k or 'Snare' in k or 'Bass Drum' in k
+        }
+        active_durations = [0.5, 1.0]
+        chord_probability = 0.1
+    elif complexity == 1:  # Medium
+        active_instruments = {
+            k: v for k, v in DRUM_INSTRUMENTS.items() if 'Ride' not in k
+        }
+        active_durations = [0.25, 0.5, 1.0]
+        chord_probability = 0.3
+    else:  # Complex
+        active_instruments = DRUM_INSTRUMENTS
+        active_durations = DURATIONS
+        chord_probability = 0.5
+    return active_instruments, active_durations, chord_probability
+
+
+def _create_filled_measure(number, active_instruments, active_durations,
+                           chord_probability, instrument_definitions):
+    """Creates and fills a single measure with random drum events."""
+    measure = music21.stream.Measure(number=number)
+    current_offset = 0.0
+    while current_offset < 4.0:
+        remaining_duration = 4.0 - current_offset
+        possible_durations = [
+            d for d in active_durations if d <= remaining_duration
+        ]
+        if not possible_durations:
+            rest = music21.note.Rest(quarterLength=remaining_duration)
+            measure.insert(current_offset, rest)
+            break
+
+        duration = random.choice(possible_durations)
+
+        if random.random() < 0.85:  # 85% chance of a note/chord
+            is_chord = random.random() < chord_probability
+            note_event = (music21.percussion.PercussionChord() if is_chord
+                          else music21.note.Unpitched())
+            num_notes = random.randint(2, 3) if is_chord else 1
+            instruments_in_chord = random.sample(list(active_instruments.keys()),
+                                                 num_notes)
+
+            for inst_name in instruments_in_chord:
+                midi, d_step, d_oct, n_head = active_instruments[inst_name]
+                unpitched = music21.note.Unpitched()
+                unpitched.displayStep = d_step
+                unpitched.displayOctave = d_oct
+                unpitched.notehead = n_head
+                unpitched.instrument = instrument_definitions[midi]
+                if is_chord:
+                    note_event.add(unpitched)
+                else:
+                    note_event = unpitched
+            note_event.duration.quarterLength = duration
+            measure.insert(current_offset, note_event)
+        else:  # 15% chance of a rest
+            rest = music21.note.Rest(quarterLength=duration)
+            measure.insert(current_offset, rest)
+        current_offset += duration
+    return measure
+
+
+def generate_drum_score(num_measures=16, output_path="synthetic_score.xml",
+                        complexity=0, use_repeats=False, measures_per_page=None):
     """
     Generates a pseudo-random drum score and saves it as a MusicXML file.
     If use_repeats is True, it also creates a companion .json file with repeat information.
     """
-    # --- Define complexity levels ---
-    if complexity == 0: # Simple
-        active_instruments = {k: v for k, v in DRUM_INSTRUMENTS.items() if 'Hi-Hat' in k or 'Snare' in k or 'Bass Drum' in k}
-        active_durations = [0.5, 1.0]
-        chord_probability = 0.1
-    elif complexity == 1: # Medium
-        active_instruments = {k: v for k, v in DRUM_INSTRUMENTS.items() if 'Ride' not in k}
-        active_durations = [0.25, 0.5, 1.0]
-        chord_probability = 0.3
-    else: # Complex
-        active_instruments = DRUM_INSTRUMENTS
-        active_durations = DURATIONS
-        chord_probability = 0.5
+    active_instruments, active_durations, chord_prob = \
+        _get_complexity_settings(complexity)
 
     # --- 1. Setup Score and Drum Part ---
     score = music21.stream.Score()
     drum_part = music21.stream.Part(id='drumset')
-    
-    # --- Randomly assign part name and abbreviation ---
     part_name = random.choice(PART_NAMES)
     drum_part.partName = part_name
     drum_part.partAbbreviation = part_name[:3] + '.'
 
-    # --- Instrument Definitions ---
     instrument_definitions = {}
-    drum_part.instruments = [] 
+    drum_part.instruments = []
     for name, (midi_num, _, _, _) in active_instruments.items():
         inst = music21.instrument.Percussion()
         inst.midiChannel = 10
         inst.midiUnpitched = midi_num
-        inst_id = f"P{midi_num}"
-        inst.instrumentId = inst_id
+        inst.instrumentId = f"P{midi_num}"
         instrument_definitions[midi_num] = inst
         drum_part.instruments.append(inst)
 
@@ -131,102 +188,51 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml", comp
 
     # --- 2. Generate Measures ---
     repeated_measures_info = []
-    if use_repeats and num_measures > 8: # Only add repeats to longer scores
-        # Decide on a block of 2 or 4 measures to repeat
+    if use_repeats and num_measures > 8:
         repeat_len = random.choice([2, 4])
-        # Ensure the repeat block doesn't start too close to the end
-        start_measure_index = random.randint(1, num_measures - repeat_len - 2)
-        
-        # The measures that will be visually marked as a repeat.
-        # e.g., if measures 2 and 3 are repeated, the repeat sign is on 4 and 5.
-        repeated_measures_info = list(range(start_measure_index + repeat_len, start_measure_index + 2 * repeat_len))
+        start_idx = random.randint(1, num_measures - repeat_len - 2)
+        repeated_measures_info = list(
+            range(start_idx + repeat_len, start_idx + 2 * repeat_len)
+        )
 
     for i in range(num_measures):
-        measure = music21.stream.Measure(number=i + 1)
-        
-        # Generate a new, unique measure
-        current_offset = 0.0
-        while current_offset < 4.0:
-            remaining_duration = 4.0 - current_offset
-            possible_durations = [d for d in active_durations if d <= remaining_duration]
-            if not possible_durations:
-                rest = music21.note.Rest(quarterLength=remaining_duration)
-                measure.insert(current_offset, rest)
-                break
-            
-            duration = random.choice(possible_durations)
-
-            # Generate note or rest
-            if random.random() < 0.85: # 85% chance of a note/chord
-                is_chord = random.random() < chord_probability
-                note_event = music21.percussion.PercussionChord() if is_chord else music21.note.Unpitched()
-                num_notes_in_event = random.randint(2, 3) if is_chord else 1
-                
-                instruments_in_chord = random.sample(list(active_instruments.keys()), num_notes_in_event)
-
-                for instrument_name in instruments_in_chord:
-                    midi_num, d_step, d_octave, notehead_style = active_instruments[instrument_name]
-                    
-                    unpitched_note = music21.note.Unpitched()
-                    unpitched_note.displayStep = d_step
-                    unpitched_note.displayOctave = d_octave
-                    unpitched_note.notehead = notehead_style
-                    unpitched_note.instrument = instrument_definitions[midi_num]
-                    
-                    if is_chord:
-                        note_event.add(unpitched_note)
-                    else:
-                        note_event = unpitched_note
-                        
-                note_event.duration.quarterLength = duration
-                measure.insert(current_offset, note_event)
-            else: # 15% chance of a rest
-                rest = music21.note.Rest(quarterLength=duration)
-                measure.insert(current_offset, rest)
-            
-            current_offset += duration
-
-        # Set barlines. The last measure gets a final barline.
-        if i == num_measures - 1:
-            measure.rightBarline = 'final'
-        else:
-            measure.rightBarline = 'regular'
-
-        # Insert Page Break if needed
-        if measures_per_page and (i + 1) < num_measures and (i + 1) % measures_per_page == 0:
-            pb = music21.layout.PageLayout(isNew=True)
-            measure.append(pb)
-
+        measure = _create_filled_measure(
+            i + 1, active_instruments, active_durations, chord_prob,
+            instrument_definitions
+        )
+        measure.rightBarline = 'final' if i == num_measures - 1 else 'regular'
+        if measures_per_page and (i + 1) < num_measures and \
+           (i + 1) % measures_per_page == 0:
+            measure.append(music21.layout.PageLayout(isNew=True))
         drum_part.append(measure)
 
     score.insert(0, drum_part)
-    
+
     # --- 3. Save Files ---
-    # Save the MusicXML file
     score.write('musicxml', fp=output_path)
-    
-    # If repeats were generated, save the companion JSON file
     if repeated_measures_info:
         json_path = Path(output_path).with_suffix('.json')
-        with open(json_path, 'w') as f:
+        with open(json_path, 'w', encoding='utf-8') as f:
             json.dump({"repeated_measures": repeated_measures_info}, f)
 
-    # print(f"Successfully generated random score at: {output_path}", flush=True)
     gc.collect()
-
     return True
 
 
-def generate_markov_score(output_path, complexity=0, title="Synthetic Score", min_measures=None, max_measures=None, measures_per_page=None):
+def generate_markov_score(output_path, complexity=0, title="Synthetic Score",
+                          min_measures=None, max_measures=None,
+                          measures_per_page=None):
     """
     Generates a score using a trained MarkovChain model loaded in the worker process.
     """
     global worker_markov_model
     if not worker_markov_model:
-        print(f"  -> Warning: Markov model not available in worker. Falling back to random generation.", file=sys.stderr)
+        print("  -> Warning: Markov model not available in worker. "
+              "Falling back to random generation.", file=sys.stderr)
         # Fallback to random generation to ensure a file is always created.
-        return generate_drum_score(output_path=output_path, complexity=complexity, use_repeats=False)
-    from fractions import Fraction
+        return generate_drum_score(output_path=output_path, complexity=complexity,
+                                   use_repeats=False)
+
 
     # Adjust generation length based on complexity
     if min_measures is not None and max_measures is not None:
@@ -240,14 +246,14 @@ def generate_markov_score(output_path, complexity=0, title="Synthetic Score", mi
             num_measures = random.randint(20, 32)
     
     time_signature = Fraction(4, 4)
-    
+
     generated_measures = []
-    
+
     for _ in range(num_measures):
         current_measure_tokens = []
         current_duration = Fraction(0)
-        fail_safe_counter = 0 # Add a counter to prevent infinite loops
-        
+        fail_safe_counter = 0  # Add a counter to prevent infinite loops
+
         while current_duration < time_signature:
             remaining_duration = time_signature - current_duration
             
@@ -297,7 +303,7 @@ def generate_markov_score(output_path, complexity=0, title="Synthetic Score", mi
 
     # Join measures with barlines
     body = " | ".join(generated_measures)
-    
+
     # Add required metadata
     metadata = [
         f"title[{title}]",
@@ -311,7 +317,6 @@ def generate_markov_score(output_path, complexity=0, title="Synthetic Score", mi
     # Convert the SMT string to a MusicXML file
     converter = SmtConverter(full_sequence_str)
     score = converter.parse()
-    
     if score:
         # Post-process to add page breaks
         if measures_per_page:
@@ -346,10 +351,10 @@ if __name__ == '__main__':
     # --- Parse Command Line Arguments ---
     parser = argparse.ArgumentParser(description="Generate synthetic drum scores.")
     parser.add_argument(
-        "num_scores", 
-        type=int, 
-        nargs='?', 
-        default=30, 
+        "num_scores",
+        type=int,
+        nargs='?',
+        default=30,
         help="Number of scores to generate (default: 30)"
     )
     parser.add_argument(
@@ -402,7 +407,8 @@ if __name__ == '__main__':
     num_cores_to_use = args.cores
     start_index = args.start_index
     task_timeout = args.task_timeout
-    print(f"Generating {num_scores_to_generate} scores into {XML_OUTPUT_DIR} using {num_cores_to_use} cores, starting at index {start_index}")
+    print(f"Generating {num_scores_to_generate} scores into {XML_OUTPUT_DIR} "
+          f"using {num_cores_to_use} cores, starting at index {start_index}")
 
     # --- Load Markov Model if specified ---
     markov_model_path = None
@@ -417,17 +423,20 @@ if __name__ == '__main__':
     # This logic is now simplified. We just generate scores starting from the given index.
     # The complexity level can be based on the global index.
     print(f"Submitting {num_scores_to_generate} tasks to a pool of {num_cores_to_use} workers...")
-    with ProcessPoolExecutor(max_workers=num_cores_to_use, initializer=init_worker, initargs=(markov_model_path,), max_tasks_per_child=100) as executor:
+    with ProcessPoolExecutor(max_workers=num_cores_to_use,
+                             initializer=init_worker,
+                             initargs=(markov_model_path,),
+                             max_tasks_per_child=100) as executor:
         for i in range(num_scores_to_generate):
             score_index = i + start_index
             
             # Determine complexity based on the overall score index
             if score_index < 40000: # Example threshold
-                level = 0
+                level = 0  # pylint: disable=invalid-name
             elif score_index < 80000: # Example threshold
-                level = 1
+                level = 1  # pylint: disable=invalid-name
             else:
-                level = 2
+                level = 2  # pylint: disable=invalid-name
 
             use_repeats_for_this_score = random.random() < 0.5
             file_path = XML_OUTPUT_DIR / f"synthetic_score_{score_index + 1}_level_{level}.xml"
@@ -464,7 +473,7 @@ if __name__ == '__main__':
         success_count = 0
         timeout_count = 0
         error_count = 0
-        task_count = len(tasks)
+        task_count = len(tasks)  # pylint: disable=invalid-name
         start_time = datetime.now()
         global_timeout = (task_timeout * task_count)/num_cores_to_use
         completed = []
@@ -479,14 +488,29 @@ if __name__ == '__main__':
                         try:
                             future.result(timeout=task_timeout)
                             success_count += 1
-                        except TimeoutError: # This can be raised by the pool
+                        except ConcurrentTimeoutError: # This can be raised by the pool
                             print("\nA score generation task timed out.")
                             timeout_count += 1
                         except Exception as e:
                             # The exception from the worker process is wrapped in a ProcessPoolExecutor exception
                             print(f"\nA score generation task failed with an exception: {e}")
                             error_count += 1
-            print(f"Elapsed time: {(datetime.now() - start_time).seconds} s. Progress: {success_count} succeeded, {timeout_count} timed out (threshold: {task_timeout} s, global timeout threshold: {global_timeout/2 if success_count >= task_count * 0.90 else global_timeout} s), {error_count} errors.", end="\r", flush=True)
+            
+            elapsed = (datetime.now() - start_time).seconds
+            if success_count >= task_count * 0.90:
+                gt_threshold = global_timeout / 2
+            else:
+                gt_threshold = global_timeout
+
+            progress_msg = (
+                f"Elapsed time: {elapsed}s. "
+                f"Progress: {success_count} succeeded, "
+                f"{timeout_count} timed out (threshold: {task_timeout}s), "
+                f"global timeout threshold: {gt_threshold:.0f}s, "
+                f"{error_count} errors."
+            )
+            print(progress_msg, end="\r", flush=True)
+
             if (success_count + timeout_count + error_count) == task_count:
                 print("\n--- All tasks completed. ---")
                 break
@@ -507,10 +531,13 @@ if __name__ == '__main__':
     print(f"Successfully generated:\t\t{success_count}")
     print(f"Timed out:\t\t\t{timeout_count}")
     print(f"Failed with error:\t\t{error_count}")
-    print(f"Zombied (global timed out):\t{task_count - (success_count + timeout_count + error_count)}")
+    zombied_count = task_count - (success_count + timeout_count + error_count)
+    print(f"Zombied (global timed out):\t{zombied_count}")
     print("--------------------------------\n")
 
     if kmn:
-        os.system("pkill -f multiprocessing.spawn") # This is a bit of a blunt instrument, but it can help clean up any lingering processes on Unix-like systems. Use with caution.
+        # This is a bit of a blunt instrument, but it can help clean up
+        # any lingering processes on Unix-like systems. Use with caution.
+        os.system("pkill -f multiprocessing.spawn")
 
     sys.exit(0)

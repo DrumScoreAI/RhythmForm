@@ -13,8 +13,8 @@ import os
 import pickle
 import random
 import sys
-from concurrent.futures import ProcessPoolExecutor, TimeoutError as ConcurrentTimeoutError
-from datetime import datetime, timedelta
+from concurrent.futures import TimeoutError as ConcurrentTimeoutError
+from datetime import datetime
 from fractions import Fraction
 from pathlib import Path
 
@@ -420,13 +420,11 @@ if __name__ == '__main__':
 
 
     tasks = []
+    results = []
     # This logic is now simplified. We just generate scores starting from the given index.
     # The complexity level can be based on the global index.
     print(f"Submitting {num_scores_to_generate} tasks to a pool of {num_cores_to_use} workers...")
-    with ProcessPoolExecutor(max_workers=num_cores_to_use,
-                             initializer=init_worker,
-                             initargs=(markov_model_path,),
-                             max_tasks_per_child=100) as executor:
+    with multiprocessing.Pool(processes=num_cores_to_use, initializer=init_worker, initargs=(markov_model_path,), maxtasksperchild=100) as pool:
         for i in range(num_scores_to_generate):
             score_index = i + start_index
             
@@ -444,10 +442,9 @@ if __name__ == '__main__':
             # Decide whether to use Markov Chain or random generation based on the ratio
             if markov_model_path and random.random() < args.markov_ratio:
                 # Submit a Markov generation task
-                tasks.append(
-                    executor.submit(
-                        generate_markov_score,
-                        # The model is no longer passed as an argument; it's loaded by the worker.
+                result = pool.apply_async(
+                    generate_markov_score,
+                    kwds=dict(
                         output_path=file_path,
                         complexity=level,
                         title=f"Synthetic Score {score_index + 1}",
@@ -456,11 +453,12 @@ if __name__ == '__main__':
                         measures_per_page=args.measures_per_page
                     )
                 )
+                results.append(result)
             else:
                 # Submit a random generation task
-                tasks.append(
-                    executor.submit(
-                        generate_drum_score,
+                result = pool.apply_async(
+                    generate_drum_score,
+                    kwds=dict(
                         num_measures=random.randint(args.min_measures or 16, args.max_measures or 35),
                         output_path=file_path,
                         complexity=level,
@@ -468,56 +466,40 @@ if __name__ == '__main__':
                         measures_per_page=args.measures_per_page
                     )
                 )
+                results.append(result)
 
         # --- Wait for completion with timeout and progress ---
         success_count = 0
         timeout_count = 0
         error_count = 0
-        task_count = len(tasks)
+        task_count = len(results)
         start_time = datetime.now()
 
         print(f"Waiting for {task_count} score generation tasks to complete (timeout per task: {task_timeout}s)...")
 
-        try:
-            # Use as_completed to process futures as they finish
-            from concurrent.futures import as_completed
-            for future in as_completed(tasks, timeout=task_timeout * task_count):
-                # Check for exceptions without blocking indefinitely
-                exc = future.exception(timeout=1)
-                if exc is None:
-                    # No exception, so we can assume success.
-                    # The future.result() is what can hang, so we avoid it if possible.
-                    if future.done() and not future.cancelled():
-                         success_count += 1
-                elif isinstance(exc, ConcurrentTimeoutError):
-                    print("\nA score generation task timed out.")
-                    timeout_count += 1
-                else:
-                    print(f"\nA score generation task failed with an exception: {exc}")
-                    error_count += 1
-                
-                elapsed = (datetime.now() - start_time).seconds
-                progress_msg = (
-                    f"Elapsed time: {elapsed}s. "
-                    f"Progress: {success_count} succeeded, "
-                    f"{timeout_count} timed out, "
-                    f"{error_count} errors. "
-                    f"({(success_count + timeout_count + error_count)}/{task_count})"
-                )
-                print(progress_msg, end="\r", flush=True)
+        for i, res in enumerate(results):
+            try:
+                res.get(timeout=task_timeout)
+                success_count += 1
+            except multiprocessing.TimeoutError:
+                print(f"\nTask {i} timed out.")
+                timeout_count += 1
+            except Exception as e:
+                print(f"\nTask {i} failed with an exception: {e}")
+                error_count += 1
 
-        except ConcurrentTimeoutError:
-            # This outer timeout from as_completed is our global timeout.
-            print("\n--- Global timeout reached. Some tasks may not have completed. ---")
-        
-        # After the loop, we can tally up the final counts.
-        # The futures that did not complete are considered timed out or zombied.
-        completed_count = success_count + timeout_count + error_count
-        zombied_count = task_count - completed_count
-        timeout_count += zombied_count # Add zombied tasks to the timeout count for reporting
+            elapsed = (datetime.now() - start_time).seconds
+            progress_msg = (
+                f"Elapsed time: {elapsed}s. "
+                f"Progress: {success_count} succeeded, "
+                f"{timeout_count} timed out, "
+                f"{error_count} errors. "
+                f"({(success_count + timeout_count + error_count)}/{task_count})"
+            )
+            print(progress_msg, end="\r", flush=True)
 
-        # It's good practice to explicitly shutdown the executor
-        executor.shutdown(wait=False, cancel_futures=True)
+        pool.close()
+        pool.join()
 
 
 
@@ -526,8 +508,7 @@ if __name__ == '__main__':
     print(f"Successfully generated:\t\t{success_count}")
     print(f"Timed out:\t\t\t{timeout_count}")
     print(f"Failed with error:\t\t{error_count}")
-    zombied_count = task_count - (success_count + timeout_count + error_count)
-    print(f"Zombied (global timed out):\t{zombied_count}")
+    print(f"Zombied (global timed out):\t{task_count - success_count - timeout_count - error_count}")
     print("--------------------------------\n")
 
     # if kmn:

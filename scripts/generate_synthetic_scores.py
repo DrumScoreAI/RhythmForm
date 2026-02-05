@@ -473,55 +473,48 @@ if __name__ == '__main__':
         success_count = 0
         timeout_count = 0
         error_count = 0
-        task_count = len(tasks)  # pylint: disable=invalid-name
+        task_count = len(tasks)
         start_time = datetime.now()
-        global_timeout = (task_timeout * task_count)/num_cores_to_use // 3
-        completed = []
-        kmn = False
 
-        print(f"Waiting for {task_count} score generation tasks to complete (timeout per task: {task_timeout}s; global timeout: {global_timeout}s)...")
-        while datetime.now() - start_time < timedelta(seconds=global_timeout):
-            for future in tasks:
-                if future.done():
-                    if future not in completed:
-                        completed.append(future)
-                        try:
-                            future.result(timeout=task_timeout)
-                            success_count += 1
-                        except ConcurrentTimeoutError: # This can be raised by the pool
-                            print("\nA score generation task timed out.")
-                            timeout_count += 1
-                        except Exception as e:
-                            # The exception from the worker process is wrapped in a ProcessPoolExecutor exception
-                            print(f"\nA score generation task failed with an exception: {e}")
-                            error_count += 1
-            
-            elapsed = (datetime.now() - start_time).seconds
-            if success_count >= task_count * 0.90:
-                gt_threshold = global_timeout / 2
-            else:
-                gt_threshold = global_timeout
+        print(f"Waiting for {task_count} score generation tasks to complete (timeout per task: {task_timeout}s)...")
 
-            progress_msg = (
-                f"Elapsed time: {elapsed}s. "
-                f"Progress: {success_count} succeeded, "
-                f"{timeout_count} timed out (threshold: {task_timeout}s), "
-                f"global timeout threshold: {gt_threshold:.0f}s, "
-                f"{error_count} errors."
-            )
-            print(progress_msg, end="\r", flush=True)
+        try:
+            # Use as_completed to process futures as they finish
+            from concurrent.futures import as_completed
+            for future in as_completed(tasks, timeout=task_timeout * task_count):
+                try:
+                    # We still use a timeout here on result() as a safeguard, 
+                    # but the primary timeout is on as_completed.
+                    if future.result(timeout=1):
+                        success_count += 1
+                except ConcurrentTimeoutError:
+                    print("\nA score generation task timed out.")
+                    timeout_count += 1
+                except Exception as e:
+                    print(f"\nA score generation task failed with an exception: {e}")
+                    error_count += 1
+                
+                elapsed = (datetime.now() - start_time).seconds
+                progress_msg = (
+                    f"Elapsed time: {elapsed}s. "
+                    f"Progress: {success_count} succeeded, "
+                    f"{timeout_count} timed out, "
+                    f"{error_count} errors. "
+                    f"({(success_count + timeout_count + error_count)}/{task_count})"
+                )
+                print(progress_msg, end="\r", flush=True)
 
-            if (success_count + timeout_count + error_count) == task_count:
-                print("\n--- All tasks completed. ---")
-                break
-            if success_count >= task_count * 0.90:
-                if (datetime.now() - start_time).seconds > global_timeout / 2:
-                    print("\n--- Early stopping: 90% of tasks completed successfully. ---")
-                    break
-        if (datetime.now() - start_time).seconds > global_timeout:
-            print("\n--- Global timeout reached. Stopping remaining tasks. ---")
-        # Force-kill remaining tasks if any are still running after the loop/timeout
-        kmn = True
+        except ConcurrentTimeoutError:
+            # This outer timeout from as_completed is our global timeout.
+            print("\n--- Global timeout reached. Some tasks may not have completed. ---")
+        
+        # After the loop, we can tally up the final counts.
+        # The futures that did not complete are considered timed out or zombied.
+        completed_count = success_count + timeout_count + error_count
+        zombied_count = task_count - completed_count
+        timeout_count += zombied_count # Add zombied tasks to the timeout count for reporting
+
+        # It's good practice to explicitly shutdown the executor
         executor.shutdown(wait=False, cancel_futures=True)
 
 

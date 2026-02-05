@@ -482,16 +482,18 @@ if __name__ == '__main__':
             # Use as_completed to process futures as they finish
             from concurrent.futures import as_completed
             for future in as_completed(tasks, timeout=task_timeout * task_count):
-                try:
-                    # We still use a timeout here on result() as a safeguard, 
-                    # but the primary timeout is on as_completed.
-                    if future.result(timeout=1):
-                        success_count += 1
-                except ConcurrentTimeoutError:
+                # Check for exceptions without blocking indefinitely
+                exc = future.exception(timeout=1)
+                if exc is None:
+                    # No exception, so we can assume success.
+                    # The future.result() is what can hang, so we avoid it if possible.
+                    if future.done() and not future.cancelled():
+                         success_count += 1
+                elif isinstance(exc, ConcurrentTimeoutError):
                     print("\nA score generation task timed out.")
                     timeout_count += 1
-                except Exception as e:
-                    print(f"\nA score generation task failed with an exception: {e}")
+                else:
+                    print(f"\nA score generation task failed with an exception: {exc}")
                     error_count += 1
                 
                 elapsed = (datetime.now() - start_time).seconds
@@ -528,9 +530,9 @@ if __name__ == '__main__':
     print(f"Zombied (global timed out):\t{zombied_count}")
     print("--------------------------------\n")
 
-    if kmn:
-        # This is a bit of a blunt instrument, but it can help clean up
-        # any lingering processes on Unix-like systems. Use with caution.
-        os.system("pkill -f multiprocessing.spawn")
+    # if kmn:
+    #     # This is a bit of a blunt instrument, but it can help clean up
+    #     # any lingering processes on Unix-like systems. Use with caution.
+    #     os.system("pkill -f multiprocessing.spawn")
 
     sys.exit(0)

@@ -477,29 +477,31 @@ if __name__ == '__main__':
 
         print(f"Waiting for {task_count} score generation tasks to complete (timeout per task: {task_timeout}s)...")
 
-        for i, res in enumerate(results):
-            try:
-                res.get(timeout=task_timeout)
-                success_count += 1
-            except multiprocessing.TimeoutError:
-                print(f"\nTask {i} timed out.")
-                timeout_count += 1
-            except Exception as e:
-                print(f"\nTask {i} failed with an exception: {e}")
-                error_count += 1
+        try:
+            for i, res in enumerate(results):
+                try:
+                    res.get(timeout=task_timeout)
+                    success_count += 1
+                except multiprocessing.TimeoutError:
+                    print(f"\nTask {i} timed out.")
+                    timeout_count += 1
+                except Exception as e:
+                    print(f"\nTask {i} failed with an exception: {e}")
+                    error_count += 1
 
-            elapsed = (datetime.now() - start_time).seconds
-            progress_msg = (
-                f"Elapsed time: {elapsed}s. "
-                f"Progress: {success_count} succeeded, "
-                f"{timeout_count} timed out, "
-                f"{error_count} errors. "
-                f"({(success_count + timeout_count + error_count)}/{task_count})"
-            )
-            print(progress_msg, end="\r", flush=True)
-
-        pool.close()
-        pool.join()
+                elapsed = (datetime.now() - start_time).seconds
+                progress_msg = (
+                    f"Elapsed time: {elapsed}s. "
+                    f"Progress: {success_count} succeeded, "
+                    f"{timeout_count} timed out, "
+                    f"{error_count} errors. "
+                    f"({(success_count + timeout_count + error_count)}/{task_count})"
+                )
+                print(progress_msg, end="\r", flush=True)
+        finally:
+            # Terminate the pool forcefully to ensure cleanup of any zombie workers.
+            pool.terminate()
+            pool.join() # Wait for the terminated processes to be joined.
 
 
 

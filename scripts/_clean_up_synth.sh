@@ -11,9 +11,9 @@ dryrun=$3
 bname=$(basename $xml)
 
 name=${bname%.xml}
-image=`ls images/$name.png 2>/dev/null`
+image=`ls images/$name*.png 2>/dev/null`
 pdf=`ls pdfs/$name.pdf 2>/dev/null`
-smt=`ls smt/$name.smt 2>/dev/null`
+smt=`ls smt/$name*.smt 2>/dev/null`
 if [ -z $pdf ] || [ -z $image ]
 then
         if [ "$dryrun" != "dryrun" ]; then

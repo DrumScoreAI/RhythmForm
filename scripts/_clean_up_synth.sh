@@ -15,7 +15,7 @@ image=`ls images/$name*.png 2>/dev/null | awk '{print $1}'`
 images=`ls images/$name*.png 2>/dev/null`
 pdf=`ls pdfs/$name.pdf 2>/dev/null`
 smts=`ls smt/$name*.smt 2>/dev/null`
-if [ -z $pdf ] || [ -z $image ]
+if [ ! $pdf ] || [ ! $image ]
 then
         if [ "$dryrun" != "dryrun" ]; then
             rm $xml 2>/dev/null

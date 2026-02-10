@@ -18,12 +18,12 @@ smts=`ls smt/$name*.smt 2>/dev/null`
 if [ ! $pdf ] || [ ! $image ]
 then
         if [ "$dryrun" != "dryrun" ]; then
-            rm $xml 2>/dev/null
-            rm $images 2>/dev/null
-            rm $pdf 2>/dev/null
-            rm $smts 2>/dev/null
-            rm musicxml/$name.json 2>/dev/null
-            rm musicxml/${name}_altered.xml 2>/dev/null
+            rm -v $xml 2>/dev/null
+            rm -v $images 2>/dev/null
+            rm -v $pdf 2>/dev/null
+            rm -v $smts 2>/dev/null
+            rm -v musicxml/$name.json 2>/dev/null
+            rm -v musicxml/${name}_altered.xml 2>/dev/null
         else
             echo $bname has no pdf or image
             echo "Dry run mode - not deleting files."

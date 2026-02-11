@@ -1,4 +1,5 @@
 #!/bin/bash
+set -x
 
 TRAINING_DATA_DIR=$1
 DRYRUN=$2

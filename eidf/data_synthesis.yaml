@@ -17,7 +17,7 @@ spec:
       containers:
       - name: synthesizer
         image: registry.eidf.ac.uk/eidf235/rhythmform-cpu:latest
-        args: ["/app/scripts/synthesizer.sh", "-s", "180000", "-n", "60", "-w", "--min-measures", "25", "--max-measures", "115", "--measures-per-page", "45", "--task-timeout", "2"]
+        args: ["/app/scripts/synthesizer.sh", "-c", "-s", "180000", "-n", "60", "-w", "--min-measures", "25", "--max-measures", "115", "--measures-per-page", "45", "--task-timeout", "2"]
         volumeMounts:
           - mountPath: /app/training_data
             name: training-data-volume

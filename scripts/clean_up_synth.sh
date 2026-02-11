@@ -54,4 +54,4 @@ done
 wait
 rm -f $temp_m $temp_p $temp_i $temp_mname $temp_pname $temp_iname $temp_mp_diff $temp_mi_diff $temp_diff
 echo "Manually remove the following missing image files from dataset.json:"
-for i in `grep image_path dataset.json | awk -F\" '{print $4}'`; do if [ ! -f "$i" ]; then echo $i does not exist; fi; done
+for i in `grep image_path $TRAINING_DATA_DIR/dataset.json | awk -F\" '{print $4}'`; do if [ ! -f "$i" ]; then echo $i does not exist; fi; done

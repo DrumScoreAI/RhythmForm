@@ -1,8 +1,8 @@
 #!/bin/bash
 set -x
 
-TRAINING_DATA_DIR=$1
-DRYRUN=$2
+TRAINING_DATA_DIR=$RHYTHMFORM_HOME/training_data
+DRYRUN=$1  # Pass "dryrun" as the first argument to do a dry run without actual deletion
 
 cd $TRAINING_DATA_DIR
 

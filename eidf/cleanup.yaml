@@ -17,7 +17,7 @@ spec:
       containers:
       - name: cleanup
         image: registry.eidf.ac.uk/eidf235/rhythmform-cpu:latest
-        args: ["/app/scripts/clean_up_synth.sh", "/app/training_data", "/app/scripts", "12"]
+        args: ["/app/scripts/clean_up_synth.sh"]
         volumeMounts:
           - mountPath: /app/training_data
             name: training-data-volume

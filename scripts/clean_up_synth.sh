@@ -14,7 +14,7 @@ temp_iname=$RANDOM.intemp
 temp_diff=$RANDOM.dtemp
 temp_mp_diff=$RANDOM.mpdtemp
 
-
+echo Finding files and comparing...
 find musicxml/ -name *[0-9].xml > $temp_m
 find pdfs/ -type f > $temp_p
 find images/ -type f > $temp_i
@@ -25,7 +25,7 @@ comm -23 $temp_mname $temp_pname > $temp_mp_diff
 cat $temp_mp_diff $temp_iname | sort | uniq > $temp_diff
 
 cat $temp_diff
-
+echo "Total musicxml files with missing pdf and/or image counterparts: `wc -l $temp_diff`"
 for m_del in `cat $temp_diff`; do
     xml_path="musicxml/${m_del}.xml"
     if [ -f "$xml_path" ]; then

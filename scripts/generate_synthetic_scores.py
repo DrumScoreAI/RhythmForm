@@ -215,6 +215,11 @@ def generate_drum_score(num_measures=16, output_path="synthetic_score.xml",
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump({"repeated_measures": repeated_measures_info}, f)
 
+    # Explicitly clear large objects to aid garbage collection
+    score = None
+    drum_part = None
+    instrument_definitions = None
+    
     gc.collect()
     return True
 
@@ -332,9 +337,13 @@ def generate_markov_score(output_path, complexity=0, title="Synthetic Score",
         
         score.write('musicxml', fp=output_path)
         # print(f"Successfully generated Markov score at: {output_path}", flush=True)
+        score = None
+        converter = None
         gc.collect()
     else:
         # print(f"Failed to generate Markov score at: {output_path}", flush=True)
+        score = None
+        converter = None
         gc.collect()
 
     return True
@@ -502,8 +511,10 @@ if __name__ == '__main__':
             # Terminate the pool forcefully to ensure cleanup of any zombie workers.
             pool.terminate()
             pool.join() # Wait for the terminated processes to be joined.
-
-
+        
+        # Explicitly clear the results list to release memory
+        results.clear()
+        gc.collect()
 
     print("\n--- Score Generation Summary ---")
     print(f"Total scores requested:\t\t{num_scores_to_generate}")

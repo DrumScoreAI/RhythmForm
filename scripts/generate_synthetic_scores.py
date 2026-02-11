@@ -14,7 +14,7 @@ import pickle
 import random
 import sys
 from concurrent.futures import TimeoutError as ConcurrentTimeoutError
-from datetime import datetime
+from datetime import datetime, timedelta
 from fractions import Fraction
 from pathlib import Path
 
@@ -418,6 +418,8 @@ if __name__ == '__main__':
     task_timeout = args.task_timeout
     print(f"Generating {num_scores_to_generate} scores into {XML_OUTPUT_DIR} "
           f"using {num_cores_to_use} cores, starting at index {start_index}")
+    
+    GLOBAL_TIMEOUT = num_scores_to_generate * task_timeout * 2  # A very generous global timeout
 
     # --- Load Markov Model if specified ---
     markov_model_path = None
@@ -434,6 +436,7 @@ if __name__ == '__main__':
     # The complexity level can be based on the global index.
     print(f"Submitting {num_scores_to_generate} tasks to a pool of {num_cores_to_use} workers...")
     with multiprocessing.Pool(processes=num_cores_to_use, initializer=init_worker, initargs=(markov_model_path,), maxtasksperchild=100) as pool:
+        generation_start_time = datetime.now()
         for i in range(num_scores_to_generate):
             score_index = i + start_index
             
@@ -507,6 +510,10 @@ if __name__ == '__main__':
                     f"({(success_count + timeout_count + error_count)}/{task_count})"
                 )
                 print(progress_msg, end="\r", flush=True)
+
+                if datetime.now() - generation_start_time > timedelta(seconds=GLOBAL_TIMEOUT):
+                    print("\nGlobal timeout reached. Terminating remaining tasks.")
+                    break
         finally:
             # Terminate the pool forcefully to ensure cleanup of any zombie workers.
             pool.terminate()

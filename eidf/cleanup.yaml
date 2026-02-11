@@ -1,0 +1,35 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: rhythmform-cleanup-synth
+  labels:
+    kueue.x-k8s.io/queue-name: eidf235ns-user-queue
+spec:
+  backoffLimit: 0
+  completions: 1
+  template:
+    metadata:
+      name: cleanupsynth-pod
+    spec:
+      restartPolicy: Never
+      imagePullSecrets:
+        - name: eidfreg
+      containers:
+      - name: cleanup
+        image: registry.eidf.ac.uk/eidf235/rhythmform-cpu:latest
+        args: ["/app/scripts/clean_up_synth.sh", "/app/training_data", "/app/scripts", "12"]
+        volumeMounts:
+          - mountPath: /app/training_data
+            name: training-data-volume
+        resources:
+          requests:
+            cpu: 16
+            memory: "64Gi"
+          limits:
+            cpu: 16
+            memory: "128Gi"
+            nvidia.com/gpu: 0
+      volumes:
+        - name: training-data-volume
+          persistentVolumeClaim:
+            claimName: training-data

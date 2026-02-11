@@ -407,8 +407,8 @@ if __name__ == '__main__':
     parser.add_argument(
         "--task-timeout",
         type=int,
-        default=10,
-        help="Timeout in seconds for each individual score generation task (default: 60)"
+        default=2,
+        help="Timeout in seconds for each individual score generation task (default: 2)"
     )
     args = parser.parse_args()
     
@@ -419,7 +419,7 @@ if __name__ == '__main__':
     print(f"Generating {num_scores_to_generate} scores into {XML_OUTPUT_DIR} "
           f"using {num_cores_to_use} cores, starting at index {start_index}")
     
-    GLOBAL_TIMEOUT = num_scores_to_generate * task_timeout * 2  # A very generous global timeout
+    GLOBAL_TIMEOUT = int(num_scores_to_generate / num_cores_to_use * task_timeout * 1.25)
 
     # --- Load Markov Model if specified ---
     markov_model_path = None

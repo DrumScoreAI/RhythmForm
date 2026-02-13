@@ -416,7 +416,7 @@ if __name__ == '__main__':
     num_scores_to_generate = args.num_scores
     num_cores_to_use = args.cores
     start_index = args.start_index
-    existing_indices = [int(path.split("_")[2]) for path in glob.glob(str(XML_OUTPUT_DIR / "synthetic_score_*[0-9].xml"))]
+    existing_indices = [int(p.split("/")[-1].split("_")[2]) for p in glob.glob(str(XML_OUTPUT_DIR / "synthetic_score_*[0-9].xml"))]
     if existing_indices and start_index < max(existing_indices):
         start_index = max(existing_indices) + 1
         print(f"Existing scores detected. Starting at index {start_index} to avoid overwriting.")

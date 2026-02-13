@@ -341,13 +341,14 @@ def generate_markov_score(output_path, complexity=0, title="Synthetic Score",
         score = None
         converter = None
         gc.collect()
-    else:
-        # print(f"Failed to generate Markov score at: {output_path}", flush=True)
-        score = None
-        converter = None
-        gc.collect()
-
-    return True
+        return True
+    
+    # Fallback if score generation failed
+    print(f"  -> Warning: Failed to generate from Markov model. Falling back to random for {output_path}", file=sys.stderr)
+    score = None
+    converter = None
+    gc.collect()
+    return generate_drum_score(output_path=output_path, complexity=complexity, use_repeats=False)
 
 
 if __name__ == '__main__':

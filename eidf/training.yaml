@@ -52,7 +52,7 @@ spec:
           "--batch-size", "512",
           "--learning-rate", "0.0001",
           "--num-epochs", "100",
-          "--num-workers", "60",
+          "--num-workers", "16",
           "--validation-split", "0.1",
           "--log-stdout"
         ]
@@ -63,10 +63,10 @@ spec:
             name: dshm
         resources:
           requests:
-            cpu: 64
+            cpu: 32
             memory: "256Gi"
           limits:
-            cpu: 64
+            cpu: 32
             memory: "512Gi"
             nvidia.com/gpu: 4
       nodeSelector:

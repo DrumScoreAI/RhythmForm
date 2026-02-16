@@ -13,6 +13,7 @@ import argparse
 import logging
 import sys
 from datetime import datetime
+from functools import partial
 
 # Import all our custom modules
 from . import config
@@ -201,12 +202,15 @@ def main():
 
     # 3. Update the DataLoader to use the correct dataset and sampler
     logging.info(f"Creating DataLoaders with {args.num_workers} workers")
+
+    collate_with_pad = partial(collate_fn, pad_token_id=pad_token_id)
+
     train_loader = DataLoader(
         train_dataset, # Use the training dataset
         batch_size=args.batch_size,
         sampler=train_sampler, # The sampler will select from the correct indices
         num_workers=args.num_workers,
-        collate_fn=lambda b: collate_fn(b, pad_token_id),
+        collate_fn=collate_with_pad,
         pin_memory=True,
         persistent_workers=(args.num_workers > 0)
     )
@@ -215,7 +219,7 @@ def main():
         batch_size=args.batch_size, 
         sampler=validation_sampler, # The sampler will select from the correct indices
         num_workers=args.num_workers,
-        collate_fn=lambda b: collate_fn(b, pad_token_id),
+        collate_fn=collate_with_pad,
         pin_memory=True,
         persistent_workers=(args.num_workers > 0)
     )

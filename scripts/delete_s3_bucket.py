@@ -26,12 +26,12 @@ def delete_archives_from_s3(bucket_name, dry_run=False, assume_yes=False):
         logging.info(f"Scanning bucket '{bucket_name}' for archives...")
         
         # List all objects in the bucket
-        all_objects = s3.ls(bucket_name, detail=False)
+        all_objects = s3.ls(bucket_name, detail=True)
         
         # Filter for .zip and .tar.gz files
         archives_to_delete = [
             obj for obj in all_objects 
-            if obj.endswith('.zip') or obj.endswith('.tar.gz')
+            if obj['name'].endswith('.zip') or obj['name'].endswith('.tar.gz')
         ]
 
         if not archives_to_delete:
@@ -40,7 +40,8 @@ def delete_archives_from_s3(bucket_name, dry_run=False, assume_yes=False):
 
         logging.info(f"Found {len(archives_to_delete)} archives to delete:")
         for archive in archives_to_delete:
-            print(f" - {os.path.basename(archive)}")
+            size_mb = archive['size'] / (1024 * 1024)
+            print(f" - {archive['name']} ({size_mb:.2f} MB)")
 
         if dry_run:
             logging.info("Dry run complete. No files were deleted.")
@@ -55,10 +56,10 @@ def delete_archives_from_s3(bucket_name, dry_run=False, assume_yes=False):
         logging.info("Deleting archives...")
         for archive in archives_to_delete:
             try:
-                s3.rm(archive)
-                logging.info(f"Deleted {os.path.basename(archive)}")
+                s3.rm(archive['name'])
+                logging.info(f"Deleted {os.path.basename(archive['name'])}")
             except Exception as e:
-                logging.error(f"Failed to delete {os.path.basename(archive)}: {e}")
+                logging.error(f"Failed to delete {os.path.basename(archive['name'])}: {e}")
         
         logging.info("Deletion process completed.")
 

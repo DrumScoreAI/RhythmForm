@@ -386,7 +386,9 @@ def main():
             model.eval()
             with torch.no_grad():
                 logging.info("--- Performing Qualitative Validation ---")
-                predicted_smt = beam_search_predict(model, fixed_val_image, tokenizer, beam_width=3, max_len=1024)
+                
+                model_to_predict_with = model.module if isinstance(model, nn.DataParallel) else model
+                predicted_smt = beam_search_predict(model_to_predict_with, fixed_val_image, tokenizer, beam_width=3, max_len=1024)
                 
                 # Calculate Token Accuracy
                 gt_tokens = ground_truth_smt.split()

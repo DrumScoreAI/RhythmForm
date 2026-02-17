@@ -83,6 +83,8 @@ def parse_args():
     parser.add_argument('--log-stdout', action='store_true', help='Log to stdout as well')
     parser.add_argument('--resume-from', type=str, default=None, help='Path to a checkpoint file to resume training from.')
     parser.add_argument('--seed', type=int, default=42, help='Random seed for reproducibility.')
+    parser.add_argument('--teacher-forcing-ratio', type=float, default=1.0, help='Initial teacher forcing ratio.')
+    parser.add_argument('--teacher-forcing-decay', type=float, default=0.95, help='Teacher forcing decay factor per epoch.')
     return parser.parse_args()
 
 def main():
@@ -305,6 +307,8 @@ def main():
     # --- 3. Training Loop ---
     logging.info("--- Starting Training ---")
     
+    teacher_forcing_ratio = args.teacher_forcing_ratio
+
     import time
     for epoch in range(start_epoch, args.num_epochs):
         # Rebuild train_transform with new random augmentations for this epoch
@@ -315,36 +319,64 @@ def main():
         active_set = set(active_aug_names)
         inactive_set = set(all_aug_names) - active_set
         logging.info(f"Epoch {epoch+1}: Active augmentations: {sorted(active_set)} | Inactive: {sorted(inactive_set)}")
+        
         # --- Training Phase ---
         model.train()
         train_loss = 0.0
         # Tqdm writes to stderr by default. Changing to stdout.
         train_pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{args.num_epochs} [Train]", file=sys.stdout)
         
-
         for batch in train_pbar:
-            # Usual training code
             images = batch['image'].to(config.DEVICE)
             targets = batch['target'].to(config.DEVICE)
             
-            # Decoder input is all but the last token (<eos>)
             # Ground truth is all but the first token (<sos>)
-            decoder_input = targets[:, :-1]
             ground_truth = targets[:, 1:]
             
-            # Forward pass with Mixed Precision
+            # Start with the <sos> token
+            decoder_input_step = targets[:, 0].unsqueeze(1)
+            
+            loss = 0
+            
+            # Use teacher forcing or model's own predictions based on the ratio
+            use_teacher_forcing = torch.rand(1).item() < teacher_forcing_ratio
+            
             optimizer.zero_grad()
             
             with torch.amp.autocast('cuda'):
-                output = model(images, decoder_input)
-                
-                # Reshape for loss calculation
-                # Output: (batch, seq_len, vocab_size) -> (batch * seq_len, vocab_size)
-                # Ground Truth: (batch, seq_len) -> (batch * seq_len)
-                loss = criterion(output.reshape(-1, config.VOCAB_SIZE), ground_truth.reshape(-1))
+                if use_teacher_forcing:
+                    # --- Teacher Forcing: Feed the entire ground truth sequence ---
+                    decoder_input = targets[:, :-1]
+                    output = model(images, decoder_input)
+                    loss = criterion(output.reshape(-1, config.VOCAB_SIZE), ground_truth.reshape(-1))
+                else:
+                    # --- Scheduled Sampling: Feed one token at a time ---
+                    batch_loss = 0
+                    # The model inside DataParallel
+                    model_instance = model.module if isinstance(model, nn.DataParallel) else model
+                    
+                    # Encode the image once
+                    encoder_output = model_instance.encoder(images)
+                    
+                    for t in range(ground_truth.size(1)):
+                        output_step = model_instance.decoder(decoder_input_step, encoder_output)
+                        
+                        # Calculate loss for this step
+                        loss_step = criterion(output_step.squeeze(1), ground_truth[:, t])
+                        batch_loss += loss_step
+                        
+                        # Get the prediction for the next step
+                        _, topi = output_step.topk(1)
+                        
+                        # Detach from history to prevent backpropagating through the whole sequence
+                        decoder_input_step = topi.detach()
+                        
+                    loss = batch_loss / ground_truth.size(1) # Average loss over sequence
             
             # Backward pass and optimization with Scaler
             scaler.scale(loss).backward()
+            # Gradient clipping
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             scaler.step(optimizer)
             scaler.update()
             
@@ -366,13 +398,18 @@ def main():
                 decoder_input = targets[:, :-1]
                 ground_truth = targets[:, 1:]
                 
-                output = model(images, decoder_input)
-                loss = criterion(output.reshape(-1, config.VOCAB_SIZE), ground_truth.reshape(-1))
+                with torch.amp.autocast('cuda'):
+                    output = model(images, decoder_input)
+                    loss = criterion(output.reshape(-1, config.VOCAB_SIZE), ground_truth.reshape(-1))
                 val_loss += loss.item()
 
         avg_val_loss = val_loss / len(val_loader)
         
         logging.info(f"Epoch {epoch+1}/{args.num_epochs} -> Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
+
+        # Decay teacher forcing ratio
+        teacher_forcing_ratio *= args.teacher_forcing_decay
+        logging.info(f"Teacher forcing ratio for next epoch: {teacher_forcing_ratio:.4f}")
 
         # Step the scheduler
         scheduler.step(avg_val_loss)
@@ -387,7 +424,13 @@ def main():
             with torch.no_grad():
                 logging.info("--- Performing Qualitative Validation ---")
                 
+                # ALWAYS use the underlying model for prediction, not the DataParallel wrapper
                 model_to_predict_with = model.module if isinstance(model, nn.DataParallel) else model
+                
+                # Ensure the single image is a batch of 1
+                if fixed_val_image.dim() == 3:
+                    fixed_val_image = fixed_val_image.unsqueeze(0)
+
                 predicted_smt = beam_search_predict(model_to_predict_with, fixed_val_image, tokenizer, beam_width=3, max_len=1024)
                 
                 # Calculate Token Accuracy

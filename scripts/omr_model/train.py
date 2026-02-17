@@ -428,15 +428,9 @@ def main():
                 # ALWAYS use the underlying model for prediction, not the DataParallel wrapper
                 model_to_predict_with = model.module if isinstance(model, nn.DataParallel) else model
                 
-                # Create a temporary prediction image for the model.
-                # The model expects a 4D tensor (B, C, H, W).
-                # fixed_val_image is already (C, H, W), so we just need to add a batch dimension.
-                prediction_image = fixed_val_image.unsqueeze(0) # -> (1, C, H, W)
-                
-                # The image is already on the correct device from when it was loaded.
-                # No need to move it again.
-
-                predicted_smt = beam_search_predict(model_to_predict_with, prediction_image, tokenizer, beam_width=3, max_len=1024)
+                # The beam_search_predict function expects an unbatched image tensor (C, H, W),
+                # as it adds the batch dimension itself. We pass `fixed_val_image` directly.
+                predicted_smt = beam_search_predict(model_to_predict_with, fixed_val_image, tokenizer, beam_width=3, max_len=1024)
                 
                 # Calculate Token Accuracy
                 gt_tokens = ground_truth_smt.split()

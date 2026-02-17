@@ -427,11 +427,13 @@ def main():
                 # ALWAYS use the underlying model for prediction, not the DataParallel wrapper
                 model_to_predict_with = model.module if isinstance(model, nn.DataParallel) else model
                 
-                # Ensure the single image is a batch of 1, and only if it's not already batched
-                if fixed_val_image.dim() == 3:
-                    fixed_val_image = fixed_val_image.unsqueeze(0)
+                # Create a temporary prediction image, adding a batch dimension if needed,
+                # without modifying the original fixed_val_image.
+                prediction_image = fixed_val_image.clone()
+                if prediction_image.dim() == 3:
+                    prediction_image = prediction_image.unsqueeze(0)
 
-                predicted_smt = beam_search_predict(model_to_predict_with, fixed_val_image, tokenizer, beam_width=3, max_len=1024)
+                predicted_smt = beam_search_predict(model_to_predict_with, prediction_image, tokenizer, beam_width=3, max_len=1024)
                 
                 # Calculate Token Accuracy
                 gt_tokens = ground_truth_smt.split()

@@ -195,7 +195,8 @@ def main():
     if val_indices:
         # Get the dictionary for the first validation sample
         val_sample = val_dataset[val_indices[0]] # Use the val_dataset with non-augmenting transform
-        # Extract the image tensor and move it to the correct device
+        # Extract the image tensor and move it to the correct device.
+        # The ToTensor transform already creates a (C, H, W) tensor.
         fixed_val_image = val_sample['image'].to(config.DEVICE)
         # Decode the ground truth SMT string for comparison
         ground_truth_smt = tokenizer.decode(val_sample['encoded_smt'])
@@ -427,14 +428,13 @@ def main():
                 # ALWAYS use the underlying model for prediction, not the DataParallel wrapper
                 model_to_predict_with = model.module if isinstance(model, nn.DataParallel) else model
                 
-                # Create a temporary prediction image, adding a batch dimension if needed,
-                # without modifying the original fixed_val_image.
-                prediction_image = fixed_val_image.clone()
-                if prediction_image.dim() == 3: # Should be (C, H, W)
-                    prediction_image = prediction_image.unsqueeze(0) # Add batch dimension -> (B, C, H, W)
+                # Create a temporary prediction image for the model.
+                # The model expects a 4D tensor (B, C, H, W).
+                # fixed_val_image is already (C, H, W), so we just need to add a batch dimension.
+                prediction_image = fixed_val_image.unsqueeze(0) # -> (1, C, H, W)
                 
-                # Ensure image is on the correct device
-                prediction_image = prediction_image.to(config.DEVICE)
+                # The image is already on the correct device from when it was loaded.
+                # No need to move it again.
 
                 predicted_smt = beam_search_predict(model_to_predict_with, prediction_image, tokenizer, beam_width=3, max_len=1024)
                 

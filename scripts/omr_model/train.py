@@ -357,7 +357,7 @@ def main():
                     model_instance = model.module if isinstance(model, nn.DataParallel) else model
                     
                     # Encode the image once
-                    encoder_output = model_instance.encoder(images)
+                    encoder_output = model_instance.encode(images)
                     
                     for t in range(ground_truth.size(1)):
                         output_step = model_instance.decoder(decoder_input_step, encoder_output)

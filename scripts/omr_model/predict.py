@@ -109,7 +109,11 @@ def beam_search_predict(model, image_tensor, tokenizer, beam_width=5, max_len=50
     device = config.DEVICE
 
     # --- Encoder Step ---
-    src_image = image_tensor.unsqueeze(0).to(device)
+    # Ensure the image tensor is 4D (B, C, H, W)
+    if image_tensor.dim() == 3:
+        image_tensor = image_tensor.unsqueeze(0) # Add batch dimension
+    src_image = image_tensor.to(device)
+
     with torch.no_grad(), torch.amp.autocast('cuda'):
         # The memory is calculated once and expanded to match the beam width.
         memory = model.encode(src_image)  # Shape: [1, H*W, d_model]

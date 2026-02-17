@@ -430,8 +430,11 @@ def main():
                 # Create a temporary prediction image, adding a batch dimension if needed,
                 # without modifying the original fixed_val_image.
                 prediction_image = fixed_val_image.clone()
-                if prediction_image.dim() == 3:
-                    prediction_image = prediction_image.unsqueeze(0)
+                if prediction_image.dim() == 3: # Should be (C, H, W)
+                    prediction_image = prediction_image.unsqueeze(0) # Add batch dimension -> (B, C, H, W)
+                
+                # Ensure image is on the correct device
+                prediction_image = prediction_image.to(config.DEVICE)
 
                 predicted_smt = beam_search_predict(model_to_predict_with, prediction_image, tokenizer, beam_width=3, max_len=1024)
                 

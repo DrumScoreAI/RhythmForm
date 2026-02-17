@@ -427,7 +427,7 @@ def main():
                 # ALWAYS use the underlying model for prediction, not the DataParallel wrapper
                 model_to_predict_with = model.module if isinstance(model, nn.DataParallel) else model
                 
-                # Ensure the single image is a batch of 1
+                # Ensure the single image is a batch of 1, and only if it's not already batched
                 if fixed_val_image.dim() == 3:
                     fixed_val_image = fixed_val_image.unsqueeze(0)
 

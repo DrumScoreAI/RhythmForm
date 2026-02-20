@@ -145,7 +145,8 @@ def main():
     def build_train_transform():
         # Randomly select 2 augmentations for this epoch
         import random
-        selected = random.sample(aug_transforms, 2)
+        # NOTE: Augmentations are temporarily disabled to diagnose training instability
+        selected = random.sample(aug_transforms, 0)
         nonlocal active_aug_names, active_aug_transforms
         active_aug_names = [name for name, _ in selected]
         active_aug_transforms = [t for _, t in selected]

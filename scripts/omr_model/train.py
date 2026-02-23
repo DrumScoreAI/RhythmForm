@@ -361,7 +361,7 @@ def main():
                     encoder_output = model_instance.encode(images)
                     
                     for t in range(ground_truth.size(1)):
-                        output_step = model_instance.decoder(decoder_input_step, encoder_output)
+                        output_step = model_instance.decode(decoder_input_step, encoder_output)
                         
                         # Calculate loss for this step
                         loss_step = criterion(output_step.squeeze(1), ground_truth[:, t])

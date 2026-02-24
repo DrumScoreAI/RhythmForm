@@ -371,7 +371,8 @@ def main():
                         _, topi = output_step.topk(1)
                         
                         # Detach from history to prevent backpropagating through the whole sequence
-                        decoder_input_step = topi.detach()
+                        # topi has shape (batch, 1, 1), we need (batch, 1) to match decoder input shape
+                        decoder_input_step = topi.squeeze(-1).detach()
                         
                     loss = batch_loss / ground_truth.size(1) # Average loss over sequence
             

@@ -72,6 +72,8 @@ class ScoreDataset(Dataset):
             image_path_str = image_path_str[len('fine_tuning/'):]  # Remove leading 'fine_tuning/'
         if not os.path.isabs(image_path_str):
             image_path = TRAINING_DATA_DIR / image_path_str
+        else:
+            image_path = Path(image_path_str)
         
         try:
             image = Image.open(image_path).convert('L') # Convert to grayscale

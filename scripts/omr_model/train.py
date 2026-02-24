@@ -352,7 +352,7 @@ def main():
                     output = model(images, decoder_input)
                     loss = criterion(output.reshape(-1, config.VOCAB_SIZE), ground_truth.reshape(-1))
                 else:
-                    # --- Scheduled Sampling: Feed one token at a time ---
+                    # --- Scheduled Sampling: Feed tokens sequentially ---
                     batch_loss = 0
                     # The model inside DataParallel
                     model_instance = model.module if isinstance(model, nn.DataParallel) else model
@@ -360,8 +360,18 @@ def main():
                     # Encode the image once
                     encoder_output = model_instance.encode(images)
                     
+                    # Initialize decoder input with <sos>
+                    # current_input_sequence shape: (Batch, 1)
+                    current_input_sequence = decoder_input_step 
+                    
                     for t in range(ground_truth.size(1)):
-                        output_step = model_instance.decode(decoder_input_step, encoder_output)
+                        # Model predicts the next token based on the full sequence so far
+                        # output_full shape: (Batch, Seq_Len, Vocab)
+                        output_full = model_instance.decode(current_input_sequence, encoder_output)
+                        
+                        # We only care about the last step's output for prediction
+                        # output_step shape: (Batch, 1, Vocab)
+                        output_step = output_full[:, -1:, :]
                         
                         # Calculate loss for this step
                         loss_step = criterion(output_step.squeeze(1), ground_truth[:, t])
@@ -370,9 +380,10 @@ def main():
                         # Get the prediction for the next step
                         _, topi = output_step.topk(1)
                         
-                        # Detach from history to prevent backpropagating through the whole sequence
-                        # topi has shape (batch, 1, 1), we need (batch, 1) to match decoder input shape
-                        decoder_input_step = topi.squeeze(-1).detach()
+                        # Detach and append to sequence for next step
+                        # topi shape: (Batch, 1, 1), squeeze for cat
+                        next_token = topi.squeeze(-1).detach() # (Batch, 1)
+                        current_input_sequence = torch.cat([current_input_sequence, next_token], dim=1)
                         
                     loss = batch_loss / ground_truth.size(1) # Average loss over sequence
             

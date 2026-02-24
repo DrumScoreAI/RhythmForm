@@ -64,7 +64,7 @@ class ScoreDataset(Dataset):
         image_path_str = item['image_path']
         if image_path_str.startswith('fine_tuning/'):
             image_path_str = image_path_str[len('fine_tuning/'):]  # Remove leading 'fine_tuning/'
-        image_path = self.root_dir / image_path_str
+        image_path = config.PROJECT_ROOT / image_path_str
         
         try:
             image = Image.open(image_path).convert('L') # Convert to grayscale

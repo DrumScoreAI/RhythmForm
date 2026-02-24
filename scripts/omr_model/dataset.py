@@ -9,9 +9,15 @@ from . import config
 # --- Path Configuration ---
 # Use the RHYTHMFORMHOME env var for the project root, with a fallback.
 # This ensures the path is correct regardless of where the script is run from.
-PROJECT_ROOT = config.PROJECT_ROOT
-DATASET_JSON_PATH = config.DATASET_JSON_PATH
-
+PROJECT_ROOT = Path(os.environ.get('RHYTHMFORMHOME', config.PROJECT_ROOT))
+if config.TRAINING_DATA_DIR:
+    TRAINING_DATA_DIR = config.TRAINING_DATA_DIR
+else:
+    TRAINING_DATA_DIR = PROJECT_ROOT / 'training_data'
+if config.DATASET_JSON_PATH:
+    DATASET_JSON_PATH = config.DATASET_JSON_PATH
+else:
+    DATASET_JSON_PATH = TRAINING_DATA_DIR / 'dataset.json'
 
 class ScoreDataset(Dataset):
     """
@@ -64,7 +70,8 @@ class ScoreDataset(Dataset):
         image_path_str = item['image_path']
         if image_path_str.startswith('fine_tuning/'):
             image_path_str = image_path_str[len('fine_tuning/'):]  # Remove leading 'fine_tuning/'
-        image_path = config.PROJECT_ROOT / image_path_str
+        if not os.path.isabs(image_path_str):
+            image_path = TRAINING_DATA_DIR / image_path_str
         
         try:
             image = Image.open(image_path).convert('L') # Convert to grayscale

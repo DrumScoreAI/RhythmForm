@@ -61,11 +61,21 @@ def collate_fn(batch, pad_token_id):
     
     # Encode and pad the SMT strings
     encoded_strings = [item['encoded_smt'] for item in batch]
-    max_len = max(len(s) for s in encoded_strings)
+    # Cap max length to prevent OOM
+    MAX_SEQ_LEN = 2048
+    max_len = min(max(len(s) for s in encoded_strings), MAX_SEQ_LEN)
     
     padded_strings = []
     for s in encoded_strings:
-        padded = s + [pad_token_id] * (max_len - len(s))
+        if len(s) > MAX_SEQ_LEN:
+             # Truncate if too long (though ideally we should filter these out)
+             s_trunc = s[:MAX_SEQ_LEN]
+             # Ensure last token is end_token if originally present? 
+             # For OMR training, simple truncation is better than OOM, 
+             # but we'll just log/truncate.
+             padded = s_trunc
+        else:
+             padded = s + [pad_token_id] * (max_len - len(s))
         padded_strings.append(torch.tensor(padded, dtype=torch.long))
         
     targets = torch.stack(padded_strings)

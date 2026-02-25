@@ -49,7 +49,7 @@ spec:
           "python",
           "-m",
           "scripts.omr_model.train",
-          "--batch-size", "128",
+          "--batch-size", "32",
           "--learning-rate", "0.000001",
           "--num-epochs", "100",
           "--num-workers", "60",
@@ -58,7 +58,7 @@ spec:
         ]
         volumeMounts:
           - mountPath: /app/training_data
-            name: dshm
+            name: training-data-volume
           - mountPath: /dev/shm
             name: dshm
         resources:

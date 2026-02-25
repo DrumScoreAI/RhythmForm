@@ -118,6 +118,24 @@ def main():
     # --- 1. Setup ---
     logging.info(f"Using device: {config.DEVICE}")
 
+    # Configure PyTorch memory management
+    if torch.cuda.is_available():
+        # Set memory fraction to ensure usage stays within limits
+        # We set it slightly below 1.0 to leave room for CUDA context overhead
+        try:
+            # Using 1.0 ensures we don't artificially limit memory if needed,
+            # but setting a fraction can help in multi-process scenarios.
+            # Here we set it to 1.0 (or slightly less like 0.95) to be safe.
+            # Given the tight memory usage, 1.0 is safer to avoid premature OOM.
+            torch.cuda.set_per_process_memory_fraction(1.0)
+            logging.info("Set per-process memory fraction to 1.0")
+        except RuntimeError as e:
+            logging.warning(f"Could not set memory fraction: {e}")
+
+        # Log current memory configuration
+        alloc_conf = os.environ.get('PYTORCH_CUDA_ALLOC_CONF', 'Not Set')
+        logging.info(f"PYTORCH_CUDA_ALLOC_CONF: {alloc_conf}")
+
     # Load tokenizer
     tokenizer = SmtTokenizer()
     tokenizer.load(config.TOKENIZER_VOCAB_PATH)

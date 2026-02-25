@@ -57,7 +57,7 @@ spec:
             nvidia.com/gpu: 1
         env:
           # Testing the new env var name
-          - name: PYTORCH_ALLOC_CONF
+          - name: PYTORCH_CUDA_ALLOC_CONF
             value: "expandable_segments:True"
       nodeSelector:
         nvidia.com/gpu.product: NVIDIA-A100-SXM4-40GB-MIG-1g.5gb

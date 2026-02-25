@@ -15,7 +15,7 @@ ENV MUSESCORE_PATH=/app/musescore-extracted
 ENV PATH="/app:/home/appuser/.local/bin:${PATH}"
 
 # --- PyTorch/CUDA Optimizations for MIG ---
-ENV PYTORCH_ALLOC_CONF=expandable_segments:True
+ENV PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 ENV NCCL_P2P_DISABLE=1
 ENV NCCL_IB_DISABLE=1
 

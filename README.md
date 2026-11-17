@@ -174,7 +174,7 @@ RhythmForm/
 
 ## License
 
-Apache 2.0 - see [LICENSE](LICENSE) for details.
+Creative Commons Attribution 4.0 International - see [LICENSE](LICENSE) for details.
 
 ## Contributing
 
